@@ -14,7 +14,7 @@
 
 <p align="center">
   <strong>以个人知识库为中心的 AI 备考平台</strong><br>
-  46 API · 18 Controller · 26 Service · 14 张表 · 15 Android Fragment · 5 SSE 流 · 自研 DAG 引擎 · AI 出题 + SymPy 验证 · Web 管理端
+  49 API · 18 Controller · 26 Service · 14 张表 · 15 Android Fragment · 5 SSE 流 · 自研 DAG 引擎 · 多模态拍照解题 · 知识库全格式(OCR/PDF/DOCX) · Web 管理端
 </p>
 
 <p align="center">
@@ -471,18 +471,19 @@ IRAgent/
 
 | 模块 | 进度 | 状态 |
 |------|:---:|:---:|
-| 后端 46 API + 18 Controller + 26 Service | 100% | ✅ |
+| 后端 49 API + 18 Controller + 26 Service | 100% | ✅ |
 | 自研 DAG 引擎 + 虚拟线程并发调度 | 100% | ✅ |
+| 多模态拍照批改（图片OCR + DAG 错题诊断） | 100% | ✅ |
 | RAG Pipeline + RRF 三路融合 + 三级缓存 | 100% | ✅ |
 | AI 出题引擎 + SymPy 符号验证管线 | 100% | ✅ |
+| 知识库全格式（图片OCR/PDF/DOCX/MD）+ AI 自动分类 + 编辑 | 100% | ✅ |
 | 多租户 Semaphore 隔离 + API Key 热刷新 | 100% | ✅ |
 | RocketMQ 异步上报 + TraceContext 传播 | 100% | ✅ |
 | SkyWalking 深度定制（FTT/MQ/Profile） | 100% | ✅ |
 | 14 张表 Schema | 100% | ✅ |
-| Android 5 Tab + 刷题模块（真题库/每日一练/智能组卷） | 100% | ✅ |
+| Android 5 Tab + 刷题模块（拍照批改/真题库/每日一练/智能组卷） | 100% | ✅ |
 | Web 交互原型（12 Screen 学生端） | 100% | ✅ |
 | Web 管理端原型（5 页面：概览/用户/审核/Key） | 100% | ✅ |
-| 架构文档（8 份） | 100% | ✅ |
 | Docker 全量一键部署（7 中间件） | 100% | ✅ |
 | 压测报告（JMH benchmark） | 80% | 📝 脚本已验证，正式报告待归档 |
 
