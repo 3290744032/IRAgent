@@ -9,7 +9,6 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
-import androidx.navigation.ui.NavigationUI;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.suiyuan.iragent_app.R;
@@ -47,7 +46,19 @@ public class MainActivity extends AppCompatActivity {
 
         BottomNavigationView bottomNav = findViewById(R.id.bottom_nav);
         if (navController != null) {
-            NavigationUI.setupWithNavController(bottomNav, navController);
+            // 自定义 Tab 切换：点击 Tab 时回到该 Tab 的根 Fragment，而不是留在子页面
+            bottomNav.setOnItemSelectedListener(item -> {
+                int itemId = item.getItemId();
+                // 如果当前就在这个 Tab 的根页面，不做任何事
+                if (navController.getCurrentDestination() != null
+                        && navController.getCurrentDestination().getId() == itemId) {
+                    return true;
+                }
+                // popBackStack 回到该 Tab 的根，再导航过去
+                navController.popBackStack(itemId, false);
+                navController.navigate(itemId);
+                return true;
+            });
         }
 
         if (getSupportActionBar() != null) {
