@@ -197,6 +197,29 @@ public class PracticeHubFragment extends Fragment {
             byte[] bytes = new byte[is.available()];
             is.read(bytes);
             is.close();
+
+            // 切换到批改视图，照片置顶显示
+            layoutHub.setVisibility(View.GONE);
+            layoutGrading.setVisibility(View.VISIBLE);
+            layoutGradingInput.setVisibility(View.GONE);
+            layoutGradingProgress.setVisibility(View.VISIBLE);
+            layoutGradingReport.setVisibility(View.GONE);
+
+            // 照片显示
+            android.widget.ImageView iv = view.findViewById(R.id.iv_grading_image);
+            if (iv == null) {
+                iv = new android.widget.ImageView(requireContext());
+                iv.setId(View.generateViewId());
+                iv.setAdjustViewBounds(true);
+                iv.setMaxHeight((int)(300 * getResources().getDisplayMetrics().density));
+                iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+                iv.setPadding(0, 0, 0, 16);
+                ((LinearLayout)layoutGradingProgress).addView(iv, 0);
+            }
+            iv.setImageBitmap(android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.length));
+            iv.setVisibility(View.VISIBLE);
+
+            tvGradingStatus.setText("豆包视觉批改中...");
             viewModel.submitImageGrading(bytes, spSubject.getSelectedItem().toString(),
                     Integer.parseInt(etMaxScore.getText().toString()));
         } catch (Exception e) {
