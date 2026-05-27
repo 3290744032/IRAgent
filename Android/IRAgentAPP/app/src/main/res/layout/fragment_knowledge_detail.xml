@@ -145,8 +145,8 @@
                         android:layout_height="36dp"
                         android:text="编辑"
                         android:textSize="12sp"
-                        android:textColor="@color/primary_color"
-                        android:background="@drawable/bg_btn_outline_primary" />
+                        android:textColor="@color/white"
+                        android:background="@drawable/bg_tag_chip" />
 
                     <Button
                         android:id="@+id/btn_ai_optimize"

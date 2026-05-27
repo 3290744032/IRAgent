@@ -591,8 +591,7 @@ public class KnowledgeListFragment extends Fragment {
                     TextView tagView = new TextView(holder.itemView.getContext());
                     tagView.setText(tag.trim());
                     tagView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
-                    tagView.setTextColor(holder.itemView.getContext().getResources()
-                            .getColor(R.color.primary_color, null));
+                    tagView.setTextColor(Color.WHITE);
                     tagView.setBackgroundResource(R.drawable.btn_quick_reply);
                     int p = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6,
                             holder.itemView.getContext().getResources().getDisplayMetrics());

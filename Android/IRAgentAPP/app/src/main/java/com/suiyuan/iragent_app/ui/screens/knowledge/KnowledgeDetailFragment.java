@@ -97,8 +97,12 @@ public class KnowledgeDetailFragment extends Fragment {
         });
 
         viewModel.getOptimizedContent().observe(getViewLifecycleOwner(), content -> {
-            if (content != null && isEditing) {
-                etContent.setText(content);
+            if (content != null) {
+                String escaped = escapeJsString(content);
+                wvContent.evaluateJavascript("renderMathContent('" + escaped + "')", null);
+                if (isEditing) {
+                    etContent.setText(content);
+                }
                 viewModel.getOptimizedContent().setValue(null);
             }
         });
@@ -252,8 +256,8 @@ public class KnowledgeDetailFragment extends Fragment {
                 tv.setText(tag.trim());
                 tv.setTextSize(12);
                 tv.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
-                tv.setTextColor(0xFF4F46E5);
-                tv.setBackgroundResource(R.drawable.bg_tag_chip_outline);
+                tv.setTextColor(Color.WHITE);
+                tv.setBackgroundResource(R.drawable.bg_tag_chip);
                 int p = (int) (getResources().getDisplayMetrics().density * 10);
                 tv.setPadding(p, (int)(p * 0.5f), p, (int)(p * 0.5f));
                 LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
