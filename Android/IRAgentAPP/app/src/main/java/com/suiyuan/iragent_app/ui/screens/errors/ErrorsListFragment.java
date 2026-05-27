@@ -52,6 +52,7 @@ public class ErrorsListFragment extends Fragment {
 
         rvErrors = view.findViewById(R.id.rv_errors);
         reviewBanner = view.findViewById(R.id.review_banner);
+        reviewBanner.setOnClickListener(v -> { applyReviewFilter(); });
 
         adapter = new ErrorCardAdapter(errorItem -> {
             Bundle args = new Bundle();
