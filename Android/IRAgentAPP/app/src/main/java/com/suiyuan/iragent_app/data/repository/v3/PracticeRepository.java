@@ -28,6 +28,81 @@ public class PracticeRepository {
         this.baseUrl = NetworkClientV3.getBaseUrl();
     }
 
+    public void submitImageGrading(byte[] imageBytes, String subjectType, int maxScore,
+                                   GradingCallback callback) {
+        okhttp3.MultipartBody.Builder builder = new okhttp3.MultipartBody.Builder()
+                .setType(okhttp3.MultipartBody.FORM)
+                .addFormDataPart("image", "grading.jpg",
+                        okhttp3.RequestBody.create(imageBytes, okhttp3.MediaType.parse("image/jpeg")))
+                .addFormDataPart("subject", subjectType)
+                .addFormDataPart("maxScore", String.valueOf(maxScore));
+
+        Request request = new Request.Builder()
+                .url(baseUrl + "grading/submit-image")
+                .header("Accept", "text/event-stream")
+                .header("token", NetworkClient.getToken())
+                .post(builder.build())
+                .build();
+
+        streamClient.newCall(request).enqueue(new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, IOException e) {
+                callback.onException(e);
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, Response response) throws IOException {
+                if (!response.isSuccessful()) {
+                    callback.onError(response.code(), response.message());
+                    response.close();
+                    return;
+                }
+
+                if (response.body() == null) {
+                    callback.onError(-1, "响应体为空");
+                    response.close();
+                    return;
+                }
+
+                try {
+                    java.io.InputStream is = response.body().byteStream();
+                    SseParser parser = new SseParser(is);
+                    parser.setV3Callback(new SseParser.V3Callback() {
+                        @Override
+                        public void onChunk(String content) {}
+
+                        @Override
+                        public void onNoteRefs(java.util.List<com.suiyuan.iragent_app.data.model.v3.NoteRef> noteRefs) {}
+
+                        @Override
+                        public void onStep(String step, String text, int current, int total) {
+                            callback.onStep(step, text, current, total);
+                        }
+
+                        @Override
+                        public void onComplete(GradingReport report) {
+                            callback.onComplete(report);
+                        }
+
+                        @Override
+                        public void onDone() {}
+
+                        @Override
+                        public void onError(String error) {
+                            callback.onError(-1, error);
+                        }
+                    });
+                    callback.onStart();
+                    parser.parse();
+                } catch (Exception e) {
+                    callback.onException(e);
+                } finally {
+                    response.close();
+                }
+            }
+        });
+    }
+
     public interface GradingCallback {
         void onStart();
         void onStep(String step, String text, int current, int total);

@@ -66,8 +66,9 @@ public class PracticeV2Repository {
         enqueue(apiService.submitQuestionFeedback(body), callback);
     }
 
-    public void getDailyPractice(String subject, int count, ResultCallback<DailyPracticeSession> callback) {
-        enqueue(apiService.getDailyPractice(subject, count), callback);
+    public void getDailyPractice(String subject, int count, String knowledgePoints,
+                                  ResultCallback<DailyPracticeSession> callback) {
+        enqueue(apiService.getDailyPractice(subject, count, knowledgePoints), callback);
     }
 
     public void submitDailyPractice(SubmitAnswerRequest body, ResultCallback<SubmitAnswerResult> callback) {

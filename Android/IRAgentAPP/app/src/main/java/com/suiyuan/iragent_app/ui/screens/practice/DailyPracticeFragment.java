@@ -103,7 +103,8 @@ public class DailyPracticeFragment extends Fragment {
         btnBackHub = view.findViewById(R.id.btn_back_hub);
 
         String subject = getArguments() != null ? getArguments().getString("subject", "") : "";
-        viewModel.loadPractice(subject, 5);
+        String knowledgePoints = getArguments() != null ? getArguments().getString("knowledge_points", "") : "";
+        viewModel.loadPractice(subject, 5, knowledgePoints.isEmpty() ? null : knowledgePoints);
 
         btnSubmitAll.setOnClickListener(v -> onSubmitAll());
 

@@ -76,6 +76,10 @@
             android:name="subject"
             app:argType="string"
             android:defaultValue="" />
+        <argument
+            android:name="knowledge_points"
+            app:argType="string"
+            android:defaultValue="" />
     </fragment>
 
     <fragment

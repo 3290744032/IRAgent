@@ -278,8 +278,15 @@ public class ErrorsDetailFragment extends Fragment {
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             btnPractice.setOnClickListener(vv -> {
                 dialog.dismiss();
+                Bundle args = new Bundle();
+                if (q.getText() != null) {
+                    args.putString("subject", "");
+                }
+                if (q.getTags() != null && !q.getTags().isEmpty()) {
+                    args.putString("knowledge_points", String.join(",", q.getTags()));
+                }
                 try {
-                    Navigation.findNavController(requireView()).navigate(R.id.nav_smart_paper);
+                    Navigation.findNavController(requireView()).navigate(R.id.nav_daily_practice, args);
                 } catch (Exception e) {
                     Toast.makeText(getContext(), "请先返回刷题页面", Toast.LENGTH_SHORT).show();
                 }

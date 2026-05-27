@@ -43,10 +43,14 @@ public class DailyPracticeViewModel extends AndroidViewModel {
     public Map<String, Uri> getPhotoUriMap() { return photoUriMap; }
 
     public void loadPractice(String subject, int count) {
+        loadPractice(subject, count, null);
+    }
+
+    public void loadPractice(String subject, int count, String knowledgePoints) {
         isLoading.postValue(true);
         answerMap.clear();
         photoUriMap.clear();
-        repository.getDailyPractice(subject, count,
+        repository.getDailyPractice(subject, count, knowledgePoints,
                 new PracticeV2Repository.ResultCallback<DailyPracticeSession>() {
                     @Override public void onSuccess(DailyPracticeSession data) { session.postValue(data); isLoading.postValue(false); }
                     @Override public void onError(int code, String message) { error.postValue(message); isLoading.postValue(false); }

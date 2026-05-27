@@ -78,7 +78,8 @@ public interface ApiServiceV3 {
     @GET("daily-practice")
     Call<ApiResponse<DailyPracticeSession>> getDailyPractice(
             @Query("subject") String subject,
-            @Query("count") int count);
+            @Query("count") int count,
+            @Query("knowledgePoints") String knowledgePoints);
 
     @POST("daily-practice/submit")
     Call<ApiResponse<SubmitAnswerResult>> submitDailyPractice(@Body SubmitAnswerRequest body);

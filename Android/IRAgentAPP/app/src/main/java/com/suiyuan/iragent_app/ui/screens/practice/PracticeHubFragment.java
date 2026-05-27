@@ -1,7 +1,9 @@
 package com.suiyuan.iragent_app.ui.screens.practice;
 
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,16 +16,26 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.suiyuan.iragent_app.R;
 import com.suiyuan.iragent_app.data.model.v3.GradedQuestion;
 import com.suiyuan.iragent_app.data.model.v3.GradingReport;
+
+import java.io.File;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class PracticeHubFragment extends Fragment {
 
@@ -100,13 +112,83 @@ public class PracticeHubFragment extends Fragment {
         layoutHub.setVisibility(View.VISIBLE);
     }
 
-    private final androidx.activity.result.ActivityResultLauncher<String> imagePickerLauncher =
-        registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.GetContent(), uri -> {
+    private Uri cameraPhotoUri;
+
+    private final ActivityResultLauncher<String> imagePickerLauncher =
+        registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
             if (uri != null) startImageGrading(uri);
         });
 
+    private final ActivityResultLauncher<Uri> cameraLauncher =
+        registerForActivityResult(new ActivityResultContracts.TakePicture(), success -> {
+            if (success && cameraPhotoUri != null) startImageGrading(cameraPhotoUri);
+            cameraPhotoUri = null;
+        });
+
     private void pickImageForGrading() {
-        imagePickerLauncher.launch("image/*");
+        BottomSheetDialog sheet = new BottomSheetDialog(requireContext());
+        LinearLayout layout = new LinearLayout(requireContext());
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(16, 24, 16, 32);
+
+        TextView title = new TextView(requireContext());
+        title.setText("选择图片来源");
+        title.setTextSize(16);
+        title.setTextColor(Color.parseColor("#1F2937"));
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, 0, 0, 16);
+        layout.addView(title);
+
+        Button btnCamera = new Button(requireContext());
+        btnCamera.setText("📷 拍照");
+        btnCamera.setTextSize(14);
+        btnCamera.setAllCaps(false);
+        btnCamera.setBackgroundResource(R.drawable.bg_quick_chip);
+        btnCamera.setTextColor(Color.parseColor("#1F2937"));
+        btnCamera.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        btnCamera.setPadding(16, 12, 16, 12);
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cp.setMargins(0, 0, 0, 8);
+        btnCamera.setLayoutParams(cp);
+        btnCamera.setOnClickListener(v -> {
+            sheet.dismiss();
+            try {
+                File photoFile = createTempImageFile();
+                cameraPhotoUri = FileProvider.getUriForFile(requireContext(),
+                        requireContext().getPackageName() + ".fileprovider", photoFile);
+                cameraLauncher.launch(cameraPhotoUri);
+            } catch (Exception e) {
+                Toast.makeText(getContext(), "无法启动相机", Toast.LENGTH_SHORT).show();
+            }
+        });
+        layout.addView(btnCamera);
+
+        Button btnGallery = new Button(requireContext());
+        btnGallery.setText("🖼 从相册选择");
+        btnGallery.setTextSize(14);
+        btnGallery.setAllCaps(false);
+        btnGallery.setBackgroundResource(R.drawable.bg_quick_chip);
+        btnGallery.setTextColor(Color.parseColor("#1F2937"));
+        btnGallery.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        btnGallery.setPadding(16, 12, 16, 12);
+        LinearLayout.LayoutParams gp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        btnGallery.setLayoutParams(gp);
+        btnGallery.setOnClickListener(v -> {
+            sheet.dismiss();
+            imagePickerLauncher.launch("image/*");
+        });
+        layout.addView(btnGallery);
+
+        sheet.setContentView(layout);
+        sheet.show();
+    }
+
+    private File createTempImageFile() throws IOException {
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+        File cacheDir = requireContext().getCacheDir();
+        return File.createTempFile("IMG_" + timeStamp + "_", ".jpg", cacheDir);
     }
 
     private void startImageGrading(android.net.Uri uri) {
