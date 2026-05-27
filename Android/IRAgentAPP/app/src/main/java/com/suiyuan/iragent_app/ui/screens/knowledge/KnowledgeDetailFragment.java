@@ -244,17 +244,18 @@ public class KnowledgeDetailFragment extends Fragment {
                     "text/html", "UTF-8", null);
         }
 
-        // Tags
+        // Tags — modern outline chips
         llDetailTags.removeAllViews();
         if (detail.getTags() != null && !detail.getTags().isEmpty()) {
             for (String tag : detail.getTags().split(",")) {
                 TextView tv = new TextView(requireContext());
                 tv.setText(tag.trim());
-                tv.setTextSize(13);
-                tv.setTextColor(getResources().getColor(R.color.primary_color, null));
-                tv.setBackgroundResource(R.drawable.bg_tag_chip);
+                tv.setTextSize(12);
+                tv.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
+                tv.setTextColor(0xFF4F46E5);
+                tv.setBackgroundResource(R.drawable.bg_tag_chip_outline);
                 int p = (int) (getResources().getDisplayMetrics().density * 10);
-                tv.setPadding(p, (int)(p * 0.6f), p, (int)(p * 0.6f));
+                tv.setPadding(p, (int)(p * 0.5f), p, (int)(p * 0.5f));
                 LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                 tp.setMargins(0, 0, (int) (getResources().getDisplayMetrics().density * 6), 4);
@@ -283,24 +284,24 @@ public class KnowledgeDetailFragment extends Fragment {
                 LinearLayout card = new LinearLayout(requireContext());
                 card.setOrientation(LinearLayout.VERTICAL);
                 card.setBackgroundResource(R.drawable.bg_card_white);
-                card.setPadding(14, 12, 14, 12);
+                card.setPadding(16, 14, 16, 14);
                 LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                 cp.setMargins(0, 0, 0, 8);
                 card.setLayoutParams(cp);
 
-                // Left accent bar via background
                 View accent = new View(requireContext());
-                accent.setLayoutParams(new LinearLayout.LayoutParams(3, ViewGroup.LayoutParams.MATCH_PARENT));
-                accent.setBackgroundColor(getResources().getColor(R.color.primary_color, null));
+                LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(3, ViewGroup.LayoutParams.MATCH_PARENT);
+                alp.setMargins(0, 0, 12, 0);
+                accent.setLayoutParams(alp);
+                accent.setBackgroundColor(0xFF6366F1);
                 card.addView(accent);
 
                 TextView tv = new TextView(requireContext());
                 tv.setText(q.getText());
                 tv.setTextSize(14);
-                tv.setTextColor(getResources().getColor(R.color.on_surface, null));
-                tv.setLineSpacing(0f, 1.3f);
-                tv.setPadding(12, 0, 0, 0);
+                tv.setTextColor(0xFF1F2937);
+                tv.setLineSpacing(6f, 1f);
                 LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
                         0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
                 tv.setLayoutParams(tp);
@@ -315,25 +316,26 @@ public class KnowledgeDetailFragment extends Fragment {
         LinearLayout row = new LinearLayout(requireContext());
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        row.setPadding(12, 10, 12, 10);
+        row.setPadding(14, 12, 14, 12);
         row.setBackgroundResource(R.drawable.bg_card_white);
         LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         rowParams.setMargins(0, 0, 0, 6);
         row.setLayoutParams(rowParams);
 
-        View dot = new View(requireContext());
-        LinearLayout.LayoutParams dotLp = new LinearLayout.LayoutParams(8, 8);
-        dot.setLayoutParams(dotLp);
-        dot.setBackgroundResource(isOwn ? R.drawable.bg_dot_purple : R.drawable.bg_dot_blue);
-        row.addView(dot);
+        // Colored accent bar on the left
+        View accent = new View(requireContext());
+        LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(3, 24);
+        alp.setMargins(0, 0, 12, 0);
+        accent.setLayoutParams(alp);
+        accent.setBackgroundColor(isOwn ? 0xFF8B5CF6 : 0xFF6366F1);
+        row.addView(accent);
 
         TextView tvName = new TextView(requireContext());
         tvName.setText(name);
         tvName.setTextSize(14);
         tvName.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
-        tvName.setTextColor(getResources().getColor(R.color.on_surface, null));
-        tvName.setPadding(10, 0, 0, 0);
+        tvName.setTextColor(0xFF1F2937);
         LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         tvName.setLayoutParams(nameParams);
@@ -341,12 +343,9 @@ public class KnowledgeDetailFragment extends Fragment {
 
         TextView tvMeta = new TextView(requireContext());
         tvMeta.setText(meta);
-        tvMeta.setTextSize(12);
-        tvMeta.setTextColor(getResources().getColor(R.color.primary_color, null));
-        tvMeta.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
-        tvMeta.setBackgroundResource(R.drawable.bg_tag_chip);
-        int p = (int) (getResources().getDisplayMetrics().density * 6);
-        tvMeta.setPadding(p, p / 2, p, p / 2);
+        tvMeta.setTextSize(11);
+        tvMeta.setTextColor(0xFF6B7280);
+        tvMeta.setPadding((int)(8 * getResources().getDisplayMetrics().density), 0, 0, 0);
         row.addView(tvMeta);
 
         llKnowledgePoints.addView(row);

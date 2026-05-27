@@ -230,7 +230,7 @@ public class KnowledgeListFragment extends Fragment {
                     View child = llSubjectTabs.getChildAt(i);
                     if (child == chip) {
                         child.setBackgroundResource(R.drawable.bg_btn_primary);
-                        ((TextView) child).setTextColor(Color.WHITE);
+                        ((TextView) child).setTextColor(getResources().getColor(R.color.gray_text, null));
                     } else {
                         child.setBackgroundResource(R.drawable.bg_quick_chip);
                         ((TextView) child).setTextColor(getResources().getColor(R.color.gray_text, null));
