@@ -298,7 +298,7 @@ public class KnowledgeDetailFragment extends Fragment {
                 card.addView(accent);
 
                 TextView tv = new TextView(requireContext());
-                tv.setText(q.getText());
+                tv.setText(stripLatex(q.getText()));
                 tv.setTextSize(14);
                 tv.setTextColor(0xFF1F2937);
                 tv.setLineSpacing(6f, 1f);
@@ -332,7 +332,7 @@ public class KnowledgeDetailFragment extends Fragment {
         row.addView(accent);
 
         TextView tvName = new TextView(requireContext());
-        tvName.setText(name);
+        tvName.setText(stripLatex(name));
         tvName.setTextSize(14);
         tvName.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         tvName.setTextColor(0xFF1F2937);
@@ -373,5 +373,18 @@ public class KnowledgeDetailFragment extends Fragment {
     private static String formatDate(String dateStr) {
         if (dateStr == null || dateStr.length() < 10) return dateStr;
         return dateStr.substring(5, 10);
+    }
+
+    private static String stripLatex(String s) {
+        if (s == null) return "";
+        return s.replaceAll("\\$\\$.*?\\$\\$", "")
+                .replaceAll("\\$.*?\\$", "")
+                .replaceAll("\\\\boldsymbol\\{.*?\\}", "")
+                .replaceAll("\\\\underline\\{.*?\\}", "")
+                .replaceAll("\\\\lim\\\\limits_.*?\\}", "")
+                .replaceAll("\\\\[a-zA-Z]+\\{.*?\\}", "")
+                .replaceAll("\\\\[a-zA-Z]+", "")
+                .replaceAll("\\{+|\\}+", "")
+                .trim();
     }
 }
