@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:fitsSystemWindows="true">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:paddingTop="48dp"
+            android:paddingBottom="40dp"
+            android:background="@drawable/bg_auth_gradient">
+
+            <!-- Logo -->
+            <TextView
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:gravity="center"
+                android:text="📚"
+                android:textSize="36sp"
+                android:background="@drawable/bg_logo_circle"
+                android:elevation="8dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="IRAgent AI 备考助手"
+                android:textSize="24sp"
+                android:textColor="#1F2937"
+                android:fontFamily="sans-serif-medium"
+                android:layout_marginTop="12dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="你的私人 AI 导师 · 笔记驱动 · 精准提分"
+                android:textSize="13sp"
+                android:textColor="#6B7280"
+                android:layout_marginTop="4dp" />
+
+            <!-- Login/Register Tabs -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="@drawable/bg_tab_pill"
+                android:padding="4dp"
+                android:layout_marginTop="32dp">
+
+                <TextView
+                    android:id="@+id/tab_login"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="登录"
+                    android:gravity="center"
+                    android:textSize="14sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:background="@drawable/bg_tab_active"
+                    android:textColor="#4F46E5"
+                    android:paddingVertical="10dp"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/tab_register"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="注册"
+                    android:gravity="center"
+                    android:textSize="14sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:background="@android:color/transparent"
+                    android:textColor="#6B7280"
+                    android:paddingVertical="10dp"
+                    android:clickable="true"
+                    android:focusable="true" />
+            </LinearLayout>
+
+            <!-- Login Form -->
+            <LinearLayout
+                android:id="@+id/layout_login_form"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="24dp">
+
+                <EditText
+                    android:id="@+id/et_account"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:hint="手机号 / 邮箱"
+                    android:textSize="15sp"
+                    android:textColor="#1F2937"
+                    android:background="@drawable/bg_input_rounded"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:layout_marginBottom="16dp"
+                    android:inputType="textEmailAddress" />
+
+                <EditText
+                    android:id="@+id/et_password"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:hint="密码"
+                    android:textSize="15sp"
+                    android:textColor="#1F2937"
+                    android:background="@drawable/bg_input_rounded"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:layout_marginBottom="16dp"
+                    android:inputType="textPassword" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:orientation="horizontal">
+
+                    <EditText
+                        android:id="@+id/et_verifi_code"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:hint="验证码"
+                        android:textSize="15sp"
+                        android:textColor="#1F2937"
+                        android:background="@drawable/bg_input_rounded"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:maxLines="1"
+                        android:inputType="text" />
+
+                    <ImageView
+                        android:id="@+id/iv_verifi_code"
+                        android:layout_width="100dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="12dp"
+                        android:scaleType="fitXY"
+                        android:background="@drawable/bg_captcha" />
+
+                    <TextView
+                        android:id="@+id/btn_refresh_code"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="8dp"
+                        android:text="刷新"
+                        android:textSize="11sp"
+                        android:textColor="#4F46E5"
+                        android:gravity="center"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:clickable="true"
+                        android:focusable="true" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/btn_login"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:text="登 录"
+                    android:textSize="16sp"
+                    android:textColor="#FFFFFF"
+                    android:fontFamily="sans-serif-medium"
+                    android:gravity="center"
+                    android:background="@drawable/bg_btn_primary"
+                    android:layout_marginTop="24dp"
+                    android:clickable="true"
+                    android:focusable="true" />
+            </LinearLayout>
+
+            <!-- Register Form (hidden) -->
+            <LinearLayout
+                android:id="@+id/layout_register_form"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="24dp"
+                android:visibility="gone">
+
+                <EditText
+                    android:id="@+id/et_reg_account"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:hint="手机号 / 邮箱"
+                    android:textSize="15sp"
+                    android:textColor="#1F2937"
+                    android:background="@drawable/bg_input_rounded"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:layout_marginBottom="16dp"
+                    android:inputType="textEmailAddress" />
+
+                <EditText
+                    android:id="@+id/et_reg_password"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:hint="设置密码（6-16位）"
+                    android:textSize="15sp"
+                    android:textColor="#1F2937"
+                    android:background="@drawable/bg_input_rounded"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:layout_marginBottom="16dp"
+                    android:inputType="textPassword" />
+
+                <EditText
+                    android:id="@+id/et_reg_password_confirm"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:hint="确认密码"
+                    android:textSize="15sp"
+                    android:textColor="#1F2937"
+                    android:background="@drawable/bg_input_rounded"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:layout_marginBottom="16dp"
+                    android:inputType="textPassword" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:orientation="horizontal">
+
+                    <EditText
+                        android:id="@+id/et_reg_verifi_code"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:hint="验证码"
+                        android:textSize="15sp"
+                        android:textColor="#1F2937"
+                        android:background="@drawable/bg_input_rounded"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:maxLines="1"
+                        android:inputType="text" />
+
+                    <TextView
+                        android:layout_width="100dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="12dp"
+                        android:text="获取验证码"
+                        android:textSize="12sp"
+                        android:textColor="#4F46E5"
+                        android:fontFamily="sans-serif-medium"
+                        android:gravity="center"
+                        android:background="@drawable/bg_captcha" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/btn_register_submit"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:text="注 册"
+                    android:textSize="16sp"
+                    android:textColor="#FFFFFF"
+                    android:fontFamily="sans-serif-medium"
+                    android:gravity="center"
+                    android:background="@drawable/bg_btn_primary"
+                    android:layout_marginTop="24dp"
+                    android:clickable="true"
+                    android:focusable="true" />
+            </LinearLayout>
+
+            <ProgressBar
+                android:id="@+id/progress_bar"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginTop="16dp"
+                android:visibility="gone"
+                android:indeterminateTint="#6366F1" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="© 2026 IRAgent AI Learning Assistant"
+                android:textSize="12sp"
+                android:textColor="#9CA3AF"
+                android:layout_marginTop="48dp" />
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

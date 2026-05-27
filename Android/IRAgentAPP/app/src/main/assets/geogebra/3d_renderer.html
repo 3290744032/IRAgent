@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教科书级 3D 渲染器 (布局与标签优化版)</title>
+    <script src="https://cdn.jsdelivr.net/npm/mathjs@11.8.0/lib/browser/math.min.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #ffffff; }
+        #canvas { width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<script>
+    var canvas = document.getElementById('canvas');
+    var ctx = canvas.getContext('2d');
+    var w, h, centerX, centerY;
+    var projectionFactor;
+    var axisLen = 5.2;
+    var axisTickMax = 4;
+
+    const STYLE = {
+        axisWidth: 1.5,
+        vectorWidth: 2.0,
+        guideWidth: 0.8,
+        axisFont: "italic 26px Georgia, serif",
+        variableFont: "italic 20px Georgia, serif", // 稍微调大一点，使其更清晰，对应 v, v_x 等标签
+        tickFont: "12px Arial, sans-serif",
+        colors: {
+            axis: "#555555",
+            guide: "#888888",
+            vectorA: "#1d40a3",   // 柔和蓝色 (用于原向量 v)
+            vectorB: "#c31e0f",   // 柔和红色 (用于 x轴投影向量 v_x)
+            vectorC: "#028a8a",   // 柔和青色 (用于 y轴投影向量 v_y)
+            vectorD: "#1d40a3",   // 柔和蓝色 (用于 z轴投影向量 v_z) - 如果需要区分，可以换个颜色，这里暂时也用蓝色
+            tick: "#555555",
+            point: "#a32115"
+        }
+    };
+
+    function init() {
+        var ratio = window.devicePixelRatio || 1;
+        w = window.innerWidth;
+        h = window.innerHeight;
+        canvas.width = w * ratio;
+        canvas.height = h * ratio;
+        canvas.style.width = w + "px";
+        canvas.style.height = h + "px";
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        centerX = w * 0.5;
+        // 【布局优化】整体往下移：由 h * 0.6 改为 h * 0.75
+        centerY = h * 0.82;
+    }
+
+    function project(x, y, z) {
+        let factor = projectionFactor || (Math.min(w, h) / 13);
+        let px = centerX + (y * Math.cos(Math.PI/6) - x * Math.cos(Math.PI/6)) * factor;
+        let py = centerY - (z + x * Math.sin(Math.PI/6) + y * Math.sin(Math.PI/6)) * factor;
+        return { x: px, y: py };
+    }
+
+    function drawArrow(p1, p2, color, width, isDash = false) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = width;
+        if(isDash) ctx.setLineDash([6, 6]);
+
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+
+        if(!isDash) {
+            let angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+            let head = 10;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(p2.x, p2.y);
+            ctx.lineTo(p2.x - head * Math.cos(angle - Math.PI/7), p2.y - head * Math.sin(angle - Math.PI/7));
+            ctx.lineTo(p2.x - head * Math.cos(angle + Math.PI/7), p2.y - head * Math.sin(angle + Math.PI/7));
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    function drawAxes() {
+        let origin = project(0, 0, 0);
+        drawArrow(origin, project(axisLen, 0, 0), STYLE.colors.axis, STYLE.axisWidth);
+        drawArrow(origin, project(0, axisLen, 0), STYLE.colors.axis, STYLE.axisWidth);
+        drawArrow(origin, project(0, 0, axisLen), STYLE.colors.axis, STYLE.axisWidth);
+
+        ctx.font = STYLE.axisFont;
+        ctx.fillStyle = STYLE.colors.axis;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText("x", project(axisLen + 0.4, 0, 0).x, project(axisLen + 0.4, 0, 0).y);
+        ctx.fillText("y", project(0, axisLen + 0.4, 0).x, project(0, axisLen + 0.4, 0).y);
+        ctx.fillText("z", project(0, 0, axisLen + 0.4).x, project(0, 0, axisLen + 0.4).y);
+
+        ctx.save();
+        ctx.strokeStyle = STYLE.colors.tick;
+        ctx.lineWidth = 1.0;
+        ctx.font = STYLE.tickFont;
+        ctx.fillStyle = STYLE.colors.tick;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        for(let i = 1; i <= axisTickMax; i++) {
+            let tickPos = project(i, 0, 0);
+            let tickEnd = project(i, 0.12, 0);
+            ctx.beginPath();
+            ctx.moveTo(tickPos.x, tickPos.y);
+            ctx.lineTo(tickEnd.x, tickEnd.y);
+            ctx.stroke();
+            ctx.fillText(i.toString(), project(i, 0.38, 0).x, project(i, 0.38, 0).y);
+        }
+
+        for(let i = 1; i <= axisTickMax; i++) {
+            let tickPos = project(0, i, 0);
+            let tickEnd = project(-0.12, i, 0);
+            ctx.beginPath();
+            ctx.moveTo(tickPos.x, tickPos.y);
+            ctx.lineTo(tickEnd.x, tickEnd.y);
+            ctx.stroke();
+            ctx.fillText(i.toString(), project(-0.38, i, 0).x, project(-0.38, i, 0).y);
+        }
+
+        for(let i = 1; i <= axisTickMax; i++) {
+            let tickPos = project(0, 0, i);
+            ctx.beginPath();
+            ctx.moveTo(tickPos.x - 5, tickPos.y);
+            ctx.lineTo(tickPos.x + 5, tickPos.y);
+            ctx.stroke();
+            ctx.fillText(i.toString(), project(0.28, 0, i).x, project(0.28, 0, i).y);
+        }
+        ctx.restore();
+    }
+
+    function drawGuideLines(x, y, z) {
+        if (x === 0 && y === 0 && z === 0) return;
+
+        let pTop = project(x, y, z);
+        let pBottom = project(x, y, 0);
+        let pX = project(x, 0, 0);
+        let pY = project(0, y, 0);
+
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = STYLE.colors.guide;
+        ctx.lineWidth = STYLE.guideWidth;
+
+        ctx.beginPath();
+        ctx.moveTo(pTop.x, pTop.y);
+        ctx.lineTo(pBottom.x, pBottom.y);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(pBottom.x, pBottom.y);
+        ctx.lineTo(pX.x, pX.y);
+        ctx.moveTo(pBottom.x, pBottom.y);
+        ctx.lineTo(pY.x, pY.y);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function v3(x, y, z) {
+        return { x: x, y: y, z: z };
+    }
+
+    function v3sub(a, b) {
+        return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
+    }
+
+    function v3cross(a, b) {
+        return {
+            x: a.y * b.z - a.z * b.y,
+            y: a.z * b.x - a.x * b.z,
+            z: a.x * b.y - a.y * b.x
+        };
+    }
+
+    function v3dot(a, b) {
+        return a.x * b.x + a.y * b.y + a.z * b.z;
+    }
+
+    function v3norm(a) {
+        const len = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z) || 1;
+        return { x: a.x / len, y: a.y / len, z: a.z / len };
+    }
+
+    function hexToRgb(hex) {
+        if (!hex) return { r: 80, g: 80, b: 80 };
+        let h = String(hex).trim();
+        if (h[0] === "#") h = h.slice(1);
+        if (h.length === 3) h = h.split("").map(ch => ch + ch).join("");
+        if (h.length !== 6) return { r: 80, g: 80, b: 80 };
+        return {
+            r: parseInt(h.slice(0, 2), 16),
+            g: parseInt(h.slice(2, 4), 16),
+            b: parseInt(h.slice(4, 6), 16)
+        };
+    }
+
+    function shadedRgba(hex, shade, alpha) {
+        const rgb = hexToRgb(hex);
+        const s = Math.max(0, Math.min(1, shade));
+        const r = Math.round(rgb.r * s);
+        const g = Math.round(rgb.g * s);
+        const b = Math.round(rgb.b * s);
+        const a = Math.max(0, Math.min(1, alpha));
+        return "rgba(" + r + "," + g + "," + b + "," + a + ")";
+    }
+
+    function triangleDepth(a, b, c) {
+        const vx = -1, vy = -1, vz = 1;
+        const da = a.x * vx + a.y * vy + a.z * vz;
+        const db = b.x * vx + b.y * vy + b.z * vz;
+        const dc = c.x * vx + c.y * vy + c.z * vz;
+        return (da + db + dc) / 3;
+    }
+
+    function buildRevolutionMesh(solid) {
+        const axis = (solid.axis || "x").toLowerCase();
+        if (axis !== "x") return [];
+
+        const xMin = typeof solid.xMin === "number" ? solid.xMin : 0;
+        const xMax = typeof solid.xMax === "number" ? solid.xMax : 1;
+        const stepsX = Math.max(8, Math.min(200, solid.stepsX || 40));
+        const stepsTheta = Math.max(12, Math.min(240, solid.stepsTheta || 64));
+        const color = solid.color || "#555555";
+        const alpha = typeof solid.opacity === "number" ? solid.opacity : 0.22;
+        const caps = !!solid.caps;
+
+        let radiusFn = null;
+        if (solid.profile && Array.isArray(solid.profile) && solid.profile.length >= 2) {
+            const prof = solid.profile
+                .filter(p => p && typeof p.x === "number" && typeof p.r === "number")
+                .sort((a, b) => a.x - b.x);
+            radiusFn = (x) => {
+                if (x <= prof[0].x) return Math.max(0, prof[0].r);
+                if (x >= prof[prof.length - 1].x) return Math.max(0, prof[prof.length - 1].r);
+                for (let i = 0; i < prof.length - 1; i++) {
+                    const a = prof[i], b = prof[i + 1];
+                    if (x >= a.x && x <= b.x) {
+                        const t = (x - a.x) / (b.x - a.x || 1);
+                        return Math.max(0, a.r + (b.r - a.r) * t);
+                    }
+                }
+                return 0;
+            };
+        } else if (solid.expr && window.math) {
+            try {
+                const expr = String(solid.expr).trim().replace(/^y\s*=\s*/i, "");
+                const node = math.parse(expr);
+                const code = node.compile();
+                radiusFn = (x) => {
+                    const v = code.evaluate({ x: x });
+                    if (typeof v !== "number" || !isFinite(v)) return 0;
+                    return Math.max(0, v);
+                };
+            } catch (e) {
+                radiusFn = null;
+            }
+        }
+        if (!radiusFn) return [];
+
+        const tris = [];
+        const dX = (xMax - xMin) / stepsX;
+        const dT = (Math.PI * 2) / stepsTheta;
+
+        for (let ix = 0; ix < stepsX; ix++) {
+            const x0 = xMin + dX * ix;
+            const x1 = xMin + dX * (ix + 1);
+            const r0 = radiusFn(x0);
+            const r1 = radiusFn(x1);
+
+            for (let it = 0; it < stepsTheta; it++) {
+                const t0 = dT * it;
+                const t1 = dT * (it + 1);
+                const c0 = Math.cos(t0), s0 = Math.sin(t0);
+                const c1 = Math.cos(t1), s1 = Math.sin(t1);
+
+                const p00 = v3(x0, r0 * c0, r0 * s0);
+                const p01 = v3(x0, r0 * c1, r0 * s1);
+                const p10 = v3(x1, r1 * c0, r1 * s0);
+                const p11 = v3(x1, r1 * c1, r1 * s1);
+
+                const n1 = v3cross(v3sub(p10, p00), v3sub(p11, p00));
+                const n2 = v3cross(v3sub(p11, p00), v3sub(p01, p00));
+                tris.push({ a: p00, b: p10, c: p11, color: color, alpha: alpha, n: n1, depth: triangleDepth(p00, p10, p11) });
+                tris.push({ a: p00, b: p11, c: p01, color: color, alpha: alpha, n: n2, depth: triangleDepth(p00, p11, p01) });
+            }
+        }
+
+        if (caps) {
+            const center0 = v3(xMin, 0, 0);
+            const center1 = v3(xMax, 0, 0);
+            const rMin = radiusFn(xMin);
+            const rMax = radiusFn(xMax);
+
+            for (let it = 0; it < stepsTheta; it++) {
+                const t0 = dT * it;
+                const t1 = dT * (it + 1);
+                const c0 = Math.cos(t0), s0 = Math.sin(t0);
+                const c1 = Math.cos(t1), s1 = Math.sin(t1);
+
+                const a0 = v3(xMin, rMin * c0, rMin * s0);
+                const a1 = v3(xMin, rMin * c1, rMin * s1);
+                const b0 = v3(xMax, rMax * c0, rMax * s0);
+                const b1 = v3(xMax, rMax * c1, rMax * s1);
+
+                const n0 = v3(-1, 0, 0);
+                const n1 = v3(1, 0, 0);
+                tris.push({ a: center0, b: a1, c: a0, color: color, alpha: alpha, n: n0, depth: triangleDepth(center0, a1, a0) });
+                tris.push({ a: center1, b: b0, c: b1, color: color, alpha: alpha, n: n1, depth: triangleDepth(center1, b0, b1) });
+            }
+        }
+
+        return tris;
+    }
+
+    function getSolidRadiusFn(solid) {
+        if (!solid) return null;
+        if (solid.profile && Array.isArray(solid.profile) && solid.profile.length >= 2) {
+            const prof = solid.profile
+                .filter(p => p && typeof p.x === "number" && typeof p.r === "number")
+                .sort((a, b) => a.x - b.x);
+            if (prof.length < 2) return null;
+            return (x) => {
+                if (x <= prof[0].x) return Math.max(0, prof[0].r);
+                if (x >= prof[prof.length - 1].x) return Math.max(0, prof[prof.length - 1].r);
+                for (let i = 0; i < prof.length - 1; i++) {
+                    const a = prof[i], b = prof[i + 1];
+                    if (x >= a.x && x <= b.x) {
+                        const t = (x - a.x) / (b.x - a.x || 1);
+                        return Math.max(0, a.r + (b.r - a.r) * t);
+                    }
+                }
+                return 0;
+            };
+        }
+        if (solid.expr && window.math) {
+            try {
+                const expr = String(solid.expr).trim().replace(/^y\s*=\s*/i, "");
+                const node = math.parse(expr);
+                const code = node.compile();
+                return (x) => {
+                    const v = code.evaluate({ x: x });
+                    if (typeof v !== "number" || !isFinite(v)) return 0;
+                    return Math.max(0, v);
+                };
+            } catch (e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    function drawSolidGuides(solids) {
+        if (!solids || !Array.isArray(solids)) return;
+        for (const solid of solids) {
+            if (solid && solid.showGuides === false) continue;
+            const axis = (solid.axis || "x").toLowerCase();
+            if (axis !== "x") continue;
+            const xMin = typeof solid.xMin === "number" ? solid.xMin : 0;
+            const xMax = typeof solid.xMax === "number" ? solid.xMax : 1;
+            const steps = Math.max(12, Math.min(200, solid.guideSteps || 50));
+            const color = solid.guideColor || "#444444";
+            const fn = getSolidRadiusFn(solid);
+            if (!fn) continue;
+            for (let i = 0; i < steps; i++) {
+                const x0 = xMin + (xMax - xMin) * i / steps;
+                const x1 = xMin + (xMax - xMin) * (i + 1) / steps;
+                const y0 = fn(x0);
+                const y1 = fn(x1);
+                drawSegment3D(v3(x0, y0, 0), v3(x1, y1, 0), color, 1.2, false);
+            }
+            const rL = fn(xMin);
+            const rR = fn(xMax);
+            drawSegment3D(v3(xMin, 0, 0), v3(xMin, rL, 0), color, 1.1, true);
+            drawSegment3D(v3(xMax, 0, 0), v3(xMax, rR, 0), color, 1.1, true);
+            drawSegment3D(v3(xMax, 0, 0), v3(xMax, 0, rR), color, 1.1, true);
+        }
+    }
+
+    function drawTriangles(tris) {
+        if (!tris || tris.length === 0) return;
+        const light = v3norm(v3(0.3, 0.35, 1));
+        const sorted = tris.slice().sort((a, b) => a.depth - b.depth);
+        for (const t of sorted) {
+            const p1 = project(t.a.x, t.a.y, t.a.z);
+            const p2 = project(t.b.x, t.b.y, t.b.z);
+            const p3 = project(t.c.x, t.c.y, t.c.z);
+
+            const n = v3norm(t.n || v3cross(v3sub(t.b, t.a), v3sub(t.c, t.a)));
+            const lambert = Math.max(0, v3dot(n, light));
+            const shade = 0.35 + lambert * 0.65;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineTo(p3.x, p3.y);
+            ctx.closePath();
+            ctx.fillStyle = shadedRgba(t.color, shade, t.alpha);
+            ctx.fill();
+            ctx.strokeStyle = "rgba(0,0,0,0.06)";
+            ctx.lineWidth = 0.6;
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    function parseConfig(input) {
+        let text = typeof input === 'string' ? input : JSON.stringify(input);
+        const config = { vectors: [], planes: [], points: [], lines: [], solids: [], meshes: [] };
+
+        try {
+            let jsonStr = "";
+            if (text.includes("【PLOT3D】")) {
+                jsonStr = text.split("【PLOT3D】")[1].split("【END】")[0].trim();
+            } else {
+                const start = text.indexOf('{');
+                const end = text.lastIndexOf('}');
+                if (start !== -1 && end !== -1) jsonStr = text.substring(start, end + 1);
+                else jsonStr = text;
+            }
+            const parsed = JSON.parse(jsonStr);
+            config.vectors = parsed.vectors || [];
+            config.points = parsed.points || [];
+            config.lines = parsed.lines || [];
+            config.planes = parsed.planes || [];
+            config.solids = parsed.solids || [];
+            config.meshes = parsed.meshes || [];
+            return config;
+        } catch (e) {
+            const plotRegex = /【PLOT3D】([\s\S]*?)【END】/i;
+            const match = text.match(plotRegex);
+            const content = match ? match[1].trim() : text;
+
+            const vecRegex = /<([\w\+]+)\(([-\d.]+),\s*([-<\d.]+),\s*([-<\d.]+)\)/g;
+            let m;
+            while ((m = vecRegex.exec(content)) !== null) {
+                config.vectors.push({ name: m[1], x: parseFloat(m[2]), y: parseFloat(m[3]), z: parseFloat(m[4]) });
+            }
+
+            const ptRegex = /([A-Z])\(([-\d.]+),\s*([-<\d.]+),\s*([-<\d.]+)\)/g;
+            while ((m = ptRegex.exec(content)) !== null) {
+                let exists = config.vectors.some(v => v.name.toUpperCase() === m[1]);
+                if (!exists) config.points.push({ name: m[1], x: parseFloat(m[2]), y: parseFloat(m[3]), z: parseFloat(m[4]) });
+            }
+
+            const lineRegex = /\(([-\d.,\s]+)\)->\(([-\d.,\s]+)\)/g;
+            while ((m = lineRegex.exec(content)) !== null) {
+                const start = m[1].split(',').map(n => parseFloat(n.trim()));
+                const end = m[2].split(',').map(n => parseFloat(n.trim()));
+                config.lines.push({ fromX: start[0], fromY: start[1], fromZ: start[2], toX: end[0], toY: end[1], toZ: end[2] });
+            }
+            return config;
+        }
+    }
+
+    /**
+     * 【优化：格式化标签名称】
+     * 针对流式响应中常见的 LaTeX 格式（如 \boldsymbol{v}_x），
+     * 自动转换为 Canvas 支持的格式（如 v_x）
+     */
+    function formatVariableName(rawName) {
+        if (!rawName) return "";
+        let name = String(rawName).trim();
+        name = name.replace(/^\$?\\boldsymbol\{/g, "");
+        name = name.replace(/\}?\$?$/g, "");
+        name = name.replace(/\{|\}/g, "");
+        return name.trim();
+    }
+
+    function canonicalizeVariableName(name) {
+        if (!name) return "";
+        const n = String(name).trim().replace(/\s+/g, "");
+        const lower = n.toLowerCase();
+        if (lower === "v") return "v";
+        if (lower === "v_x" || lower === "vx") return "v_x";
+        if (lower === "v_y" || lower === "vy") return "v_y";
+        if (lower === "v_z" || lower === "vz") return "v_z";
+        return n;
+    }
+
+    function getVariableLabelParts(canonicalName) {
+        if (canonicalName === "v") return { main: "V", sub: "" };
+        if (canonicalName === "v_x") return { main: "V", sub: "x" };
+        if (canonicalName === "v_y") return { main: "V", sub: "y" };
+        if (canonicalName === "v_z") return { main: "V", sub: "z" };
+        return { main: canonicalName, sub: "" };
+    }
+
+    function measureVariableLabelWidth(parts) {
+        ctx.font = STYLE.variableFont;
+        const mainW = ctx.measureText(parts.main).width;
+        if (!parts.sub) return mainW;
+        ctx.font = "italic 14px Georgia, serif";
+        const subW = ctx.measureText(parts.sub).width;
+        return mainW + 1 + subW;
+    }
+
+    function drawVariableLabel(x, y, parts, color) {
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "bottom";
+        ctx.font = STYLE.variableFont;
+        ctx.fillText(parts.main, x, y);
+        if (parts.sub) {
+            const mainW = ctx.measureText(parts.main).width;
+            ctx.font = "italic 14px Georgia, serif";
+            ctx.fillText(parts.sub, x + mainW + 1, y + 4);
+        }
+        ctx.restore();
+    }
+
+    function drawSegment3D(a, b, color, width, isDash = false) {
+        const p1 = project(a.x, a.y, a.z);
+        const p2 = project(b.x, b.y, b.z);
+        ctx.save();
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        if (isDash) ctx.setLineDash([6, 6]);
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawLabelWithAvoidance(pos, text, color, usedRects) {
+        ctx.font = STYLE.variableFont;
+        ctx.fillStyle = color;
+
+        let metrics = ctx.measureText(text);
+        let textW = metrics.width;
+        let textH = 20; // Georgia 20px Georgia GeorgiaGeorgia GeorgiaGeorgia
+
+        let offsets = [
+            { x: 15, y: -12, align: 'left', baseline: 'bottom' },
+            { x: 15, y: 12, align: 'left', baseline: 'top' },
+            { x: -15, y: -12, align: 'right', baseline: 'bottom' },
+            { x: -15, y: 12, align: 'right', baseline: 'top' }
+        ];
+
+        for (let off of offsets) {
+            let rect = {
+                x: pos.x + off.x - (off.align === 'right' ? textW : 0),
+                y: pos.y + off.y - (off.baseline === 'bottom' ? textH : 0),
+                w: textW,
+                h: textH
+            };
+
+            let overlap = false;
+            for (let ur of usedRects) {
+                if (!(rect.x + rect.w < ur.x - 8 || rect.x > ur.x + ur.w + 8 ||
+                      rect.y + rect.h < ur.y - 8 || rect.y > ur.y + ur.h + 8)) {
+                    overlap = true;
+                    break;
+                }
+            }
+
+            if (!overlap) {
+                ctx.textAlign = off.align;
+                ctx.textBaseline = off.baseline;
+                ctx.fillText(text, pos.x + off.x, pos.y + off.y);
+                usedRects.push(rect);
+                return;
+            }
+        }
+
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(text, pos.x + 15, pos.y - 12);
+        usedRects.push({
+            x: pos.x + 15,
+            y: pos.y - 12 - textH,
+            w: textW,
+            h: textH
+        });
+    }
+
+    function render3D(rawData) {
+        try {
+            let config = { vectors: [], planes: [], points: [], lines: [], solids: [], meshes: [] };
+
+            if (typeof rawData === 'object' && rawData !== null) {
+                config.vectors = rawData.vectors || [];
+                config.points = rawData.points || [];
+                config.lines = rawData.lines || [];
+                config.planes = rawData.planes || [];
+                config.solids = rawData.solids || [];
+                config.meshes = rawData.meshes || [];
+            } else if (typeof rawData === 'string' && rawData.trim() !== "") {
+                const match = rawData.match(/【PLOT3D】([\s\S]*?)【END】/i);
+                if (match) {
+                    config = parseConfig(match[1].trim());
+                } else {
+                    try {
+                        const parsed = JSON.parse(rawData);
+                        config.vectors = parsed.vectors || [];
+                        config.points = parsed.points || [];
+                        config.lines = parsed.lines || [];
+                        config.planes = parsed.planes || [];
+                        config.solids = parsed.solids || [];
+                        config.meshes = parsed.meshes || [];
+                    } catch (e) {
+                        // Not JSON — try parseConfig directly (handles plain text format)
+                        config = parseConfig(rawData);
+                    }
+                }
+            }
+
+            if (
+                config.vectors.length === 0 &&
+                config.points.length === 0 &&
+                config.planes.length === 0 &&
+                (!config.solids || config.solids.length === 0) &&
+                (!config.meshes || config.meshes.length === 0)
+            ) {
+                if (window.androidBridge && window.androidBridge.onRenderComplete) {
+                    window.androidBridge.onRenderComplete("");
+                }
+                return;
+            }
+
+            waitForLayoutAndRender(config, 20, 100);
+        } catch (e) {
+            console.error("Render Error: ", e);
+            if (window.androidBridge && window.androidBridge.onRenderComplete) {
+                window.androidBridge.onRenderComplete("");
+            }
+        }
+    }
+
+    function waitForLayoutAndRender(config, retriesLeft, delay) {
+        if (window.innerWidth > 10 && window.innerHeight > 10) {
+            doRender3D(config);
+        } else if (retriesLeft > 0) {
+            setTimeout(function() { waitForLayoutAndRender(config, retriesLeft - 1, delay); }, delay);
+        } else {
+            doRender3D(config);
+        }
+    }
+
+    function doRender3D(config) {
+        try {
+            init();
+            ctx.clearRect(0, 0, w, h);
+            let tris = [];
+            let maxAbs = 0;
+            const takeMax = (p) => {
+                if (!p) return;
+                const xs = [p.x, p.y, p.z];
+                for (const v of xs) {
+                    if (typeof v === "number" && isFinite(v)) maxAbs = Math.max(maxAbs, Math.abs(v));
+                }
+            };
+
+            if (config.solids && Array.isArray(config.solids)) {
+                for (const s of config.solids) {
+                    const built = buildRevolutionMesh(s);
+                    for (const t of built) {
+                        takeMax(t.a);
+                        takeMax(t.b);
+                        takeMax(t.c);
+                        tris.push(t);
+                    }
+                }
+            }
+
+            if (config.meshes && Array.isArray(config.meshes)) {
+                for (const m of config.meshes) {
+                    const color = m.color || "#555555";
+                    const alpha = typeof m.opacity === "number" ? m.opacity : (typeof m.alpha === "number" ? m.alpha : 0.22);
+                    const list = Array.isArray(m.triangles) ? m.triangles : [];
+                    for (const t of list) {
+                        const a = Array.isArray(t.a) ? v3(t.a[0], t.a[1], t.a[2]) : v3(t.a.x, t.a.y, t.a.z);
+                        const b = Array.isArray(t.b) ? v3(t.b[0], t.b[1], t.b[2]) : v3(t.b.x, t.b.y, t.b.z);
+                        const c = Array.isArray(t.c) ? v3(t.c[0], t.c[1], t.c[2]) : v3(t.c.x, t.c.y, t.c.z);
+                        takeMax(a);
+                        takeMax(b);
+                        takeMax(c);
+                        const n = v3cross(v3sub(b, a), v3sub(c, a));
+                        tris.push({ a: a, b: b, c: c, color: t.color || color, alpha: typeof t.opacity === "number" ? t.opacity : (typeof t.alpha === "number" ? t.alpha : alpha), n: n, depth: triangleDepth(a, b, c) });
+                    }
+                }
+            }
+
+            if (!isFinite(maxAbs) || maxAbs <= 0) maxAbs = 1;
+            axisLen = Math.max(2.6, maxAbs * 1.25 + 0.55);
+            axisTickMax = Math.min(10, Math.max(2, Math.floor(axisLen - 0.4)));
+            projectionFactor = Math.min(w, h) / (axisLen * 3.1);
+            drawTriangles(tris);
+            drawAxes();
+            drawSolidGuides(config.solids);
+
+            let usedLabelRects = [];
+
+            config.vectors.forEach((v, i) => {
+                // 【颜色优化】针对 v_x, v_y, v_z 的含义分配更清晰的柔和哑光色
+                const colors = [STYLE.colors.vectorA, STYLE.colors.vectorB, STYLE.colors.vectorC];
+                let color = colors[i % 3];
+                const formattedName = formatVariableName(v.name);
+                const canonicalName = canonicalizeVariableName(formattedName);
+                if (canonicalName === "v") color = STYLE.colors.vectorA;
+                if (canonicalName === "v_x") color = STYLE.colors.vectorB;
+                if (canonicalName === "v_y") color = STYLE.colors.vectorC;
+                if (canonicalName === "v_z") color = STYLE.colors.vectorD;
+
+                drawGuideLines(v.x, v.y, v.z);
+                drawArrow(project(0, 0, 0), project(v.x, v.y, v.z), color, STYLE.vectorWidth);
+
+                let pos = project(v.x, v.y, v.z);
+
+                // 【标签优化】只在原向量 v 的终点标点名称和坐标 (P)，
+                // 其他投影向量直接在终点标向量名称，颜色与线段保持一致
+                let labelText;
+                let textColor;
+                let name = canonicalName;
+
+                if (name === 'v') {
+                    // 原向量 v
+                    // 后端传了 points 数组，P 坐标在 points 数组里。
+                    // 逻辑改为：针对 name 为 'v' 的向量，也尝试在该位置绘制名称 P(3,4,5)
+                    labelText = name + "(3,4,5)"; // 简单硬编码作为示例，后端应完善坐标信息
+                    textColor = color;
+                } else {
+                    // 投影向量 v_x, v_y, v_z
+                    labelText = name;
+                    textColor = color; // 标签颜色与向量颜色一致
+                }
+
+                if (name !== 'v') { // 投影向量直接在终点标向量名称
+                    const parts = getVariableLabelParts(labelText);
+                    const labelW = measureVariableLabelWidth(parts);
+                    let offsetX = 10, offsetY = -10;
+                    let rect = { x: pos.x + offsetX, y: pos.y + offsetY - 22, w: labelW, h: 22 };
+
+                    let overlap = false;
+                    for (let ur of usedLabelRects) {
+                        if (Math.abs(rect.x - ur.x) < 35 && Math.abs(rect.y - ur.y) < 25) {
+                            overlap = true;
+                            break;
+                        }
+                    }
+
+                    if (overlap) {
+                        offsetY = 18; // 放到下方
+                    }
+
+                    drawVariableLabel(pos.x + offsetX, pos.y + offsetY, parts, textColor);
+                    usedLabelRects.push({ x: pos.x + offsetX, y: pos.y + offsetY - 22, w: labelW, h: 22 });
+                }
+            });
+
+            config.points.forEach(pt => {
+                if (pt.x !== 0 || pt.y !== 0 || pt.z !== 0) {
+                    drawGuideLines(pt.x, pt.y, pt.z);
+                }
+
+                let pos = project(pt.x, pt.y, pt.z);
+
+                if (pt.x === 0 && pt.y === 0 && pt.z === 0) {
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
+                    ctx.fillStyle = "#666";
+                    ctx.fill();
+                    ctx.font = "bold 14px Arial, sans-serif";
+                    ctx.fillStyle = "#666";
+                    ctx.textAlign = 'right';
+                    ctx.textBaseline = 'top';
+                    ctx.fillText("O", pos.x - 10, pos.y + 7);
+                    return;
+                }
+
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
+                ctx.fillStyle = STYLE.colors.point;
+                ctx.fill();
+
+                let label = pt.name + "(" + pt.x + "," + pt.y + "," + pt.z + ")";
+                drawLabelWithAvoidance(pos, label, STYLE.colors.point, usedLabelRects);
+            });
+
+            config.lines.forEach(line => {
+                ctx.beginPath();
+                ctx.strokeStyle = "#666666";
+                ctx.lineWidth = 1.0;
+                ctx.setLineDash([5, 5]);
+                let from = project(line.fromX, line.fromY, line.fromZ);
+                let to = project(line.toX, line.toY, line.toZ);
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            });
+
+            captureWithRetry(10, 200);
+        } catch (e) {
+            console.error("Render Error: ", e);
+            if (window.androidBridge && window.androidBridge.onRenderComplete) {
+                window.androidBridge.onRenderComplete("");
+            }
+        }
+    }
+
+    function captureWithRetry(retriesLeft, delay) {
+        if (canvas.width > 10 && canvas.height > 10) {
+            var dataUrl = canvas.toDataURL("image/png");
+            if (dataUrl && dataUrl.length > 1000) {
+                if (window.androidBridge && window.androidBridge.onRenderComplete) {
+                    window.androidBridge.onRenderComplete(dataUrl);
+                }
+                return;
+            }
+        }
+        if (retriesLeft > 0) {
+            setTimeout(function() { captureWithRetry(retriesLeft - 1, Math.min(delay * 1.5, 1000)); }, delay);
+        } else {
+            if (window.androidBridge && window.androidBridge.onRenderComplete) {
+                window.androidBridge.onRenderComplete("");
+            }
+        }
+    }
+
+    window.render3D = render3D;
+</script>
+</body>
+</html>

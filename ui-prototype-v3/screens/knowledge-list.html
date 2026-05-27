@@ -1,0 +1,218 @@
+<!-- 知识库首页: 笔记列表 + 考点标签 + 上传入口 -->
+<div class="knowledge-header">
+  <div class="knowledge-header__title">📚 我的知识库</div>
+  <div class="knowledge-stats-row">
+    <div class="knowledge-stat"><strong>5</strong> 份笔记</div>
+    <div class="knowledge-stat"><strong>3</strong> 个科目</div>
+    <div class="knowledge-stat"><strong>8</strong> 个考点</div>
+    <div class="knowledge-stat">覆盖率 <strong style="color:var(--color-primary-500);">62%</strong></div>
+  </div>
+  <!-- Search -->
+  <div style="position:relative;margin-bottom:var(--space-3);">
+    <input type="text" class="input input--search" placeholder="搜索笔记或考点...">
+  </div>
+  <!-- Subject tabs -->
+  <div class="subject-tabs">
+    <button class="subject-tab active">全部</button>
+    <button class="subject-tab" onclick="this.parentElement.querySelectorAll('.subject-tab').forEach(t=>t.classList.remove('active'));this.classList.add('active')">📐 数学</button>
+    <button class="subject-tab" onclick="this.parentElement.querySelectorAll('.subject-tab').forEach(t=>t.classList.remove('active'));this.classList.add('active')">🔤 英语</button>
+    <button class="subject-tab" onclick="this.parentElement.querySelectorAll('.subject-tab').forEach(t=>t.classList.remove('active'));this.classList.add('active')">📰 政治</button>
+  </div>
+</div>
+
+<!-- Knowledge Graph Static Visualization -->
+<div class="kg-container" style="padding:0 var(--space-4) var(--space-3);">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-2);">
+    <span style="font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--color-gray-700);">🔗 知识图谱</span>
+    <span style="font-size:11px;color:var(--color-gray-400);">考点 ↔ 笔记 ↔ 题目</span>
+  </div>
+  <div class="kg-canvas" style="height:180px;position:relative;overflow:hidden;background:var(--bg-surface);border-radius:var(--radius-lg);border:1px solid var(--color-gray-100);">
+    <!-- Static SVG graph: 3 columns of nodes with curved connections -->
+    <svg width="100%" height="180" viewBox="0 0 360 180" style="display:block;">
+      <!-- Connecting lines -->
+      <line x1="75" y1="40" x2="180" y2="55" stroke="#E5E7EB" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <line x1="75" y1="90" x2="180" y2="80" stroke="#E5E7EB" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <line x1="75" y1="140" x2="180" y2="105" stroke="#E5E7EB" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <line x1="180" y1="55" x2="290" y2="30" stroke="#E5E7EB" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <line x1="180" y1="80" x2="290" y2="80" stroke="#E5E7EB" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <line x1="180" y1="105" x2="290" y2="130" stroke="#E5E7EB" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+      <!-- Knowledge Points (left column) -->
+      <circle cx="75" cy="40" r="14" fill="#DBEAFE" stroke="#3B82F6" stroke-width="2"/>
+      <text x="75" y="44" text-anchor="middle" font-size="10" fill="#1E40AF" font-weight="600">导数</text>
+      <circle cx="75" cy="90" r="14" fill="#DBEAFE" stroke="#3B82F6" stroke-width="2"/>
+      <text x="75" y="94" text-anchor="middle" font-size="10" fill="#1E40AF" font-weight="600">最值</text>
+      <circle cx="75" cy="140" r="14" fill="#FEE2E2" stroke="#EF4444" stroke-width="2"/>
+      <text x="75" y="144" text-anchor="middle" font-size="10" fill="#991B1B" font-weight="600">三角</text>
+
+      <!-- Notes (middle column) -->
+      <rect x="140" y="42" width="80" height="26" rx="6" fill="#EDE9FE" stroke="#8B5CF6" stroke-width="1.5"/>
+      <text x="180" y="59" text-anchor="middle" font-size="9" fill="#5B21B6" font-weight="600">导数公式笔记</text>
+      <rect x="140" y="67" width="80" height="26" rx="6" fill="#EDE9FE" stroke="#8B5CF6" stroke-width="1.5"/>
+      <text x="180" y="84" text-anchor="middle" font-size="9" fill="#5B21B6" font-weight="600">最值三步法</text>
+      <rect x="140" y="92" width="80" height="26" rx="6" fill="#EDE9FE" stroke="#8B5CF6" stroke-width="1.5"/>
+      <text x="180" y="109" text-anchor="middle" font-size="9" fill="#5B21B6" font-weight="600">三角变换笔记</text>
+
+      <!-- Questions (right column) -->
+      <rect x="268" y="18" width="45" height="22" rx="4" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1.5"/>
+      <text x="290" y="33" text-anchor="middle" font-size="8" fill="#92400E" font-weight="600">题6 ✗</text>
+      <rect x="268" y="68" width="45" height="22" rx="4" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1.5"/>
+      <text x="290" y="83" text-anchor="middle" font-size="8" fill="#92400E" font-weight="600">题14 ✗</text>
+      <rect x="268" y="118" width="45" height="22" rx="4" fill="#D1FAE5" stroke="#10B981" stroke-width="1.5"/>
+      <text x="290" y="133" text-anchor="middle" font-size="8" fill="#065F46" font-weight="600">题3 ✓</text>
+
+      <!-- Column labels -->
+      <text x="30" y="172" font-size="8" fill="#9CA3AF">考点</text>
+      <text x="170" y="172" font-size="8" fill="#9CA3AF">笔记</text>
+      <text x="278" y="172" font-size="8" fill="#9CA3AF">题目</text>
+    </svg>
+  </div>
+  <!-- Legend -->
+  <div class="kg-legend">
+    <div class="kg-legend-item"><span class="kg-legend-dot kg-legend-dot--knowledge"></span>考点</div>
+    <div class="kg-legend-item"><span class="kg-legend-dot kg-legend-dot--note"></span>笔记</div>
+    <div class="kg-legend-item"><span class="kg-legend-dot kg-legend-dot--question"></span>题目</div>
+    <div class="kg-legend-item" style="margin-left:8px;"><span style="color:#EF4444;">●</span> 薄弱</div>
+  </div>
+</div>
+
+<!-- Note Cards -->
+<div id="noteList">
+  <div class="note-card" onclick="App.openSubScreen('knowledge-detail')">
+    <div class="note-card__header">
+      <span class="note-card__chapter">📐 数学 · 导数与微分</span>
+      <span class="note-card__date">5月10日</span>
+    </div>
+    <div class="note-card__title">导数公式与求导法则</div>
+    <div class="note-card__preview">基本初等函数导数公式：(C)'=0, (x^n)'=n·x^(n-1), (sin x)'=cos x, (cos x)'=-sin x, (e^x)'=e^x, (ln x)'=1/x。四则运算法则...</div>
+    <div class="note-card__tags">
+      <span class="tag">求导公式</span>
+      <span class="tag">四则运算</span>
+      <span class="tag">基本函数</span>
+    </div>
+    <div class="note-card__footer">
+      <span class="note-card__linked">🔗 关联 2 道题目</span>
+      <span style="font-size:11px;color:var(--color-primary-500);cursor:pointer;">查看详情 →</span>
+    </div>
+  </div>
+
+  <div class="note-card" onclick="App.openSubScreen('knowledge-detail')">
+    <div class="note-card__header">
+      <span class="note-card__chapter">📐 数学 · 导数应用</span>
+      <span class="note-card__date">5月12日</span>
+    </div>
+    <div class="note-card__title">闭区间最值 —— 三步法</div>
+    <div class="note-card__preview">求 f(x) 在 [a,b] 上最值：1. 求导 f'(x)，解 f'(x)=0 找驻点。2. 计算 f(驻点), f(a), f(b)。3. 排序比较，得出结果。易错点：忘记计算端点值！</div>
+    <div class="note-card__tags">
+      <span class="tag">最值问题</span>
+      <span class="tag">驻点</span>
+      <span class="tag">端点比较</span>
+    </div>
+    <div class="note-card__footer">
+      <span class="note-card__linked">🔗 关联 1 道题目</span>
+      <span style="font-size:11px;color:var(--color-primary-500);">查看详情 →</span>
+    </div>
+  </div>
+
+  <div class="note-card" onclick="App.openSubScreen('knowledge-detail')">
+    <div class="note-card__header">
+      <span class="note-card__chapter">📐 数学 · 三角函数</span>
+      <span class="note-card__date">5月8日</span>
+    </div>
+    <div class="note-card__title">三角恒等变换公式</div>
+    <div class="note-card__preview">和差角公式：sin(α±β)=sinαcosβ±cosαsinβ, cos(α±β)=cosαcosβ∓sinαsinβ。二倍角：sin2α=2sinαcosα...</div>
+    <div class="note-card__tags">
+      <span class="tag">和差角</span>
+      <span class="tag">二倍角</span>
+      <span class="tag">诱导公式</span>
+    </div>
+    <div class="note-card__footer">
+      <span class="note-card__linked">🔗 关联 1 道题目</span>
+      <span style="font-size:11px;color:var(--color-primary-500);">查看详情 →</span>
+    </div>
+  </div>
+
+  <div class="note-card" onclick="App.openSubScreen('knowledge-detail')">
+    <div class="note-card__header">
+      <span class="note-card__chapter">🔤 英语 · 语法</span>
+      <span class="note-card__date">5月5日</span>
+    </div>
+    <div class="note-card__title">虚拟语气用法总结</div>
+    <div class="note-card__preview">与现在事实相反：If I were you, I would... 与过去事实相反：If I had known, I would have... 与将来事实相反：If it were to rain...</div>
+    <div class="note-card__tags">
+      <span class="tag">if条件句</span>
+      <span class="tag">时态倒退</span>
+    </div>
+    <div class="note-card__footer">
+      <span class="note-card__linked">🔗 暂无关联题目</span>
+      <span style="font-size:11px;color:var(--color-primary-500);">查看详情 →</span>
+    </div>
+  </div>
+
+  <div class="note-card" onclick="App.openSubScreen('knowledge-detail')">
+    <div class="note-card__header">
+      <span class="note-card__chapter">📰 政治 · 马原</span>
+      <span class="note-card__date">5月15日</span>
+    </div>
+    <div class="note-card__title">对立统一规律</div>
+    <div class="note-card__preview">矛盾同一性与斗争性的辩证关系：同一性：矛盾双方相互依存。斗争性：矛盾双方相互排斥。矛盾分析法是认识事物的根本方法。</div>
+    <div class="note-card__tags">
+      <span class="tag">矛盾</span>
+      <span class="tag">对立统一</span>
+      <span class="tag">唯物辩证法</span>
+    </div>
+    <div class="note-card__footer">
+      <span class="note-card__linked">🔗 暂无关联题目</span>
+      <span style="font-size:11px;color:var(--color-primary-500);">查看详情 →</span>
+    </div>
+  </div>
+</div>
+
+<!-- FAB: Upload -->
+<button class="fab" onclick="openUploadSheet()" title="上传笔记">+</button>
+
+<!-- Upload Bottom Sheet (inline) -->
+<div class="upload-sheet-overlay" id="uploadOverlay" onclick="closeUploadSheet()"></div>
+<div class="upload-sheet" id="uploadSheet">
+  <div class="upload-sheet__handle"></div>
+  <div class="upload-sheet__title">上传笔记</div>
+  <div class="upload-option" onclick="App.toast('相机功能开发中');closeUploadSheet()">
+    <div class="upload-option__icon upload-option__icon--camera">📷</div>
+    <div>
+      <div class="upload-option__text">拍照上传</div>
+      <div class="upload-option__hint">直接拍摄纸质笔记</div>
+    </div>
+  </div>
+  <div class="upload-option" onclick="App.toast('已选择 3 张图片');closeUploadSheet()">
+    <div class="upload-option__icon upload-option__icon--gallery">🖼️</div>
+    <div>
+      <div class="upload-option__text">从相册选择</div>
+      <div class="upload-option__hint">支持多张图片同时上传</div>
+    </div>
+  </div>
+  <div class="upload-option" onclick="App.toast('PDF 解析中...');closeUploadSheet()">
+    <div class="upload-option__icon upload-option__icon--file">📄</div>
+    <div>
+      <div class="upload-option__text">上传文件</div>
+      <div class="upload-option__hint">支持 PDF / Word / Markdown</div>
+    </div>
+  </div>
+  <div class="upload-option" onclick="App.toast('粘贴成功，正在识别...');closeUploadSheet()">
+    <div class="upload-option__icon upload-option__icon--clipboard">📋</div>
+    <div>
+      <div class="upload-option__text">粘贴文字</div>
+      <div class="upload-option__hint">直接粘贴课堂笔记内容</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function openUploadSheet() {
+  document.getElementById('uploadOverlay').classList.add('active');
+  document.getElementById('uploadSheet').classList.add('active');
+}
+function closeUploadSheet() {
+  document.getElementById('uploadOverlay').classList.remove('active');
+  document.getElementById('uploadSheet').classList.remove('active');
+}
+</script>

@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IRAgent 统一渲染引擎</title>
+    <script src="https://cdn.jsdelivr.net/npm/mathjs@11.8.0/lib/browser/math.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/contrib/auto-render.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif; }
+        body { background: #0b1120; }
+
+        /* ---- Progress Bar ---- */
+        #progress-bar { position: absolute; top: 0; left: 0; width: 100%; height: 3px; z-index: 200; background: rgba(255,255,255,0.06); }
+        #progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #f59e0b, #fbbf24); transition: width 0.3s ease; }
+
+        /* ---- Top Header ---- */
+        #top-header { position: absolute; top: 10px; left: 20px; right: 20px; z-index: 150; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
+        #lesson-title { color: rgba(255,255,255,0.4); font-size: 12px; font-weight: 500; letter-spacing: 0.5px; }
+        #time-display { color: rgba(255,255,255,0.25); font-size: 11px; font-family: "SF Mono", "Cascadia Code", monospace; }
+
+        /* ---- Main Flex Container ---- */
+        #main-container { display: flex; flex-direction: column; width: 100%; height: 100%; }
+
+        /* ---- Canvas Area (45%) ---- */
+        #canvas-area { position: relative; flex: 0 0 45%; min-height: 0; background: linear-gradient(145deg, #0b1120, #162032); overflow: hidden; }
+        #grid-svg, #curve-svg, #layer-highlight { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+        /* ---- Text Area (55%, scrollable) ---- */
+        #text-area { flex: 1; overflow-y: auto; padding: 16px 20px 100px; background: #0f172a; border-top: 1px solid rgba(255,255,255,0.04); }
+        #text-area::-webkit-scrollbar { width: 3px; }
+        #text-area::-webkit-scrollbar-track { background: transparent; }
+        #text-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 2px; }
+
+        /* ---- Title (no top padding in text-area) ---- */
+        #layer-title { text-align: center; margin: 6px 0 14px 0; }
+        .title-text { color: #ffffff; font-size: 20px; font-weight: 700; opacity: 0; transition: opacity 0.6s ease; letter-spacing: 0.5px; }
+        .title-text.show { opacity: 1; }
+
+        /* ---- Text nodes (推导流, minimal cards) ---- */
+        .text-node {
+            padding: 8px 14px; margin-bottom: 6px; border-radius: 8px;
+            background: rgba(255,255,255,0.04); font-size: 15px; line-height: 1.7;
+            color: rgba(255,255,255,0.85); white-space: pre-wrap; word-break: break-word;
+            width: 100%; overflow-wrap: break-word;
+        }
+        .text-node .cursor { display: inline-block; width: 2px; height: 1.1em; background: rgba(245,158,11,0.8); margin-left: 2px; vertical-align: text-bottom; animation: blink 0.5s step-end infinite; }
+        @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* Highlighted key data within text */
+        .hl { color: #fbbf24; font-weight: 600; }
+
+        /* ---- Formula node ---- */
+        .formula-node { margin: 8px 0; display: flex; justify-content: center; width: 100%; overflow-x: auto; }
+        .formula-inner { padding: 10px 20px; background: rgba(255,255,255,0.03); border-radius: 10px; opacity: 0; transition: opacity 0.4s ease; display: inline-block; min-width: 0; }
+        .formula-inner.show { opacity: 1; }
+        .formula-inner .katex { font-size: 1.25em; white-space: nowrap; }
+
+        /* ---- Step node (derivation) ---- */
+        .step-node { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; width: 100%; overflow-x: auto; }
+        .step-badge { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.2); display: flex; align-items: center; justify-content: center; color: #fbbf24; font-size: 12px; font-weight: 600; margin-top: 6px; }
+        .step-body { font-size: 15px; line-height: 1.7; color: rgba(255,255,255,0.85); padding: 6px 0; }
+        .step-body .katex { font-size: 1.1em; white-space: nowrap; }
+
+        /* ---- Example / Summary (minimal accent left border) ---- */
+        .example-node, .summary-node { margin-bottom: 8px; padding: 10px 16px; border-radius: 8px; font-size: 15px; line-height: 1.7; opacity: 0; transition: opacity 0.4s ease; width: 100%; overflow-x: auto; }
+        .example-node.show, .summary-node.show { opacity: 1; }
+        .example-node { background: rgba(59,130,246,0.06); border-left: 2px solid rgba(59,130,246,0.35); }
+        .summary-node { background: rgba(16,185,129,0.06); border-left: 2px solid rgba(16,185,129,0.35); }
+        .node-label { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 3px; }
+        .example-node .node-label { color: rgba(96,165,250,0.6); }
+        .summary-node .node-label { color: rgba(52,211,153,0.6); }
+        .katex, .katex-display { white-space: normal !important; }
+        .katex { color: #ffffff !important; }
+        .katex .katex-html { color: #ffffff !important; }
+        .katex .base { color: #ffffff !important; }
+        .katex .mord, .katex .mbin, .katex .mrel, .katex .mopen, .katex .mclose, .katex .mpunct, .katex .minner { color: inherit !important; }
+        .katex-display { display: block; margin: 10px 0; text-align: center; }
+        .katex-display > .katex { text-align: center; }
+
+        /* ---- SVG annotations on Canvas ---- */
+        .graph-label { fill: rgba(255,255,255,0.85); font-size: 12px; font-weight: 500; font-family: "SF Mono", "Cascadia Code", "PingFang SC", monospace; text-anchor: middle; dominant-baseline: central; }
+        .graph-dot { fill: #fbbf24; stroke: rgba(251,191,36,0.25); stroke-width: 4; }
+
+        /* ---- Grid / Axes ---- */
+        .grid-line { stroke: rgba(255,255,255,0.05); stroke-width: 0.5; }
+        .axis-line { stroke: rgba(255,255,255,0.4); stroke-width: 1.5; }
+        .axis-label { fill: rgba(255,255,255,0.3); font-size: 10px; text-anchor: middle; font-family: "SF Mono", "Cascadia Code", monospace; }
+        .axis-arrow { fill: rgba(255,255,255,0.4); }
+        .curve-path { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 3px rgba(255,255,255,0.08)); }
+
+        /* ---- Highlight ring ---- */
+        .highlight-ring { position: absolute; border: 2.5px solid rgba(245,158,11,0.7); border-radius: 50%; transform: translate(-50%,-50%); animation: pulse 1.5s ease-in-out infinite; pointer-events: none; box-shadow: 0 0 16px rgba(245,158,11,0.15); }
+        @keyframes pulse { 0%,100% { width: 30px; height: 30px; opacity: 0.9; } 50% { width: 48px; height: 48px; opacity: 0.3; } }
+
+        /* ---- Subtitle Bar (fixed bottom overlay) ---- */
+        #subtitle-bar { position: absolute; bottom: 3%; left: 50%; transform: translateX(-50%); width: 82%; max-height: 12%; z-index: 100; background: rgba(15,23,42,0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 6px 30px rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; padding: 10px 20px; }
+        #subtitle-text { color: #ffffff; font-size: 17px; text-align: center; max-width: 96%; line-height: 1.5; font-weight: 500; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+    </style>
+    <script>
+        marked.setOptions({ breaks: true, gfm: true, headerIds: false, mangle: false });
+    </script>
+</head>
+<body>
+<div id="progress-bar"><div id="progress-fill"></div></div>
+<div id="top-header">
+    <div id="lesson-title"></div>
+    <div id="time-display"></div>
+</div>
+<div id="main-container">
+    <div id="canvas-area">
+        <svg id="grid-svg"></svg>
+        <svg id="curve-svg"></svg>
+        <div id="layer-highlight"></div>
+    </div>
+    <div id="text-area">
+        <div id="layer-title"></div>
+        <div id="layer-text"></div>
+    </div>
+</div>
+<div id="subtitle-bar">
+    <div id="subtitle-text"></div>
+</div>
+
+<script>
+    console.log(">>> RENDERER_ENGINE_LOADED <<<");
+
+    var W, H, centerX, centerY;
+    var subtitleDebug = document.getElementById('subtitle-text');
+    console.log("subtitleText element:", subtitleDebug);
+    var viewBox = { xRange: 6, yRange: 4 };
+    var STATE = { mode: null, lessonTitle: '', totalDuration: 0 };
+    var currentY = 0;
+
+    var gridSvg = document.getElementById('grid-svg');
+    var curveSvg = document.getElementById('curve-svg');
+    var layerTitle = document.getElementById('layer-title');
+    var layerText = document.getElementById('layer-text');
+    var layerHighlight = document.getElementById('layer-highlight');
+    var subtitleText = document.getElementById('subtitle-text');
+    var progressFill = document.getElementById('progress-fill');
+    var lessonTitleEl = document.getElementById('lesson-title');
+    var timeDisplayEl = document.getElementById('time-display');
+    var textArea = document.getElementById('text-area');
+
+    var _ready = false;
+
+    function ensureCanvasReady() {
+        var canvas = document.getElementById('canvas-area');
+        if (!canvas) return false;
+        var w = canvas.clientWidth;
+        var h = canvas.clientHeight;
+        if (w < 10 || h < 10) return false;
+        W = w; H = h;
+        centerX = W / 2;
+        centerY = H / 2;
+        _ready = true;
+        return true;
+    }
+
+    function resize() {
+        if (!ensureCanvasReady()) return;
+        centerX = W / 2;
+        centerY = H / 2;
+    }
+
+    // 首屏强制初始化：轮询直到 Canvas 尺寸就绪，然后绘制默认网格
+    function initCanvas() {
+        if (ensureCanvasReady()) {
+            drawGrid();
+            return;
+        }
+        setTimeout(initCanvas, 50);
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() { setTimeout(initCanvas, 100); });
+    } else {
+        setTimeout(initCanvas, 100);
+    }
+
+    function getScale() {
+        return { sx: W / (viewBox.xRange * 2), sy: H / (viewBox.yRange * 2) };
+    }
+    function toPixelX(x) { return centerX + x * getScale().sx; }
+    function toPixelY(y) { return centerY - y * getScale().sy; }
+
+    function escHtml(str) {
+        var d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    function renderRichMarkdown(markdownContent) {
+        var placeholders = [];
+        var protectedContent = markdownContent;
+
+        protectedContent = protectedContent.replace(/\$\$([\s\S]*?)\$\$/g, function(match) {
+            var idx = placeholders.length;
+            placeholders.push(match);
+            return '\u200B' + idx + 'D\u200B';
+        });
+        protectedContent = protectedContent.replace(/\$([^$\n]+)\$/g, function(match) {
+            var idx = placeholders.length;
+            placeholders.push(match);
+            return '\u200B' + idx + 'S\u200B';
+        });
+        protectedContent = protectedContent.replace(/\\\(([\s\S]*?)\\\)/g, function(match) {
+            var idx = placeholders.length;
+            placeholders.push(match);
+            return '\u200B' + idx + 'I\u200B';
+        });
+        protectedContent = protectedContent.replace(/\\\[([\s\S]*?)\\\]/g, function(match) {
+            var idx = placeholders.length;
+            placeholders.push(match);
+            return '\u200B' + idx + 'B\u200B';
+        });
+
+        var html = marked.parse(protectedContent);
+        html = DOMPurify.sanitize(html);
+
+        // 将 **高亮关键词** 转换为金色高亮
+        html = html.replace(/<strong>(.*?)<\/strong>/g, '<span class="hl">$1</span>');
+
+        html = html.replace(/\u200B(\d+)D\u200B/g, function(_, idx) { return placeholders[idx]; });
+        html = html.replace(/\u200B(\d+)S\u200B/g, function(_, idx) { return placeholders[idx]; });
+        html = html.replace(/\u200B(\d+)I\u200B/g, function(_, idx) { return placeholders[idx]; });
+        html = html.replace(/\u200B(\d+)B\u200B/g, function(_, idx) { return placeholders[idx]; });
+
+        return html;
+    }
+
+    function autoRenderMath(container) {
+        if (typeof renderMathInElement === 'function') {
+            try {
+                renderMathInElement(container, {
+                    delimiters: [
+                        {left: "$$", right: "$$", display: true},
+                        {left: "$", right: "$", display: false},
+                        {left: "\\(", right: "\\)", display: false},
+                        {left: "\\[", right: "\\]", display: true}
+                    ],
+                    throwOnError: false,
+                    strict: false,
+                    trust: true
+                });
+            } catch(e) {
+                console.warn('autoRenderMath error:', e);
+            }
+        }
+    }
+
+    function rgba(r, g, b, a) {
+        if (typeof r === 'string' && arguments.length === 2) {
+            return r.substring(0, 7) + Math.round(arguments[1] * 255).toString(16).padStart(2, '0');
+        }
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+    }
+    function easeInOut(t) { return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; }
+    function hashCode(str) {
+        var h = 0;
+        for (var i = 0; i < str.length; i++) { h = ((h << 5) - h) + str.charCodeAt(i); h |= 0; }
+        return h;
+    }
+
+    function scrollTextAreaToBottom() {
+        if (textArea) textArea.scrollTop = textArea.scrollHeight;
+    }
+    function formatTime(sec) {
+        var m = Math.floor(sec / 60);
+        var s = Math.floor(sec % 60);
+        return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function drawGrid() {
+        if (!_ready || !W || !H) return;
+        var xRange = viewBox.xRange, yRange = viewBox.yRange;
+        var html = '';
+
+        for (var x = -xRange; x <= xRange; x += 1) {
+            var px = toPixelX(x);
+            html += '<line class="grid-line" x1="' + px + '" y1="0" x2="' + px + '" y2="' + H + '"/>';
+        }
+        for (var y = -yRange; y <= yRange; y += 1) {
+            var py = toPixelY(y);
+            html += '<line class="grid-line" x1="0" y1="' + py + '" x2="' + W + '" y2="' + py + '"/>';
+        }
+
+        html += '<line class="axis-line" x1="' + toPixelX(-xRange) + '" y1="' + centerY + '" x2="' + toPixelX(xRange) + '" y2="' + centerY + '"/>';
+        html += '<line class="axis-line" x1="' + centerX + '" y1="' + toPixelY(-yRange) + '" x2="' + centerX + '" y2="' + toPixelY(yRange) + '"/>';
+
+        html += '<polygon class="axis-arrow" points="' + (toPixelX(xRange)-8) + ',' + centerY + ' ' + toPixelX(xRange) + ',' + centerY + ' ' + (toPixelX(xRange)-8) + ',' + (centerY-5) + '"/>';
+        html += '<polygon class="axis-arrow" points="' + centerX + ',' + (toPixelY(yRange)+8) + ' ' + centerX + ',' + toPixelY(yRange) + ' ' + (centerX-5) + ',' + (toPixelY(yRange)+8) + '"/>';
+
+        html += '<text class="axis-label" x="' + (toPixelX(xRange)+12) + '" y="' + (centerY+4) + '">x</text>';
+        html += '<text class="axis-label" x="' + (centerX+10) + '" y="' + (toPixelY(yRange)-6) + '">y</text>';
+
+        for (var x = -xRange + 1; x < xRange; x++) {
+            var px = toPixelX(x);
+            html += '<text class="axis-label" x="' + px + '" y="' + (centerY+16) + '">' + x + '</text>';
+            html += '<line stroke="rgba(255,255,255,0.45)" stroke-width="1" x1="' + px + '" y1="' + (centerY-3) + '" x2="' + px + '" y2="' + (centerY+3) + '"/>';
+        }
+        for (var y = -yRange + 1; y < yRange; y++) {
+            if (y === 0) continue;
+            var py = toPixelY(y);
+            html += '<text class="axis-label" text-anchor="end" x="' + (centerX-8) + '" y="' + (py+4) + '">' + y + '</text>';
+            html += '<line stroke="rgba(255,255,255,0.45)" stroke-width="1" x1="' + (centerX-3) + '" y1="' + py + '" x2="' + (centerX+3) + '" y2="' + py + '"/>';
+        }
+        html += '<text class="axis-label" x="' + (centerX-6) + '" y="' + (centerY+16) + '">O</text>';
+
+        gridSvg.innerHTML = html;
+    }
+
+    var timelinePlayer = {
+        actions: null,
+        isPlaying: false,
+        isWaitingAudio: false,
+        startTime: null,
+        rafId: null,
+        _frameCount: 0,
+        _textIndex: 0,
+        _stepIndex: 0,
+
+        load: function(data) {
+            var parsed = (typeof data === 'string') ? JSON.parse(data) : data;
+            this.actions = parsed.timeline || [];
+            if (parsed.viewBox) { viewBox.xRange = parsed.viewBox.xRange || 6; viewBox.yRange = parsed.viewBox.yRange || 4; }
+            this._textIndex = 0;
+            this._stepIndex = 0;
+            currentY = 0;
+            STATE.mode = 'timeline';
+            STATE.lessonTitle = parsed.lessonTitle || '';
+            STATE.totalDuration = parsed.durationSeconds || this.getTotalDuration() || 30;
+            gridSvg.innerHTML = '';
+            curveSvg.innerHTML = '';
+            layerTitle.innerHTML = '';
+            layerText.innerHTML = '';
+            layerHighlight.innerHTML = '';
+            subtitleText.innerHTML = '';
+            progressFill.style.width = '0%';
+            lessonTitleEl.textContent = STATE.lessonTitle;
+            timeDisplayEl.textContent = '0:00 / ' + formatTime(STATE.totalDuration);
+            if (textArea) textArea.scrollTop = 0;
+        },
+
+        start: function() {
+            this.isPlaying = true;
+            this.isWaitingAudio = false;
+            this.startTime = performance.now();
+            this._frameCount = 0;
+            this.rafId = requestAnimationFrame(this.loop.bind(this));
+        },
+
+        loop: function() {
+            if (!this.isPlaying) return;
+            resize();
+            this._frameCount++;
+
+            var elapsed = (performance.now() - this.startTime) / 1000;
+
+            for (var i = 0; i < this.actions.length; i++) {
+                var a = this.actions[i];
+                var end = a.time + (a.duration || 1) + 0.3;
+                if (elapsed >= a.time && elapsed < end) {
+                    var progress = Math.min((elapsed - a.time) / (a.duration || 1), 1);
+                    this.execute(a, progress);
+                } else if (elapsed >= end && !a._done) {
+                    // 补帧：超过结束时间但未完成的 action，强制以 progress=1 执行一次
+                    this.execute(a, 1);
+                }
+                if (!this.isWaitingAudio && elapsed >= a.time && a.audioTrigger && !a._spoken) {
+                    a._spoken = true;
+                    this.triggerAudio(a);
+                    break; // 每次只触发一个音频，防止并发崩溃
+                }
+            }
+
+            if (elapsed > this.getTotalDuration() + 0.5) {
+                this.stop();
+                return;
+            }
+
+            var pct = Math.min(elapsed / STATE.totalDuration * 100, 100);
+            progressFill.style.width = pct + '%';
+            timeDisplayEl.textContent = formatTime(elapsed) + ' / ' + formatTime(STATE.totalDuration);
+
+            this.rafId = requestAnimationFrame(this.loop.bind(this));
+        },
+
+        getTotalDuration: function() {
+            var max = 0;
+            for (var i = 0; i < this.actions.length; i++) {
+                var end = this.actions[i].time + (this.actions[i].duration || 1);
+                if (end > max) max = end;
+            }
+            return max;
+        },
+
+        execute: function(action, progress) {
+            switch (action.action) {
+                case 'title':          this.domTitle(action, progress); break;
+                case 'write_text':     this.domWriteText(action, progress); break;
+                case 'write_richtext': this.domWriteText(action, progress); break;
+                case 'write_formula':  this.domFormula(action, progress); break;
+                case 'draw_graph':     this.domCurve(action, progress); break;
+                case 'show_grid':      this.domShowGrid(action, progress); break;
+                case 'highlight':      this.domHighlight(action, progress); break;
+                case 'clear_board':    this.domClearBoard(action, progress); break;
+                case 'clear_overlay':  this.domClearOverlay(action, progress); break;
+                case 'annotate':       this.domAnnotate(action, progress); break;
+                case 'draw_step':      this.domDrawStep(action, progress); break;
+                case 'example':        this.domExample(action, progress); break;
+                case 'summary':        this.domSummary(action, progress); break;
+            }
+        },
+
+        domShowGrid: function(action, progress) {
+            if (action._done) return;
+            if (progress >= 0.5) {
+                drawGrid();
+                action._done = true;
+            }
+        },
+
+        domTitle: function(action, progress) {
+            if (action._done) return;
+            if (progress > 0.1) {
+                layerTitle.innerHTML = '<div class="title-text show">' + escHtml(action.text || '') + '</div>';
+                action._done = true;
+            }
+        },
+
+        domWriteText: function(action, progress) {
+            if (action._done && progress >= 1) return;
+            var text = action.text || '';
+            var id = 'cht_' + (action.id || this._textIndex);
+            var el = document.getElementById(id);
+            if (!el) {
+                el = document.createElement('div');
+                el.id = id;
+                el.className = 'text-node';
+                layerText.appendChild(el);
+                this._textIndex++;
+            }
+
+            if (progress < 1) {
+                var len = Math.floor(text.length * easeInOut(progress));
+                var visible = text.substring(0, Math.max(len, 0));
+                el.innerHTML = escHtml(visible) + '<span class="cursor"></span>';
+            } else if (!action._rendered) {
+                action._rendered = true;
+                action._done = true;
+                el.innerHTML = renderRichMarkdown(text);
+                autoRenderMath(el);
+            }
+            scrollTextAreaToBottom();
+        },
+
+        domFormula: function(action, progress) {
+            if (action._done) return;
+            var latex = action.latex || '';
+            if (!latex) return;
+            if (progress > 0.3 && !action._rendered) {
+                action._rendered = true;
+                var node = document.createElement('div');
+                node.className = 'formula-node';
+                var inner = document.createElement('div');
+                inner.className = 'formula-inner';
+                node.appendChild(inner);
+                layerText.appendChild(node);
+                try {
+                    katex.render(latex, inner, { displayMode: true, throwOnError: false });
+                } catch(e) {
+                    inner.textContent = latex;
+                }
+                setTimeout(function() { inner.classList.add('show'); }, 50);
+                scrollTextAreaToBottom();
+                if (progress >= 1) action._done = true;
+            }
+        },
+
+        domCurve: function(action, progress) {
+            if (!_ready) return;
+            var expr = action.expr || '';
+            if (!expr) return;
+            if (!action._gridDrawn) {
+                drawGrid();
+                action._gridDrawn = true;
+            }
+            var s = getScale();
+            var xRange = viewBox.xRange;
+            var totalSamples = 250;
+            var visibleSamples = Math.floor(totalSamples / 2 + totalSamples / 2 * easeInOut(progress));
+            if (visibleSamples < 2) return;
+
+            var f;
+            try { f = math.compile(expr); } catch(e) { return; }
+
+            var colors = ['#4fc3f7', '#81c784', '#ffb74d', '#f06292', '#ba68c8', '#4dd0e1', '#fff176', '#a1887f'];
+            var colorIdx = Math.abs(hashCode(expr)) % colors.length;
+            var color = colors[colorIdx];
+
+            var id = 'crv_' + (action.id || hashCode(expr));
+            var existing = document.getElementById(id);
+            if (!existing) {
+                existing = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                existing.id = id;
+                existing.setAttribute('class', 'curve-path');
+                existing.setAttribute('stroke', color);
+                existing.setAttribute('fill', 'none');
+                curveSvg.appendChild(existing);
+            }
+
+            var dR = '';
+            var firstR = true;
+            for (var i = 0; i < visibleSamples; i++) {
+                var t = i / (totalSamples - 1);
+                var x = t * xRange;
+                var y;
+                try { y = f.evaluate({ x: x }); } catch(e) { firstR = true; continue; }
+                if (!isFinite(y)) { firstR = true; continue; }
+                var px = toPixelX(x), py = toPixelY(y);
+                dR += (firstR ? 'M' : 'L') + px + ',' + py;
+                firstR = false;
+            }
+            var dL = '';
+            var firstL = true;
+            for (var i = 1; i < visibleSamples; i++) {
+                var t = i / (totalSamples - 1);
+                var x = -t * xRange;
+                var y;
+                try { y = f.evaluate({ x: x }); } catch(e) { firstL = true; continue; }
+                if (!isFinite(y)) { firstL = true; continue; }
+                var px = toPixelX(x), py = toPixelY(y);
+                dL += (firstL ? 'M' : 'L') + px + ',' + py;
+                firstL = false;
+            }
+            existing.setAttribute('d', dR + ' ' + dL);
+            if (progress >= 1) action._done = true;
+        },
+
+        domHighlight: function(action, progress) {
+            if (action._done || !_ready) return;
+            var target = action.target || '';
+            var px = centerX, py = centerY;
+            if (target === 'vertex') { px = toPixelX(1); py = toPixelY(0); }
+            else if (target === 'intercept') { px = toPixelX(0); py = toPixelY(0); }
+            else if (target === 'origin') { px = centerX; py = centerY; }
+            if (!action._hlEl) {
+                action._hlEl = document.createElement('div');
+                action._hlEl.className = 'highlight-ring';
+                action._hlEl.style.cssText = 'left:' + px + 'px;top:' + px + 'px;';
+                var label = document.createElement('div');
+                label.style.cssText = 'position:absolute;left:' + (px+25) + 'px;top:' + (py-20) + 'px;color:rgba(255,215,0,0.9);font-size:12px;white-space:nowrap;pointer-events:none;';
+                label.textContent = target;
+                action._hlEl.appendChild(label);
+                layerHighlight.appendChild(action._hlEl);
+            }
+            action._hlEl.style.left = px + 'px';
+            action._hlEl.style.top = py + 'px';
+            if (progress >= 1) action._done = true;
+        },
+
+        domClearOverlay: function(action, progress) {
+            if (action._done) return;
+            if (progress > 0.3) {
+                layerText.innerHTML = '';
+                this._textIndex = 0;
+                currentY = 0;
+                action._done = true;
+            }
+        },
+
+        domAnnotate: function(action, progress) {
+            if (action._done || !_ready) return;
+            var px = centerX, py = centerY;
+            var coord = action.coord;
+            if (coord && coord.length === 2) {
+                px = toPixelX(coord[0]);
+                py = toPixelY(coord[1]);
+            } else if (action.target === 'vertex') {
+                var expr = action.expr || '(x)^2';
+                try {
+                    var f = math.compile(expr);
+                    var h = 0;
+                    if (expr.indexOf('x-') > -1) {
+                        var m = expr.match(/x\s*[-]\s*([\d.]+)/);
+                        if (m) h = parseFloat(m[1]);
+                    } else if (expr.indexOf('x+') > -1) {
+                        var m = expr.match(/x\s*[+]\s*([\d.]+)/);
+                        if (m) h = -parseFloat(m[1]);
+                    }
+                    var vx = h;
+                    var vy = f.evaluate({x: vx});
+                    px = toPixelX(vx); py = toPixelY(vy);
+                } catch(e) {}
+            }
+            if (!action._dotEl) {
+                action._dotEl = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                action._dotEl.setAttribute('r', '7');
+                action._dotEl.setAttribute('class', 'graph-dot');
+                curveSvg.appendChild(action._dotEl);
+                // 增加一个半透明外圈让点更醒目
+                var halo = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                halo.setAttribute('r', '12');
+                halo.setAttribute('fill', 'rgba(251,191,36,0.12)');
+                action._dotEl.parentNode.insertBefore(halo, action._dotEl);
+                action._haloEl = halo;
+            }
+            if (!action._labelEl) {
+                action._labelEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                action._labelEl.setAttribute('class', 'graph-label');
+                action._labelEl.textContent = action.label || '';
+                curveSvg.appendChild(action._labelEl);
+            }
+            action._dotEl.setAttribute('cx', px);
+            action._dotEl.setAttribute('cy', py);
+            if (action._haloEl) { action._haloEl.setAttribute('cx', px); action._haloEl.setAttribute('cy', py); }
+            action._labelEl.setAttribute('x', px);
+            action._labelEl.setAttribute('y', py - 18);
+            if (progress >= 1) action._done = true;
+        },
+
+        domDrawStep: function(action, progress) {
+            if (action._done) return;
+            if (progress > 0.3 && !action._rendered) {
+                action._rendered = true;
+                var stepDiv = document.createElement('div');
+                stepDiv.className = 'step-node';
+                var badge = document.createElement('div');
+                badge.className = 'step-badge';
+                badge.textContent = action.step || (this._stepIndex || 0) + 1;
+                var body = document.createElement('div');
+                body.className = 'step-body';
+                body.textContent = action.text || '';
+                stepDiv.appendChild(badge);
+                stepDiv.appendChild(body);
+                layerText.appendChild(stepDiv);
+                this._stepIndex = (this._stepIndex || 0) + 1;
+                autoRenderMath(stepDiv);
+                scrollTextAreaToBottom();
+                if (progress >= 1) action._done = true;
+            }
+        },
+
+        domExample: function(action, progress) {
+            if (action._done) return;
+            if (progress > 0.3 && !action._rendered) {
+                action._rendered = true;
+                var node = document.createElement('div');
+                node.className = 'example-node';
+                var label = document.createElement('div');
+                label.className = 'node-label';
+                label.textContent = '\u6d4b\u8bd5\u9898'; // 测试题
+                node.appendChild(label);
+                if (action.text) {
+                    var p = document.createElement('div');
+                    p.textContent = action.text;
+                    p.style.cssText = 'color:rgba(255,255,255,0.85);font-size:15px;line-height:1.7;';
+                    node.appendChild(p);
+                }
+                if (action.latex) {
+                    var fdiv = document.createElement('div');
+                    try { katex.render(action.latex, fdiv, { displayMode: true, throwOnError: false }); } catch(e) { fdiv.textContent = action.latex; }
+                    node.appendChild(fdiv);
+                }
+                layerText.appendChild(node);
+                setTimeout(function() { node.classList.add('show'); }, 50);
+                scrollTextAreaToBottom();
+                if (progress >= 1) action._done = true;
+            }
+        },
+
+        domSummary: function(action, progress) {
+            if (action._done) return;
+            if (progress > 0.3 && !action._rendered) {
+                action._rendered = true;
+                var node = document.createElement('div');
+                node.className = 'summary-node';
+                var label = document.createElement('div');
+                label.className = 'node-label';
+                label.textContent = '\u603b\u7ed3'; // 总结
+                node.appendChild(label);
+                var p = document.createElement('div');
+                p.style.cssText = 'color:rgba(255,255,255,0.85);font-size:15px;line-height:1.7;';
+                p.textContent = action.text || '';
+                node.appendChild(p);
+                layerText.appendChild(node);
+                setTimeout(function() { node.classList.add('show'); }, 50);
+                scrollTextAreaToBottom();
+                if (progress >= 1) action._done = true;
+            }
+        },
+
+        domClearBoard: function(action, progress) {
+            if (action._done) return;
+            if (progress > 0.3) {
+                layerTitle.innerHTML = '';
+                layerText.innerHTML = '';
+                curveSvg.innerHTML = '';
+                layerHighlight.innerHTML = '';
+                gridSvg.innerHTML = '';
+                this._textIndex = 0;
+                this._stepIndex = 0;
+                if (textArea) textArea.scrollTop = 0;
+                currentY = 0;
+                action._done = true;
+            }
+        },
+
+        triggerAudio: function(action) {
+            var displayText = action.text || '';
+            var ttsText = action.tts || displayText;
+            console.log('triggerAudio: id=' + action.id + ' display="' + displayText.substring(0, 60) + '" tts="' + ttsText.substring(0, 60) + '"');
+            // 将 **高亮** 转换为金色 <span>，避免字幕栏显示原始 markdown 标记
+            var subtitleContent = displayText.replace(/\*\*(.*?)\*\*/g, '<span class="hl">$1</span>');
+            subtitleText.innerHTML = subtitleContent;
+            var bar = document.getElementById('subtitle-bar');
+            if (bar) bar.style.display = displayText ? 'flex' : 'none';
+            if (typeof AndroidJSBridge !== 'undefined' && ttsText) {
+                this.isWaitingAudio = true;
+                console.log('Calling AndroidJSBridge.playTTS for ' + action.id);
+                AndroidJSBridge.playTTS(action.id, ttsText);
+            } else {
+                this.isWaitingAudio = false;
+            }
+        },
+
+        onAudioComplete: function(actionId) {
+            console.log('onAudioComplete: ' + actionId);
+            this.isWaitingAudio = false;
+        },
+
+        stop: function() {
+            this.isPlaying = false;
+            if (this.rafId) cancelAnimationFrame(this.rafId);
+            this.rafId = null;
+            this.isWaitingAudio = false;
+            progressFill.style.width = '100%';
+            subtitleText.innerHTML = '';
+            var bar = document.getElementById('subtitle-bar');
+            if (bar) bar.style.display = 'none';
+            if (typeof AndroidJSBridge !== 'undefined' && AndroidJSBridge.onTimelineDone) {
+                AndroidJSBridge.onTimelineDone();
+            }
+        }
+    };
+
+    function unifiedRender(type, config) {
+        switch (type) {
+            case 'timeline':
+                timelinePlayer.load(config);
+                timelinePlayer.start();
+                break;
+            case 'stop':
+                timelinePlayer.stop();
+                break;
+        }
+    }
+</script>
+</body>
+</html>

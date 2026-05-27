@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- 字符编码和视口设置 -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- KaTeX依赖：数学公式渲染库 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/contrib/auto-render.min.js"></script>
+    
+    <!-- Markdown解析库 + XSS安全防护库 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    
+    <style>
+        /* 全局重置样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        /* 基础文本样式 */
+        body, div, p, span, h1, h2, h3, h4, h5, h6, ul, ol, li, strong, em, a, blockquote, table, th, td {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #333333 !important;
+            text-decoration: none !important;
+        }
+        body {
+            font-size: 16px;
+            line-height: 1.6;
+            background: transparent;
+            word-wrap: break-word;
+            overflow-x: hidden;
+        }
+        
+        /* ========== Markdown样式完整适配 ========== */
+        
+        /* 标题样式 */
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: bold;
+            margin: 12px 0 6px 0;
+            line-height: 1.4;
+        }
+        h1 { font-size: 1.5em; }
+        h2 { font-size: 1.3em; }
+        h3 { font-size: 1.1em; }
+        h4 { font-size: 1.0em; }
+        
+        /* 段落样式 */
+        p { margin: 6px 0; }
+        
+        /* 列表样式 */
+        ul, ol {
+            margin: 6px 0;
+            padding-left: 24px;
+        }
+        li { margin: 4px 0; }
+        
+        /* 强调样式 */
+        strong, b { font-weight: bold; }
+        em, i { font-style: italic; }
+        
+        /* 代码样式 */
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        
+        /* 代码块样式 */
+        pre {
+            background-color: #f4f4f4;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+        pre code { padding: 0; background: none; }
+        
+        /* 引用样式 */
+        blockquote {
+            border-left: 4px solid #007AFF;
+            padding-left: 12px;
+            margin: 8px 0;
+            color: #666;
+        }
+        
+        /* 表格样式 */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 10px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th { background-color: #f8f8f8; }
+        
+        /* 链接样式 */
+        a { color: #007AFF; text-decoration: none; }
+        
+        /* 分隔线样式 */
+        hr {
+            border: none;
+            border-top: 1px solid #eee;
+            margin: 12px 0;
+        }
+        
+        /* ========== KaTeX公式样式优化 ========== */
+        
+        /* 行内公式样式 */
+        .katex {
+            font-size: 1.1em;
+            white-space: normal !important;  /* 允许换行 */
+        }
+        
+        /* 行间公式样式 */
+        .katex-display {
+            margin: 8px 0;
+            overflow-x: auto;   /* 横向滚动 */
+            overflow-y: hidden; /* 禁止纵向滚动 */
+        }
+    </style>
+    
+    <!-- marked全局配置 -->
+    <script>
+        /**
+         * Markdown解析器配置
+         * 配置项说明：
+         * - breaks: 支持换行符转<br>
+         * - gfm: 支持GitHub Flavored Markdown（表格、任务列表等）
+         * - headerIds: 禁用标题ID，避免DOM冲突
+         * - mangle: 禁用邮箱混淆
+         */
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            headerIds: false,
+            mangle: false
+        });
+    </script>
+</head>
+<body>
+<!-- 内容渲染容器 -->
+<div id="content"></div>
+
+<script>
+    /**
+     * 渲染数学内容（给Android调用的全局方法）
+     * 完整渲染流程：Markdown解析 → XSS过滤 → DOM赋值 → LaTeX公式渲染 → 通知完成
+     * @param {string} markdownContent - 包含Markdown和LaTeX的原始内容
+     */
+    function renderMathContent(markdownContent) {
+        const contentDom = document.getElementById("content");
+        
+        // 步骤0: 保护LaTeX公式，防止marked.js解析反斜杠转义
+        // 使用 Unicode 零宽字符作为占位符，避免被 HTML/Markdown 解析
+        const latexPlaceholders = [];
+        let protectedContent = markdownContent;
+        
+        // 保护 $$...$$ 行间公式（多行）
+        protectedContent = protectedContent.replace(/\$\$([\s\S]*?)\$\$/g, (match) => {
+            const placeholder = `\u200B${latexPlaceholders.length}d\u200B`;
+            latexPlaceholders.push(match);
+            return placeholder;
+        });
+        
+        // 保护 $...$ 行内公式（单行）
+        protectedContent = protectedContent.replace(/\$([^$\n]+)\$/g, (match) => {
+            const placeholder = `\u200B${latexPlaceholders.length}s\u200B`;
+            latexPlaceholders.push(match);
+            return placeholder;
+        });
+        
+        // 保护 \(...\) 行内公式
+        protectedContent = protectedContent.replace(/\\\([\s\S]*?\\\)/g, (match) => {
+            const placeholder = `\u200B${latexPlaceholders.length}i\u200B`;
+            latexPlaceholders.push(match);
+            return placeholder;
+        });
+        
+        // 保护 \[...\] 行间公式
+        protectedContent = protectedContent.replace(/\\\[([\s\S]*?)\\\]/g, (match) => {
+            const placeholder = `\u200B${latexPlaceholders.length}b\u200B`;
+            latexPlaceholders.push(match);
+            return placeholder;
+        });
+
+        protectedContent = protectedContent.replace(/\\d?frac\{[^{}]+\}\{[^{}]+\}/g, (match) => {
+            return "$" + match + "$";
+        });
+
+        protectedContent = protectedContent.replace(/\b[a-zA-Z]\s*\^\s*\{[^{}]+\}/g, (match) => {
+            return "$" + match.replace(/\s+/g, "") + "$";
+        });
+        protectedContent = protectedContent.replace(/\b[a-zA-Z]\s*\^\s*-?\d+/g, (match) => {
+            return "$" + match.replace(/\s+/g, "") + "$";
+        });
+        protectedContent = protectedContent.replace(/\b[a-zA-Z]\s*\^\s*\([^)]+\)/g, (match) => {
+            return "$" + match.replace(/\s+/g, "") + "$";
+        });
+        
+        // 步骤1: Markdown转HTML并进行XSS安全过滤
+        // DOMPurify.sanitize() 确保HTML内容安全，防止XSS攻击
+        let htmlRaw = marked.parse(protectedContent);
+        const tmp = document.createElement("div");
+        tmp.innerHTML = htmlRaw;
+        const strongRe = /\*\*([^*\n]+?)\*\*/g;
+        const walk = (node) => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const text = node.nodeValue || "";
+                if (text.indexOf("**") === -1) return;
+                const parentEl = node.parentElement;
+                if (parentEl && parentEl.closest("code,pre")) return;
+
+                let last = 0;
+                let m;
+                const frag = document.createDocumentFragment();
+                while ((m = strongRe.exec(text)) !== null) {
+                    const before = text.slice(last, m.index);
+                    if (before) frag.appendChild(document.createTextNode(before));
+                    const strong = document.createElement("strong");
+                    strong.textContent = m[1];
+                    frag.appendChild(strong);
+                    last = m.index + m[0].length;
+                }
+                const after = text.slice(last);
+                if (after) frag.appendChild(document.createTextNode(after));
+                if (node.parentNode) node.parentNode.replaceChild(frag, node);
+                return;
+            }
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const children = Array.from(node.childNodes);
+                for (const child of children) walk(child);
+            }
+        };
+        walk(tmp);
+        let html = DOMPurify.sanitize(tmp.innerHTML);
+        
+        // 步骤2: 恢复LaTeX公式
+        html = html.replace(/\u200B(\d+)d\u200B/g, (_, index) => {
+            return latexPlaceholders[index];
+        });
+        html = html.replace(/\u200B(\d+)s\u200B/g, (_, index) => {
+            return latexPlaceholders[index];
+        });
+        html = html.replace(/\u200B(\d+)i\u200B/g, (_, index) => {
+            return latexPlaceholders[index];
+        });
+        html = html.replace(/\u200B(\d+)b\u200B/g, (_, index) => {
+            return latexPlaceholders[index];
+        });
+        
+        // 步骤3: 将HTML赋值到DOM容器
+        contentDom.innerHTML = html;
+        
+        // 步骤4: 渲染LaTeX数学公式
+        renderMathInElement(contentDom, {
+            delimiters: [
+                {left: "$$", right: "$$", display: true},   // 行间公式：$$公式$$
+                {left: "$", right: "$", display: false},    // 行内公式：$公式$
+                {left: "\\(", right: "\\)", display: false}, // 行内公式：\(公式\)
+                {left: "\\[", right: "\\]", display: true}   // 行间公式：\[公式\]
+            ],
+            throwOnError: false,  // 忽略渲染错误，继续渲染其他公式
+            strict: false,        // 宽松模式，允许非标准LaTeX语法
+            trust: true           // 信任内容，启用所有KaTeX功能
+        });
+        
+        // 步骤5: 通知Android端渲染完成，触发高度调整
+        window.androidBridge?.onRenderComplete?.();
+    }
+</script>
+</body>
+</html>

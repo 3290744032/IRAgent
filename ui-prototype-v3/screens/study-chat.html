@@ -1,0 +1,145 @@
+<!-- 答疑: 对话界面 + 笔记引用卡片 -->
+<div style="display:flex;flex-direction:column;height:100%;">
+  <!-- Header: title + icon buttons like v2 -->
+  <div style="padding:var(--space-2)var(--space-4);background:var(--bg-surface);border-bottom:1px solid var(--color-gray-100);display:flex;align-items:center;gap:var(--space-3);">
+    <span style="font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--color-gray-800);flex:1;">💬 答疑</span>
+    <button class="btn btn--ghost btn--sm" onclick="App.navigateTo('study-deeplearn')" style="font-size:16px;" title="深度学习">🧠</button>
+    <button class="btn btn--ghost btn--sm" onclick="App.navigateTo('study-video')" style="font-size:16px;" title="视频讲解">🎬</button>
+    <button class="btn btn--ghost btn--sm" onclick="App.toast('历史对话')" style="font-size:16px;" title="历史对话">📋</button>
+  </div>
+
+  <!-- Messages -->
+  <div class="chat-messages" id="chatMessages">
+    <!-- AI Intro -->
+    <div class="msg msg--ai anim-fade-in-up">
+      <div class="msg__avatar">AI</div>
+      <div class="msg__body">
+        <div class="msg__name">IRAgent · 备考助手</div>
+        <div class="msg__bubble">
+          你好小明！我是你的 AI 备考助手。<br><br>
+          我已经学习了你的 <strong>5 份笔记</strong>，涵盖数学、英语、物理三个科目。在回答问题时，我会引用你的笔记来精准定位你的薄弱点。<br><br>
+          右上角可以开启 <strong>🧠 深度学习</strong> 或 <strong>🎬 视频讲解</strong>，也可以直接提问 😊
+        </div>
+        <div class="msg__time">14:30</div>
+      </div>
+    </div>
+
+    <!-- User question -->
+    <div class="msg msg--user anim-fade-in-up">
+      <div class="msg__avatar">我</div>
+      <div class="msg__body">
+        <div class="msg__name">我</div>
+        <div class="msg__bubble">求 f(x)=x³-6x²+9x 在 [0,4] 上的最值，我算的最大值=4，最小值=0，对吗？</div>
+        <div class="msg__time">14:31</div>
+      </div>
+    </div>
+
+    <!-- AI Answer with Note Reference -->
+    <div class="msg msg--ai anim-fade-in-up">
+      <div class="msg__avatar">AI</div>
+      <div class="msg__body">
+        <div class="msg__name">IRAgent · 备考助手</div>
+        <div class="msg__bubble">
+          答案是对的，但你的<strong>解题方法有缺陷</strong>。<br><br>
+          f'(x) = 3x²-12x+9 = 3(x-1)(x-3)，驻点 x=1, x=3。<br>
+          f(0)=0, f(1)=4, f(3)=0, f(4)=4 → 最大值=4, 最小值=0 ✓<br><br>
+          不过——你<strong>差点漏掉了端点 f(4)=4</strong>。如果区间改成 [0,5]，答案就不一样了。<br><br>
+          <strong>关键教训</strong>：闭区间最值必须比较驻点+端点。
+
+          <!-- Note Reference Card -->
+          <div class="note-ref-card" onclick="App.openSubScreen('knowledge-detail')">
+            <div class="note-ref-card__header">📝 参考你的笔记</div>
+            <div class="note-ref-card__title">闭区间最值 — 三步法</div>
+            <div class="note-ref-card__preview">求 f(x) 在 [a,b] 上最值：1.求导找驻点 2.计算 f(驻点), f(a), f(b) 3.排序比较... ⚠️ 易错：忘记计算端点值！</div>
+          </div>
+        </div>
+        <div class="msg__time">14:31</div>
+      </div>
+    </div>
+
+    <!-- User follow-up -->
+    <div class="msg msg--user anim-fade-in-up">
+      <div class="msg__avatar">我</div>
+      <div class="msg__body">
+        <div class="msg__name">我</div>
+        <div class="msg__bubble">那如果区间改成 [0,5] 呢？</div>
+        <div class="msg__time">14:32</div>
+      </div>
+    </div>
+
+    <!-- AI follow-up -->
+    <div class="msg msg--ai anim-fade-in-up">
+      <div class="msg__avatar">AI</div>
+      <div class="msg__body">
+        <div class="msg__name">IRAgent · 备考助手</div>
+        <div class="msg__bubble">
+          好问题！f(5)=125-150+45=<strong>20</strong>，所以如果区间是 [0,5]，最大值=20（在 x=5），最小值=0（在 x=0,3）。<br><br>
+          你看，你的方法在这里就<strong>暴露问题了</strong>——多亏今天发现了，而不是考试时才发现 😉
+
+          <div class="note-ref-card" onclick="App.openSubScreen('knowledge-detail')">
+            <div class="note-ref-card__header">📝 参考你的笔记</div>
+            <div class="note-ref-card__title">闭区间最值 — 三步法</div>
+            <div class="note-ref-card__preview">...⚠️ 易错点：忘记计算端点值！</div>
+          </div>
+        </div>
+        <div class="msg__time">14:32</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input Bar -->
+  <div class="chat-input-bar">
+    <button class="btn btn--ghost btn--sm" style="font-size:18px;padding:var(--space-2);" onclick="App.toast('拍照提问')">📷</button>
+    <input type="text" class="input" placeholder="输入你的问题..." id="chatInput"
+           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMsg();}">
+    <button class="chat-send-btn" onclick="sendChatMsg()">↑</button>
+  </div>
+</div>
+
+<script>
+function sendChatMsg() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const container = document.getElementById('chatMessages');
+  const now = new Date();
+  const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+
+  const userMsg = document.createElement('div');
+  userMsg.className = 'msg msg--user anim-fade-in-up';
+  userMsg.innerHTML = `
+    <div class="msg__avatar">我</div>
+    <div class="msg__body">
+      <div class="msg__name">我</div>
+      <div class="msg__bubble">${escapeHtml(text)}</div>
+      <div class="msg__time">${time}</div>
+    </div>
+  `;
+  container.appendChild(userMsg);
+  input.value = '';
+  container.scrollTop = container.scrollHeight;
+
+  setTimeout(() => {
+    const aiMsg = document.createElement('div');
+    aiMsg.className = 'msg msg--ai anim-fade-in-up';
+    aiMsg.innerHTML = `
+      <div class="msg__avatar">AI</div>
+      <div class="msg__body">
+        <div class="msg__name">IRAgent · 备考助手</div>
+        <div class="msg__bubble">
+          收到你的问题！让我结合你的笔记来分析一下...<br><br>
+          <div class="note-ref-card" onclick="App.openSubScreen('knowledge-detail')">
+            <div class="note-ref-card__header">📝 参考你的笔记</div>
+            <div class="note-ref-card__title">闭区间最值 — 三步法</div>
+            <div class="note-ref-card__preview">求 f(x) 在 [a,b] 上最值：1.求导找驻点 2.计算 f(驻点), f(a), f(b) 3.排序比较...</div>
+          </div>
+        </div>
+        <div class="msg__time">${time}</div>
+      </div>
+    `;
+    container.appendChild(aiMsg);
+    container.scrollTop = container.scrollHeight;
+  }, 1200);
+}
+</script>

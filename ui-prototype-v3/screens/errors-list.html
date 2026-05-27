@@ -1,0 +1,93 @@
+<!-- 错题本列表: 按时间/章节/错误类型筛选 + 复习提醒 -->
+<div>
+  <!-- Filter bar -->
+  <div class="error-list-filter">
+    <button class="filter-chip active" onclick="this.parentElement.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));this.classList.add('active')">全部</button>
+    <button class="filter-chip" onclick="this.parentElement.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));this.classList.add('active')">📐 数学</button>
+    <button class="filter-chip" onclick="this.parentElement.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));this.classList.add('active')">⚠️ 待复习</button>
+    <button class="filter-chip" onclick="this.parentElement.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));this.classList.add('active')">考点漏缺</button>
+    <button class="filter-chip" onclick="this.parentElement.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));this.classList.add('active')">公式混淆</button>
+  </div>
+
+  <!-- Review queue reminder -->
+  <div style="margin:var(--space-3) var(--space-4);padding:var(--space-3) var(--space-4);background:linear-gradient(135deg,#FFFBEB,#FFF7ED);border-radius:var(--radius-lg);border:1px solid #FDE68A;display:flex;align-items:center;gap:var(--space-3);">
+    <span style="font-size:24px;">⏰</span>
+    <div style="flex:1;">
+      <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);color:#92400E;">间隔复习提醒</div>
+      <div style="font-size:var(--text-xs);color:#B45309;">今天有 2 道错题需要复习</div>
+    </div>
+    <button class="btn btn--primary btn--sm btn--round" onclick="applyReviewFilter()">去复习</button>
+  </div>
+
+  <!-- Error cards -->
+  <div class="error-card" onclick="App.navigateTo('errors-detail')">
+    <div class="error-card__header">
+      <span class="error-card__source">2024考研数学一真题 · 第6题</span>
+      <span class="error-card__review-badge">⏰ 明天复习</span>
+    </div>
+    <div class="error-card__question">求函数 f(x) = x³ - 6x² + 9x 在区间 [0, 4] 上的最大值和最小值</div>
+    <div class="error-card__answers">
+      <span class="error-card__answer-wrong">最大值=4, 最小值=0</span>
+      <span>→</span>
+      <span class="error-card__answer-correct">方法有缺陷：漏算端点</span>
+    </div>
+    <div style="display:flex;gap:var(--space-2);margin-top:var(--space-2);">
+      <span class="badge badge--warning">考点漏缺</span>
+      <span class="badge badge--primary">公式混淆</span>
+    </div>
+  </div>
+
+  <div class="error-card" onclick="App.navigateTo('errors-detail')">
+    <div class="error-card__header">
+      <span class="error-card__source">2024考研数学一真题 · 第14题</span>
+      <span class="error-card__review-badge">⏰ 今天复习</span>
+    </div>
+    <div class="error-card__question">若双曲线 C: x²/a² - y²/b² = 1 的一条渐近线方程为 y = 2x，则 C 的离心率为____</div>
+    <div class="error-card__answers">
+      <span class="error-card__answer-wrong">√3</span>
+      <span>→</span>
+      <span class="error-card__answer-correct">2√3</span>
+    </div>
+    <div style="display:flex;gap:var(--space-2);margin-top:var(--space-2);">
+      <span class="badge badge--primary">公式混淆</span>
+      <span class="badge badge--error">计算失误</span>
+    </div>
+  </div>
+
+  <!-- Empty-ish state for other filters -->
+  <div style="text-align:center;padding:var(--space-12) var(--space-6);color:var(--color-gray-400);" id="errorFooter">
+    <div style="font-size:36px;margin-bottom:var(--space-3);">📋</div>
+    <div style="font-size:var(--text-sm);">共 2 道错题</div>
+    <div style="font-size:var(--text-xs);margin-top:var(--space-1);">继续加油，错误是最好的老师 ✨</div>
+  </div>
+</div>
+
+<script>
+// ---- Apply review filter from params or button ----
+(function(){
+  const filter = Router.currentParams.filter;
+  if (filter === 'review_due') {
+    // Activate the "待复习" filter chip
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    const reviewChip = document.querySelectorAll('.filter-chip')[2]; // "⚠️ 待复习"
+    if (reviewChip) reviewChip.classList.add('active');
+    // Hide all error cards except the one with review badge "今天复习"
+    document.querySelectorAll('.error-card').forEach(card => {
+      const badge = card.querySelector('.error-card__review-badge');
+      if (!badge || !badge.textContent.includes('今天')) {
+        card.style.display = 'none';
+      }
+    });
+    document.getElementById('errorFooter').innerHTML = `
+      <div style="font-size:36px;margin-bottom:var(--space-3);">⏰</div>
+      <div style="font-size:var(--text-sm);">1 道待复习错题</div>
+      <div style="font-size:var(--text-xs);margin-top:var(--space-1);">间隔复习，科学记忆 🧠</div>
+    `;
+  }
+})();
+
+function applyReviewFilter() {
+  Router.currentParams = { filter: 'review_due' };
+  App.navigateTo('errors-list', { filter: 'review_due' });
+}
+</script>

@@ -1,0 +1,143 @@
+<!-- Onboarding: 选考试 → 定目标 → 上传笔记 -->
+<div class="onboard-wrap">
+  <!-- Progress dots -->
+  <div class="onboard-progress" id="onboardProgress">
+    <span class="onboard-dot active"></span>
+    <span class="onboard-dot"></span>
+    <span class="onboard-dot"></span>
+  </div>
+
+  <!-- Step 1: Select Exam -->
+  <div class="onboard-step active" id="step1">
+    <div class="onboard-step__illustration">🎯</div>
+    <div class="onboard-step__title">选择你的考试</div>
+    <div class="onboard-step__desc">IRAgent 将根据考试类型定制知识图谱和备考计划</div>
+    <div class="onboard-exam-grid">
+      <div class="onboard-exam-card" data-exam="高考" onclick="selectExam(this)">
+        <span class="onboard-exam-card__icon">📝</span>
+        <span class="onboard-exam-card__label">高考</span>
+        <span class="onboard-exam-card__hint">全国Ⅰ/Ⅱ/Ⅲ卷</span>
+      </div>
+      <div class="onboard-exam-card selected" data-exam="考研" onclick="selectExam(this)">
+        <span class="onboard-exam-card__icon">🎓</span>
+        <span class="onboard-exam-card__label">考研</span>
+        <span class="onboard-exam-card__hint">数学一/二/三</span>
+      </div>
+      <div class="onboard-exam-card" data-exam="专升本" onclick="selectExam(this)">
+        <span class="onboard-exam-card__icon">📈</span>
+        <span class="onboard-exam-card__label">专升本</span>
+        <span class="onboard-exam-card__hint">高等数学/英语</span>
+      </div>
+      <div class="onboard-exam-card" data-exam="中考" onclick="selectExam(this)">
+        <span class="onboard-exam-card__icon">📖</span>
+        <span class="onboard-exam-card__label">中考</span>
+        <span class="onboard-exam-card__hint">各省市命题</span>
+      </div>
+      <div class="onboard-exam-card" data-exam="其他" onclick="selectExam(this)">
+        <span class="onboard-exam-card__icon">📋</span>
+        <span class="onboard-exam-card__label">其他</span>
+        <span class="onboard-exam-card__hint">期末/竞赛/考证</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Set Goal -->
+  <div class="onboard-step" id="step2">
+    <div class="onboard-step__illustration">🏆</div>
+    <div class="onboard-step__title">设定目标分数</div>
+    <div class="onboard-step__desc">设定你想达到的分数，AI 会帮你找到最短的提分路径</div>
+    <div class="onboard-target-area">
+      <div class="onboard-score-display" id="scoreDisplay">130</div>
+      <input type="range" class="onboard-score-slider" min="60" max="150" value="130" id="scoreSlider"
+             oninput="document.getElementById('scoreDisplay').textContent = this.value">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--color-gray-400);margin-top:8px;">
+        <span>60 分</span><span>目标 数学</span><span>150 分</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Upload Notes -->
+  <div class="onboard-step" id="step3">
+    <div class="onboard-step__illustration">📓</div>
+    <div class="onboard-step__title">上传你的笔记</div>
+    <div class="onboard-step__desc">AI 会读懂你的笔记，在答疑和诊断时精准引用你的学习内容</div>
+    <div class="onboard-upload-zone" id="uploadZone" onclick="simulateUpload()">
+      <span class="onboard-upload-zone__icon">📤</span>
+      <span class="onboard-upload-zone__text">点击上传笔记</span>
+      <span class="onboard-upload-zone__hint">支持拍照、相册、PDF 文件或直接粘贴文字</span>
+    </div>
+    <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px;" id="uploadedFiles"></div>
+  </div>
+
+  <!-- Bottom Actions -->
+  <div class="onboard-actions">
+    <button class="btn btn--ghost btn--md" id="btnSkip" onclick="skipOnboarding()" style="flex:0;">跳过</button>
+    <button class="btn btn--primary btn--lg" id="btnNext" onclick="nextStep()" style="flex:1;">下一步</button>
+  </div>
+</div>
+
+<script>
+let onboardStep = 1;
+const totalSteps = 3;
+let selectedExam = '考研';
+
+function selectExam(card) {
+  document.querySelectorAll('.onboard-exam-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  selectedExam = card.dataset.exam;
+}
+
+function nextStep() {
+  if (onboardStep < totalSteps) {
+    onboardStep++;
+    showStep(onboardStep);
+  } else {
+    finishOnboarding();
+  }
+}
+
+function showStep(n) {
+  onboardStep = n;
+  document.querySelectorAll('.onboard-step').forEach(s => s.classList.remove('active'));
+  document.getElementById('step' + n).classList.add('active');
+
+  // Progress dots
+  const dots = document.querySelectorAll('.onboard-dot');
+  dots.forEach((d, i) => {
+    d.classList.remove('active', 'done');
+    if (i < n - 1) d.classList.add('done');
+    if (i === n - 1) d.classList.add('active');
+  });
+
+  // Update button
+  const btn = document.getElementById('btnNext');
+  btn.textContent = n === totalSteps ? '🚀 开始使用' : '下一步';
+}
+
+function simulateUpload() {
+  const zone = document.getElementById('uploadZone');
+  zone.classList.add('onboard-upload-zone--uploaded');
+  zone.querySelector('.onboard-upload-zone__icon').textContent = '✅';
+  zone.querySelector('.onboard-upload-zone__text').textContent = '上传成功！';
+  zone.querySelector('.onboard-upload-zone__hint').textContent = '已识别 5 份笔记，涵盖 3 个科目';
+
+  // Add fake files
+  document.getElementById('uploadedFiles').innerHTML = `
+    <span class="tag">📄 导数公式与求导法则</span>
+    <span class="tag">📄 闭区间最值三步法</span>
+    <span class="tag">📄 三角恒等变换公式</span>
+  `;
+}
+
+function skipOnboarding() {
+  App.toast('已跳过引导，可随时在「我的→设置」修改目标');
+  App.switchTab('knowledge', 'knowledge-list');
+}
+
+function finishOnboarding() {
+  App.toast('🎉 设置完成！你的 AI 备考助手已就绪');
+  setTimeout(() => {
+    App.switchTab('knowledge', 'knowledge-list');
+  }, 800);
+}
+</script>

@@ -1,0 +1,54 @@
+package com.suiyuan.iragent_app.ui.screens.knowledge;
+
+import android.app.Application;
+
+import androidx.annotation.NonNull;
+import androidx.lifecycle.AndroidViewModel;
+import androidx.lifecycle.MutableLiveData;
+
+import com.suiyuan.iragent_app.data.model.v3.NoteDetail;
+import com.suiyuan.iragent_app.data.remote.v3.ApiServiceV3;
+import com.suiyuan.iragent_app.data.remote.v3.NetworkClientV3;
+import com.suiyuan.iragent_app.data.repository.v3.KnowledgeRepository;
+
+public class KnowledgeDetailViewModel extends AndroidViewModel {
+
+    private final KnowledgeRepository repository;
+
+    private final MutableLiveData<NoteDetail> noteDetail = new MutableLiveData<>();
+    private final MutableLiveData<String> error = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
+
+    public KnowledgeDetailViewModel(@NonNull Application application) {
+        super(application);
+        ApiServiceV3 apiService = NetworkClientV3.getApiService();
+        this.repository = new KnowledgeRepository(apiService);
+    }
+
+    public MutableLiveData<NoteDetail> getNoteDetail() { return noteDetail; }
+    public MutableLiveData<String> getError() { return error; }
+    public MutableLiveData<Boolean> getIsLoading() { return isLoading; }
+
+    public void loadNoteDetail(String noteId) {
+        isLoading.postValue(true);
+        repository.getNoteDetail(noteId, new KnowledgeRepository.ResultCallback<NoteDetail>() {
+            @Override
+            public void onSuccess(NoteDetail data) {
+                isLoading.postValue(false);
+                noteDetail.postValue(data);
+            }
+
+            @Override
+            public void onError(int code, String message) {
+                isLoading.postValue(false);
+                error.postValue(message);
+            }
+
+            @Override
+            public void onException(Exception e) {
+                isLoading.postValue(false);
+                error.postValue(e.getMessage());
+            }
+        });
+    }
+}

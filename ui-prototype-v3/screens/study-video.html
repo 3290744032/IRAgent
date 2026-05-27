@@ -1,0 +1,174 @@
+<!-- 视频讲解: 输入话题 → Timeline 黑板演算 -->
+<div style="display:flex;flex-direction:column;height:100%;">
+  <!-- Header -->
+  <div style="padding:var(--space-2)var(--space-4);background:linear-gradient(135deg,#1E3A5F,#2D5A87);color:#fff;display:flex;align-items:center;gap:var(--space-3);flex-shrink:0;">
+    <button onclick="App.goBack()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">←</button>
+    <span style="font-size:var(--text-sm);font-weight:var(--weight-semibold);flex:1;">🎬 视频讲解</span>
+  </div>
+
+  <!-- ====== INPUT STATE ====== -->
+  <div id="videoInputState" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--space-6);text-align:center;">
+    <div style="font-size:64px;margin-bottom:var(--space-4);">🎬</div>
+    <div style="font-size:var(--text-xl);font-weight:var(--weight-bold);color:var(--color-gray-800);margin-bottom:var(--space-2);">视频讲解生成</div>
+    <div style="font-size:var(--text-sm);color:var(--color-gray-500);margin-bottom:var(--space-6);line-height:var(--leading-relaxed);">
+      AI 将生成 Timeline 黑板演算动画，<br>像老师板书一样逐步讲解知识点
+    </div>
+    <div class="mode-input-row" style="width:100%;max-width:300px;">
+      <input type="text" class="input mode-input" id="videoTopicInput"
+             placeholder="输入想生成视频的知识点"
+             onkeydown="if(event.key==='Enter')startVideoSession()">
+      <button class="btn btn--primary btn--md btn--round mode-btn" onclick="startVideoSession()" style="background:linear-gradient(135deg,#1E3A5F,#2D5A87);">生成</button>
+    </div>
+    <div style="margin-top:var(--space-4);display:flex;gap:var(--space-2);flex-wrap:wrap;justify-content:center;">
+      <button class="btn--quick-reply" onclick="document.getElementById('videoTopicInput').value='导数的几何意义';startVideoSession()">导数的几何意义</button>
+      <button class="btn--quick-reply" onclick="document.getElementById('videoTopicInput').value='闭区间最值三步法';startVideoSession()">闭区间最值三步法</button>
+      <button class="btn--quick-reply" onclick="document.getElementById('videoTopicInput').value='虚拟语气用法';startVideoSession()">虚拟语气用法</button>
+    </div>
+  </div>
+
+  <!-- ====== PLAYER STATE (hidden initially) ====== -->
+  <div id="videoPlayerState" style="display:none;flex:1;flex-direction:column;">
+
+    <!-- Blackboard -->
+    <div style="flex:1;margin:var(--space-3);background:linear-gradient(180deg,#2C5F2D 0%,#1B5E20 40%,#2E7D32 100%);border-radius:var(--radius-lg);border:6px solid #5D4037;box-shadow:inset 0 2px 10px rgba(0,0,0,.3),0 4px 12px rgba(0,0,0,.2);overflow-y:auto;position:relative;min-height:280px;">
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(255,255,255,.03)0,transparent 70%);pointer-events:none;"></div>
+      <div id="blackboardContent" style="padding:var(--space-5);position:relative;z-index:1;font-family:'Comic Sans MS','KaiTi','STKaiti',serif;color:#E8E8E8;font-size:var(--text-sm);line-height:1.8;letter-spacing:.03em;"></div>
+    </div>
+
+    <!-- Timeline Steps -->
+    <div style="display:flex;gap:var(--space-1);padding:var(--space-2)var(--space-3);background:var(--bg-surface);overflow-x:auto;border-top:1px solid var(--color-gray-100);" id="videoTimelineSteps">
+      <button class="tc-step active" data-vstep="0">错因回顾</button>
+      <button class="tc-step" data-vstep="1">核心方法</button>
+      <button class="tc-step" data-vstep="2">正解演算</button>
+      <button class="tc-step" data-vstep="3">变式练习</button>
+      <button class="tc-step" data-vstep="4">总结归纳</button>
+    </div>
+
+    <!-- Controls -->
+    <div style="display:flex;gap:var(--space-2);padding:var(--space-3)var(--space-4);background:var(--bg-surface);border-top:1px solid var(--color-gray-100);">
+      <button class="tc-btn tc-btn--prev" id="tcPrevBtn" onclick="videoStepPrev()">◀</button>
+      <button class="tc-btn tc-btn--play" id="tcPlayBtn" onclick="videoAutoPlay()">▶ 自动播放</button>
+      <button class="tc-btn tc-btn--next" id="tcNextBtn" onclick="videoStepNext()">▶</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- Read params ----
+const _vpTopic = Router.currentParams.topic || '';
+const _vpSubject = Router.currentParams.subject || '数学';
+
+// If topic passed, skip input
+if (_vpTopic) {
+  document.getElementById('videoTopicInput').value = _vpTopic;
+  setTimeout(() => startVideoSession(), 300);
+}
+
+// ---- Build video steps from topic ----
+function buildVideoSteps(topic) {
+  return [
+    {
+      title: '错因回顾',
+      content: `<span class="chalk-title">📋 错因回顾：${topic}</span>
+        <span class="chalk-section">常见错误</span>
+        <span class="chalk-dot"></span>大多数同学在<span class="chalk-highlight">${topic}</span>上失分<br>
+        <span class="chalk-dot"></span>不是因为不会，而是<span class="chalk-highlight">忽略了关键步骤</span><br>
+        <span class="chalk-dot"></span>让我们来看看正确的方法应该怎么做`
+    },
+    {
+      title: '核心方法',
+      content: `<span class="chalk-title">📐 ${topic} — 解题模板</span>
+        <span class="chalk-section">标准步骤</span>
+        <span class="chalk-formula">Step 1: 明确题目要求<br>Step 2: 列出所有情况（含边界）<br>Step 3: 逐一验证</span>
+        <span class="chalk-section">关键提醒</span>
+        <span class="chalk-dot"></span><span class="chalk-highlight">永远检查边界条件</span><br>
+        <span class="chalk-dot"></span>不能因为答案巧合正确就跳过步骤`
+    },
+    {
+      title: '正解演算',
+      content: `<span class="chalk-title">🔢 完整演算过程</span>
+        <span class="chalk-section">Step-by-step</span>
+        <span class="chalk-formula">每一步写清楚<br>尤其容易遗漏的边界值<br>列式计算 → 逐一核对 → 得出结论</span>
+        <span class="chalk-dot"></span>所有候选值都列出来<br>
+        <span class="chalk-dot"></span>边界条件必须检查<br>
+        <span class="chalk-dot"></span>最终答案在合理范围内`
+    },
+    {
+      title: '变式练习',
+      content: `<span class="chalk-title">🔄 变式练习</span>
+        <span class="chalk-section">换一个条件试试？</span>
+        <span class="chalk-dot"></span>改参数 → 重新做一遍<br>
+        <span class="chalk-dot"></span>方法在所有情况下都成立吗？<br>
+        <span class="chalk-dot"></span><span class="chalk-highlight">好方法经得起变式考验</span>
+        <span class="chalk-section">推荐练习</span>
+        <span class="chalk-dot"></span>找 3 道 ${topic} 相关题<br>
+        <span class="chalk-dot"></span>每题用标准模板完整做一遍`
+    },
+    {
+      title: '总结归纳',
+      content: `<span class="chalk-title">✨ 总结：${topic}</span>
+        <span class="chalk-section">核心教训</span>
+        <span class="chalk-dot"></span>边界条件 <span class="chalk-highlight">永远不能忽略</span><br>
+        <span class="chalk-dot"></span>巧合正确 ≠ 方法正确<br>
+        <span class="chalk-dot"></span>系统模板是稳定发挥的保障<br>
+        <span class="chalk-section">记忆口诀</span>
+        <span class="chalk-correct">"全面列举，逐一验证，边界优先"</span>
+        <span class="chalk-correct" style="font-size:16px;">方法对，答案才能永远对！🎯</span>`
+    }
+  ];
+}
+
+let videoSteps = [];
+let currentVideoStep = 0;
+
+function startVideoSession() {
+  const topic = document.getElementById('videoTopicInput').value.trim();
+  if (!topic) { document.getElementById('videoTopicInput').focus(); return; }
+
+  videoSteps = buildVideoSteps(topic);
+
+  document.getElementById('videoInputState').style.display = 'none';
+  const player = document.getElementById('videoPlayerState');
+  player.style.display = 'flex';
+  currentVideoStep = 0;
+  renderBlackboard(0);
+}
+
+function renderBlackboard(idx) {
+  const board = document.getElementById('blackboardContent');
+  if (!board || idx >= videoSteps.length) return;
+  board.innerHTML = videoSteps[idx].content;
+  board.style.opacity = '0';
+  requestAnimationFrame(() => { board.style.transition = 'opacity .4s ease'; board.style.opacity = '1'; });
+  document.querySelectorAll('.tc-step').forEach((s, i) => { s.classList.remove('active','done'); if (i===idx) s.classList.add('active'); else if (i<idx) s.classList.add('done'); });
+  document.getElementById('tcPrevBtn').disabled = idx === 0;
+  document.getElementById('tcNextBtn').disabled = idx === videoSteps.length - 1;
+}
+
+function videoStepNext() { if (currentVideoStep < videoSteps.length-1) { currentVideoStep++; renderBlackboard(currentVideoStep); } }
+function videoStepPrev() { if (currentVideoStep > 0) { currentVideoStep--; renderBlackboard(currentVideoStep); } }
+
+document.getElementById('videoTimelineSteps').addEventListener('click', (e) => {
+  const step = e.target.closest('.tc-step');
+  if (!step) return;
+  const idx = parseInt(step.dataset.vstep);
+  if (!isNaN(idx)) { currentVideoStep = idx; renderBlackboard(idx); }
+});
+
+let videoTimer = null;
+function videoAutoPlay() {
+  const btn = document.getElementById('tcPlayBtn');
+  if (videoTimer) { clearInterval(videoTimer); videoTimer = null; btn.textContent = '▶ 自动播放'; btn.style.background = ''; return; }
+  btn.textContent = '⏸ 停止'; btn.style.background = 'linear-gradient(135deg,#EF4444,#DC2626)';
+  if (currentVideoStep >= videoSteps.length-1) { currentVideoStep = 0; renderBlackboard(0); }
+  videoTimer = setInterval(() => {
+    if (currentVideoStep < videoSteps.length-1) { currentVideoStep++; renderBlackboard(currentVideoStep); }
+    else { clearInterval(videoTimer); videoTimer = null; btn.textContent = '✓ 完成'; btn.style.background = 'linear-gradient(135deg,#10B981,#34D399)'; setTimeout(()=>{btn.textContent='▶ 自动播放';btn.style.background='';},2000); }
+  }, 3000);
+}
+
+// Inject chalk styles
+const cs = document.createElement('style');
+cs.textContent = `.chalk-title{display:block;font-size:var(--text-lg);font-weight:var(--weight-bold);color:#FFE082;text-align:center;margin-bottom:var(--space-4);text-shadow:0 0 10px rgba(255,224,130,.3);padding-bottom:var(--space-3);border-bottom:2px dashed rgba(255,255,255,.15)}.chalk-section{display:block;margin-top:var(--space-3);color:#B3E5FC;font-weight:var(--weight-bold);font-size:var(--text-base)}.chalk-formula{display:block;margin:var(--space-2)0;padding:var(--space-2)var(--space-3);background:rgba(255,255,255,.06);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:var(--text-xs);color:#FFF9C4;text-align:center;border:1px dashed rgba(255,255,255,.1);line-height:1.6}.chalk-wrong{color:#EF9A9A;text-decoration:line-through}.chalk-correct{color:#A5D6A7;font-weight:var(--weight-bold)}.chalk-highlight{background:rgba(255,235,59,.15);padding:1px 4px;border-radius:2px;color:#FFE082}.chalk-dot{display:inline-block;width:6px;height:6px;background:#FFE082;border-radius:50%;margin-right:var(--space-2);vertical-align:middle}`;
+document.head.appendChild(cs);
+</script>

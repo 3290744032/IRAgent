@@ -1,0 +1,208 @@
+<!-- 刷题入口: 上传试卷 | 智能组卷 | 每日一练 | 真题库 + 批改流程 -->
+<div id="practiceContainer">
+  <!-- ====== HUB VIEW ====== -->
+  <div id="practiceHubView">
+    <div class="practice-hub">
+      <div class="practice-hero">
+        <span class="practice-hero__icon">✏️</span>
+        <div class="practice-hero__title">刷题练习</div>
+        <div class="practice-hero__desc">上传试卷自动批改 · AI 智能组卷 · 每日一练</div>
+      </div>
+
+      <div class="practice-grid">
+        <div class="practice-card" onclick="startGrading()">
+          <span class="practice-card__icon">📸</span>
+          <div class="practice-card__title">上传试卷批改</div>
+          <div class="practice-card__desc">拍照上传，AI 自动识别手写答案并批改打分</div>
+        </div>
+        <div class="practice-card" onclick="App.toast('智能组卷功能开发中')">
+          <span class="practice-card__icon">🎯</span>
+          <div class="practice-card__title">智能组卷</div>
+          <div class="practice-card__desc">选择考点、难度和题量，AI 为你生成专属试卷</div>
+        </div>
+        <div class="practice-card" onclick="App.toast('今日 5 题已生成')">
+          <span class="practice-card__icon">📅</span>
+          <div class="practice-card__title">每日一练</div>
+          <div class="practice-card__desc">5 道题 · 限时 15 分钟 · 覆盖薄弱考点</div>
+        </div>
+        <div class="practice-card" onclick="App.toast('真题库浏览')">
+          <span class="practice-card__icon">📚</span>
+          <div class="practice-card__title">真题库</div>
+          <div class="practice-card__desc">历年真题 · 按年份/省份/题型筛选</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== GRADING FLOW ====== -->
+  <div id="practiceGradingFlow" style="display:none;">
+
+    <!-- Step 1: Grading Progress -->
+    <div id="gradingProgress">
+      <div class="grading-progress">
+        <div class="grading-progress__ring"></div>
+        <div class="grading-progress__text">AI 正在批改试卷...</div>
+        <div class="grading-progress__sub">识别手写文字 · 比对标准答案 · 诊断错因</div>
+      </div>
+    </div>
+
+    <!-- Step 2: Grading Report -->
+    <div id="gradingReport" style="display:none;">
+      <div class="grading-report">
+        <!-- Back -->
+        <div style="padding:var(--space-2)var(--space-4);">
+          <button onclick="backToHub()" style="width:32px;height:32px;border-radius:50%;background:var(--color-gray-100);border:none;cursor:pointer;font-size:16px;color:var(--color-gray-600);display:flex;align-items:center;justify-content:center;">←</button>
+        </div>
+
+        <div class="grading-report__score">
+          <div class="grading-report__score-value">110</div>
+          <div class="grading-report__score-label">总分 <span style="color:var(--color-success);">/ 150</span></div>
+          <div style="font-size:var(--text-xs);color:var(--color-gray-400);margin-top:4px;">2024 考研数学一真题</div>
+        </div>
+
+        <div class="grading-report__summary">
+          <div class="grading-report__stat">
+            <div class="grading-report__stat-value" style="color:var(--color-success);">6</div>
+            <div class="grading-report__stat-label">正确 ✓</div>
+          </div>
+          <div class="grading-report__stat">
+            <div class="grading-report__stat-value" style="color:var(--color-error);">4</div>
+            <div class="grading-report__stat-label">错误 ✗</div>
+          </div>
+          <div class="grading-report__stat">
+            <div class="grading-report__stat-value">60%</div>
+            <div class="grading-report__stat-label">正确率</div>
+          </div>
+        </div>
+
+        <!-- Question list -->
+        <div style="margin-top:var(--space-5);border-top:1px solid var(--color-gray-100);padding-top:var(--space-4);">
+          <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--color-gray-700);padding:0 var(--space-4);margin-bottom:var(--space-2);">逐题详情</div>
+
+          <div class="question-result-item" style="border-bottom:1px solid var(--color-gray-50);">
+            <span class="question-result-item__num">1-5</span>
+            <span class="question-result-item__topic">选择 · 基础题</span>
+            <span class="question-result-item__result question-result-item__result--wrong">错 2 题 ✗</span>
+          </div>
+          <div class="question-result-item" onclick="showGradingDetail()">
+            <span class="question-result-item__num">6</span>
+            <span class="question-result-item__topic">填空 · 导数运算</span>
+            <span class="question-result-item__result question-result-item__result--wrong">答案错误 ✗</span>
+          </div>
+          <div class="question-result-item" onclick="showGradingDetail()">
+            <span class="question-result-item__num">7</span>
+            <span class="question-result-item__topic">填空 · 解析几何</span>
+            <span class="question-result-item__result question-result-item__result--wrong">答案错误 ✗</span>
+          </div>
+          <div class="question-result-item" style="border-bottom:1px solid var(--color-gray-50);">
+            <span class="question-result-item__num">8-10</span>
+            <span class="question-result-item__topic">解答 · 综合题</span>
+            <span class="question-result-item__result question-result-item__result--correct">全对 ✓</span>
+          </div>
+        </div>
+
+        <div style="padding:var(--space-4);">
+          <button class="btn btn--primary btn--lg btn--block" onclick="App.switchTab('errors','errors-list');App.toast('错题已加入错题本')">
+            查看错题解析 →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Single question detail -->
+    <div id="gradingDetail" style="display:none;">
+      <div style="padding:var(--space-4);">
+        <div style="display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-4);">
+          <button onclick="backToReport()" style="width:32px;height:32px;border-radius:50%;background:var(--color-gray-100);border:none;cursor:pointer;font-size:16px;color:var(--color-gray-600);display:flex;align-items:center;justify-content:center;">←</button>
+          <span style="font-size:var(--text-lg);font-weight:var(--weight-semibold);color:var(--color-gray-800);">第 6 题 · 导数运算</span>
+        </div>
+
+        <div class="card" style="margin-bottom:var(--space-4);">
+          <div class="card__body">
+            <div style="font-size:var(--text-sm);color:var(--color-gray-500);margin-bottom:var(--space-2);">填空题 · 5 分</div>
+            <div style="font-size:var(--text-base);font-weight:var(--weight-medium);color:var(--color-gray-800);line-height:var(--leading-relaxed);">
+              已知 f(x)=x²lnx，则 f'(e)=_____
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-bottom:var(--space-4);">
+          <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:#FEF2F2;border-radius:var(--radius-md);border:1px solid #FECACA;">
+            <span style="font-size:var(--text-xs);color:var(--color-error);font-weight:var(--weight-semibold);min-width:48px;">你的答案</span>
+            <span style="font-size:var(--text-sm);color:var(--color-error);text-decoration:line-through;">3</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:#D1FAE5;border-radius:var(--radius-md);border:1px solid #A7F3D0;">
+            <span style="font-size:var(--text-xs);color:#065F46;font-weight:var(--weight-semibold);min-width:48px;">正确答案</span>
+            <span style="font-size:var(--text-sm);color:#065F46;font-weight:var(--weight-semibold);">6</span>
+          </div>
+        </div>
+
+        <div style="font-size:var(--text-xs);color:var(--color-gray-400);line-height:var(--leading-relaxed);">
+          <strong>解析：</strong>f'(x)=2x·lnx + x²·(1/x) = 2xlnx + x<br>
+          f'(e) = 2e·1 + e = 3e ≈ 8.15<br><br>
+          <em>注意：正确答案是 3e 或 3×2.71828 ≈ 8.15。你可能漏了 ln(e)=1 这一步。</em>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function startGrading() {
+  document.getElementById('practiceHubView').style.display = 'none';
+  document.getElementById('practiceGradingFlow').style.display = 'block';
+  document.getElementById('gradingProgress').style.display = 'block';
+  document.getElementById('gradingReport').style.display = 'none';
+  document.getElementById('gradingDetail').style.display = 'none';
+
+  // Step-by-step progress animation
+  const steps = [
+    { text: '📷 OCR 识别手写文字...', sub: '正在提取试卷图片中的文字内容' },
+    { text: '📋 提取题目与答案...', sub: '已识别 10 道题目，正在解析作答' },
+    { text: '✅ AI 批改比对中...', sub: '逐题比对标准答案，计算得分' },
+    { text: '🔬 诊断错因中...', sub: '分析错误类型：考点漏缺 · 公式混淆 · 计算失误' }
+  ];
+  const progressEl = document.getElementById('gradingProgress');
+
+  let i = 0;
+  function showStep() {
+    if (i >= steps.length) {
+      // Done
+      document.getElementById('gradingProgress').style.display = 'none';
+      document.getElementById('gradingReport').style.display = 'block';
+      return;
+    }
+    progressEl.innerHTML = `
+      <div class="grading-progress">
+        <div class="grading-progress__ring"></div>
+        <div class="grading-progress__text">${steps[i].text}</div>
+        <div class="grading-progress__sub">${steps[i].sub}</div>
+        <div style="display:flex;gap:6px;justify-content:center;margin-top:16px;">
+          ${steps.map((s, j) => `<span style="width:8px;height:8px;border-radius:50%;background:${j<i?'var(--color-success)':j===i?'var(--color-primary-500)':'var(--color-gray-200)'};"></span>`).join('')}
+        </div>
+      </div>
+    `;
+    i++;
+    setTimeout(showStep, 700);
+  }
+  showStep();
+}
+
+function showGradingDetail() {
+  document.getElementById('gradingReport').style.display = 'none';
+  document.getElementById('gradingDetail').style.display = 'block';
+}
+
+function backToReport() {
+  document.getElementById('gradingDetail').style.display = 'none';
+  document.getElementById('gradingReport').style.display = 'block';
+}
+
+function backToHub() {
+  document.getElementById('practiceGradingFlow').style.display = 'none';
+  document.getElementById('practiceHubView').style.display = 'block';
+  document.getElementById('gradingProgress').style.display = 'block';
+  document.getElementById('gradingReport').style.display = 'none';
+  document.getElementById('gradingDetail').style.display = 'none';
+}
+</script>

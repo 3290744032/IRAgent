@@ -1,0 +1,245 @@
+/* ============================================================
+   IRAgent Pro Admin — Design System
+   Maps prototype CSS variables to Ant Design Vue tokens
+   ============================================================ */
+
+:root {
+  /* Brand (Indigo) */
+  --brand-50: #EEF2FF;
+  --brand-100: #E0E7FF;
+  --brand-200: #C7D2FE;
+  --brand-300: #A5B4FC;
+  --brand-400: #818CF8;
+  --brand-500: #6366F1;
+  --brand-600: #4F46E5;
+  --brand-700: #4338CA;
+
+  /* Slate neutral */
+  --slate-50: #F8FAFC;
+  --slate-100: #F1F5F9;
+  --slate-200: #E2E8F0;
+  --slate-300: #CBD5E1;
+  --slate-400: #94A3B8;
+  --slate-500: #64748B;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1E293B;
+  --slate-900: #0F172A;
+  --slate-950: #020617;
+
+  /* Semantic */
+  --success: #10B981;
+  --success-bg: #ECFDF5;
+  --warning: #F59E0B;
+  --warning-bg: #FFFBEB;
+  --danger: #EF4444;
+  --danger-bg: #FEF2F2;
+  --info: #3B82F6;
+  --info-bg: #EFF6FF;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
+
+  /* Typography */
+  --font: 'Inter', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+
+  /* Layout */
+  --sidebar-w: 240px;
+  --header-h: 56px;
+}
+
+/* ---- Ant Design Vue Theme Overrides ---- */
+
+/* Primary color → Brand Indigo */
+:root {
+  --ant-primary-color: var(--brand-500);
+  --ant-primary-color-hover: var(--brand-400);
+  --ant-primary-color-active: var(--brand-600);
+  --ant-primary-1: var(--brand-50);
+  --ant-primary-2: var(--brand-100);
+  --ant-primary-3: var(--brand-200);
+  --ant-primary-4: var(--brand-300);
+  --ant-primary-5: var(--brand-400);
+  --ant-primary-6: var(--brand-500);
+  --ant-primary-7: var(--brand-600);
+  --ant-primary-8: var(--brand-700);
+  --ant-primary-9: var(--brand-700);
+  --ant-primary-10: var(--brand-700);
+
+  /* Link color */
+  --ant-link-color: var(--brand-500);
+
+  /* Success / Warning / Error */
+  --ant-success-color: var(--success);
+  --ant-warning-color: var(--warning);
+  --ant-error-color: var(--danger);
+
+  /* Border radius (matches prototype) */
+  --ant-border-radius-base: var(--radius-sm);
+
+  /* Font */
+  --ant-font-family: var(--font);
+}
+
+/* Global resets */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 15px;
+}
+
+body {
+  font-family: var(--font);
+  color: var(--slate-700);
+  background: var(--slate-50);
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ---- Ant Design Component Overrides ---- */
+
+/* Buttons — gradient primary */
+.ant-btn-primary {
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-600)) !important;
+  border-color: transparent !important;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  font-weight: 600;
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4) !important;
+    transform: translateY(-1px);
+  }
+}
+
+/* Table — match prototype */
+.ant-table {
+  font-size: 13px;
+}
+
+.ant-table-thead > tr > th {
+  background: var(--slate-50) !important;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--slate-400);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--slate-100) !important;
+}
+
+/* Tags */
+.ant-tag-success {
+  background: var(--success-bg);
+  color: #065F46;
+  border-color: transparent;
+}
+
+.ant-tag-error {
+  background: var(--danger-bg);
+  color: #991B1B;
+  border-color: transparent;
+}
+
+/* Menu — dark sidebar */
+.ant-menu-dark {
+  background: transparent !important;
+}
+
+.ant-layout-sider {
+  background: var(--slate-900) !important;
+}
+
+/* Layout */
+.ant-layout {
+  background: var(--slate-50);
+}
+
+/* Card */
+.ant-card {
+  border-radius: var(--radius-lg);
+  border-color: var(--slate-100);
+}
+
+/* Modal */
+.ant-modal-content {
+  border-radius: var(--radius-xl);
+}
+
+/* Slider */
+.ant-slider-track {
+  background-color: var(--brand-500) !important;
+}
+
+.ant-slider-handle {
+  border-color: var(--brand-500) !important;
+
+  &:focus {
+    box-shadow: 0 0 0 5px rgba(99, 102, 241, 0.12);
+  }
+}
+
+/* Pagination */
+.ant-pagination-item-active {
+  background: var(--brand-500);
+  border-color: var(--brand-500);
+
+  a {
+    color: #fff;
+  }
+}
+
+/* Input focus */
+.ant-input:focus,
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused {
+  border-color: var(--brand-400);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* Switch */
+.ant-switch-checked {
+  background: var(--success);
+}
+
+/* Spin */
+.ant-spin-dot-item {
+  background: var(--brand-500);
+}
+
+/* Message / Notification */
+.ant-message-success {
+  .anticon {
+    color: var(--success);
+  }
+}
+
+.ant-message-error {
+  .anticon {
+    color: var(--danger);
+  }
+}
+
+.ant-message-warning {
+  .anticon {
+    color: var(--warning);
+  }
+}

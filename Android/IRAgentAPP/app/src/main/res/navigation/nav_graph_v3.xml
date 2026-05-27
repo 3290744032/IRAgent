@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph_v3"
+    app:startDestination="@id/nav_knowledge">
+
+    <fragment
+        android:id="@+id/nav_knowledge"
+        android:name="com.suiyuan.iragent_app.ui.screens.knowledge.KnowledgeListFragment"
+        android:label="知识库" />
+
+    <fragment
+        android:id="@+id/nav_knowledge_detail"
+        android:name="com.suiyuan.iragent_app.ui.screens.knowledge.KnowledgeDetailFragment"
+        android:label="笔记详情">
+        <argument
+            android:name="note_id"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_chat"
+        android:name="com.suiyuan.iragent_app.ui.screens.study.StudyFragmentV3"
+        android:label="答疑">
+        <argument
+            android:name="conversation_id"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_conversation_list"
+        android:name="com.suiyuan.iragent_app.ui.screens.conversation.ConversationListFragment"
+        android:label="历史对话" />
+
+    <fragment
+        android:id="@+id/nav_deeplearn"
+        android:name="com.suiyuan.iragent_app.ui.screens.deeplearn.DeepLearnFragment"
+        android:label="深度学习">
+        <argument
+            android:name="topic"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_video"
+        android:name="com.suiyuan.iragent_app.ui.screens.video.VideoLessonFragment"
+        android:label="视频讲解">
+        <argument
+            android:name="topic"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="auto_timeline"
+            app:argType="boolean"
+            android:defaultValue="false" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_practice"
+        android:name="com.suiyuan.iragent_app.ui.screens.practice.PracticeHubFragment"
+        android:label="刷题" />
+
+    <fragment
+        android:id="@+id/nav_exam_archive"
+        android:name="com.suiyuan.iragent_app.ui.screens.practice.ExamArchiveFragment"
+        android:label="真题库" />
+
+    <fragment
+        android:id="@+id/nav_daily_practice"
+        android:name="com.suiyuan.iragent_app.ui.screens.practice.DailyPracticeFragment"
+        android:label="每日一练">
+        <argument
+            android:name="subject"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_smart_paper"
+        android:name="com.suiyuan.iragent_app.ui.screens.practice.SmartPaperFragment"
+        android:label="智能组卷" />
+
+    <fragment
+        android:id="@+id/nav_errors"
+        android:name="com.suiyuan.iragent_app.ui.screens.errors.ErrorsListFragment"
+        android:label="错题本" />
+
+    <fragment
+        android:id="@+id/nav_errors_detail"
+        android:name="com.suiyuan.iragent_app.ui.screens.errors.ErrorsDetailFragment"
+        android:label="错题详情">
+        <argument
+            android:name="error_id"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_profile"
+        android:name="com.suiyuan.iragent_app.ui.screens.profile.DashboardFragment"
+        android:label="我的" />
+
+</navigation>

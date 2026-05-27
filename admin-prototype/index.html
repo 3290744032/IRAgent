@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IRAgent Pro · 管理端</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
+<style>
+/* ============================================================
+   IRAgent Pro Admin — Design System
+   ============================================================ */
+:root {
+  --brand-50:#EEF2FF; --brand-100:#E0E7FF; --brand-200:#C7D2FE; --brand-300:#A5B4FC;
+  --brand-400:#818CF8; --brand-500:#6366F1; --brand-600:#4F46E5; --brand-700:#4338CA;
+  --slate-50:#F8FAFC; --slate-100:#F1F5F9; --slate-200:#E2E8F0; --slate-300:#CBD5E1;
+  --slate-400:#94A3B8; --slate-500:#64748B; --slate-600:#475569; --slate-700:#334155;
+  --slate-800:#1E293B; --slate-900:#0F172A; --slate-950:#020617;
+  --success:#10B981; --success-bg:#ECFDF5;
+  --warning:#F59E0B; --warning-bg:#FFFBEB;
+  --danger:#EF4444; --danger-bg:#FEF2F2;
+  --info:#3B82F6; --info-bg:#EFF6FF;
+  --radius-sm:6px; --radius-md:10px; --radius-lg:14px; --radius-xl:20px;
+  --shadow-xs:0 1px 2px rgba(0,0,0,.04);
+  --shadow-sm:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 6px -1px rgba(0,0,0,.06),0 2px 4px -1px rgba(0,0,0,.04);
+  --shadow-lg:0 10px 15px -3px rgba(0,0,0,.08),0 4px 6px -2px rgba(0,0,0,.04);
+  --shadow-xl:0 20px 25px -5px rgba(0,0,0,.08),0 10px 10px -5px rgba(0,0,0,.03);
+  --font:'Inter','PingFang SC','Noto Sans SC','Microsoft YaHei',sans-serif;
+  --font-mono:'JetBrains Mono','SF Mono',monospace;
+  --ease-out:cubic-bezier(0,0,0.2,1);
+  --sidebar-w:240px;
+  --header-h:56px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px}
+body{font-family:var(--font);color:var(--slate-700);background:var(--slate-50);-webkit-font-smoothing:antialiased;overflow:hidden;height:100vh}
+
+/* ============================================================
+   LOGIN PAGE
+   ============================================================ */
+.login-page{
+  display:flex;height:100vh;background:linear-gradient(135deg,var(--slate-50)0%,#EEF2FF 50%,var(--slate-50)100%);
+}
+.login-brand{
+  flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;
+  padding:60px;background:linear-gradient(160deg,var(--slate-900)0%,var(--brand-700)100%);
+  color:#fff;position:relative;overflow:hidden;
+}
+.login-brand::before{
+  content:'';position:absolute;inset:0;opacity:.06;
+  background:radial-gradient(circle at 30% 40%,#fff 0%,transparent 60%),
+             radial-gradient(circle at 70% 60%,#818CF8 0%,transparent 50%);
+}
+.login-brand>*{position:relative;z-index:1}
+.login-brand__logo{
+  width:80px;height:80px;border-radius:var(--radius-xl);
+  background:linear-gradient(135deg,#fff,rgba(255,255,255,.85));
+  display:flex;align-items:center;justify-content:center;
+  font-size:40px;margin-bottom:28px;box-shadow:0 0 40px rgba(99,102,241,.4);
+}
+.login-brand__title{font-size:32px;font-weight:800;letter-spacing:-.02em;margin-bottom:8px}
+.login-brand__sub{font-size:15px;opacity:.7;font-weight:400;letter-spacing:.02em}
+.login-brand__desc{font-size:13px;opacity:.45;margin-top:32px;text-align:center;line-height:1.7;max-width:320px}
+
+.login-form-area{
+  width:480px;display:flex;flex-direction:column;justify-content:center;padding:60px 64px;
+}
+.login-form-area__header{margin-bottom:36px}
+.login-form-area__title{font-size:26px;font-weight:700;color:var(--slate-800)}
+.login-form-area__sub{font-size:13px;color:var(--slate-400);margin-top:4px}
+
+.form-group{margin-bottom:20px}
+.form-label{display:block;font-size:13px;font-weight:600;color:var(--slate-600);margin-bottom:6px}
+.form-input{
+  width:100%;height:44px;padding:0 14px;font-size:14px;font-family:var(--font);
+  border:1.5px solid var(--slate-200);border-radius:var(--radius-sm);
+  background:#fff;color:var(--slate-800);outline:none;
+  transition:all .15s var(--ease-out);
+}
+.form-input:focus{border-color:var(--brand-400);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.form-input::placeholder{color:var(--slate-300)}
+.form-row{display:flex;gap:12px}
+.form-row .form-group:first-child{flex:1}
+.captcha-img{
+  height:44px;width:110px;border-radius:var(--radius-sm);
+  background:linear-gradient(135deg,#E0E7FF,#C7D2FE);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;color:var(--brand-600);cursor:pointer;flex-shrink:0;
+  font-weight:600;user-select:none;
+}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  font-family:var(--font);font-weight:600;border:none;cursor:pointer;
+  border-radius:var(--radius-sm);transition:all .15s var(--ease-out);
+  font-size:14px;user-select:none;
+}
+.btn--primary{
+  width:100%;height:46px;background:linear-gradient(135deg,var(--brand-500),var(--brand-600));
+  color:#fff;box-shadow:0 2px 8px rgba(99,102,241,.3);font-size:15px;letter-spacing:.04em;
+}
+.btn--primary:hover{box-shadow:0 4px 16px rgba(99,102,241,.4);transform:translateY(-1px)}
+.btn--primary:active{transform:translateY(0)}
+.login-error{font-size:12px;color:var(--danger);margin-top:8px;display:none}
+
+/* ============================================================
+   ADMIN LAYOUT
+   ============================================================ */
+.admin-layout{display:none;height:100vh}
+.admin-layout.active{display:flex}
+
+/* Sidebar */
+.sidebar{
+  width:var(--sidebar-w);background:var(--slate-900);display:flex;flex-direction:column;
+  flex-shrink:0;overflow-y:auto;position:relative;z-index:10;
+}
+.sidebar__logo{
+  padding:20px 20px 12px;display:flex;align-items:center;gap:10px;
+  color:#fff;border-bottom:1px solid rgba(255,255,255,.06);
+}
+.sidebar__logo-icon{
+  width:36px;height:36px;border-radius:var(--radius-sm);
+  background:linear-gradient(135deg,var(--brand-500),var(--brand-400));
+  display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;
+}
+.sidebar__logo-text{font-size:15px;font-weight:700;letter-spacing:-.01em}
+.sidebar__logo-ver{font-size:10px;opacity:.4;margin-left:auto}
+
+.sidebar__nav{flex:1;padding:12px 12px}
+.nav-section{margin-bottom:6px}
+.nav-section__title{
+  font-size:10px;font-weight:700;color:var(--slate-400);text-transform:uppercase;
+  letter-spacing:.08em;padding:12px 10px 6px;
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-sm);
+  font-size:13px;font-weight:500;color:var(--slate-300);cursor:pointer;
+  transition:all .15s var(--ease-out);margin-bottom:2px;text-decoration:none;
+}
+.nav-item:hover{background:rgba(255,255,255,.05);color:#fff}
+.nav-item.active{
+  background:linear-gradient(135deg,rgba(99,102,241,.25),rgba(99,102,241,.1));
+  color:#fff;position:relative;
+}
+.nav-item.active::before{
+  content:'';position:absolute;left:0;top:6px;bottom:6px;
+  width:3px;background:var(--brand-400);border-radius:0 2px 2px 0;
+}
+.nav-item__icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+.nav-item__badge{
+  margin-left:auto;font-size:10px;font-weight:700;
+  background:var(--danger);color:#fff;padding:1px 7px;border-radius:10px;min-width:20px;text-align:center;
+}
+.sidebar__footer{
+  padding:12px 16px;border-top:1px solid rgba(255,255,255,.06);
+  display:flex;align-items:center;gap:10px;color:var(--slate-400);font-size:12px;
+}
+.sidebar__footer-avatar{
+  width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--brand-500),var(--brand-400));
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;
+}
+
+/* Header */
+.header{
+  height:var(--header-h);background:#fff;border-bottom:1px solid var(--slate-100);
+  display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0;
+}
+.header__breadcrumb{font-size:13px;color:var(--slate-400);display:flex;align-items:center;gap:6px}
+.header__breadcrumb span{color:var(--slate-600);font-weight:500}
+.header__spacer{flex:1}
+.header__time{font-size:12px;color:var(--slate-400);font-family:var(--font-mono)}
+.header__btn{
+  padding:6px 16px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;
+  background:var(--slate-100);color:var(--slate-600);cursor:pointer;border:none;
+  transition:all .15s var(--ease-out);font-family:var(--font);
+}
+.header__btn:hover{background:var(--slate-200)}
+.header__btn--danger{background:var(--danger-bg);color:var(--danger)}
+.header__btn--danger:hover{background:#FEE2E2}
+
+/* Main Content */
+.main-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.content{padding:24px;flex:1;overflow-y:auto}
+
+/* Page transitions */
+.page{display:none;animation:fadeIn .25s var(--ease-out)}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+.page-title{font-size:20px;font-weight:700;color:var(--slate-800);margin-bottom:20px}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{
+  background:#fff;border-radius:var(--radius-lg);padding:20px;
+  box-shadow:var(--shadow-xs);border:1px solid var(--slate-100);
+  transition:all .2s var(--ease-out);cursor:default;
+}
+.stat-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.stat-card__header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.stat-card__label{font-size:12px;font-weight:600;color:var(--slate-400);text-transform:uppercase;letter-spacing:.04em}
+.stat-card__icon{
+  width:40px;height:40px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:20px;
+}
+.stat-card__icon--blue{background:var(--info-bg);color:var(--info)}
+.stat-card__icon--green{background:var(--success-bg);color:var(--success)}
+.stat-card__icon--purple{background:var(--brand-50);color:var(--brand-500)}
+.stat-card__icon--amber{background:var(--warning-bg);color:var(--warning)}
+.stat-card__value{font-size:32px;font-weight:800;color:var(--slate-800);letter-spacing:-.02em;line-height:1}
+.stat-card__trend{font-size:12px;margin-top:8px;display:flex;align-items:center;gap:4px}
+.stat-card__trend--up{color:var(--success)}
+.stat-card__trend--down{color:var(--danger)}
+
+.chart-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:24px}
+.chart-card{
+  background:#fff;border-radius:var(--radius-lg);padding:20px;
+  box-shadow:var(--shadow-xs);border:1px solid var(--slate-100);
+}
+.chart-card__title{font-size:14px;font-weight:700;color:var(--slate-700);margin-bottom:16px}
+.chart-box{width:100%;min-height:240px}
+
+.health-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.health-item{
+  display:flex;align-items:center;gap:10px;padding:12px 16px;
+  background:var(--slate-50);border-radius:var(--radius-md);
+}
+.health-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.health-dot--green{background:var(--success);box-shadow:0 0 6px rgba(16,185,129,.4)}
+.health-dot--yellow{background:var(--warning);box-shadow:0 0 6px rgba(245,158,11,.4)}
+.health-dot--red{background:var(--danger);box-shadow:0 0 6px rgba(239,68,68,.4)}
+.health-item__name{font-size:13px;font-weight:600;color:var(--slate-700)}
+.health-item__status{font-size:11px;font-weight:500;margin-left:auto}
+.health-item__status--ok{color:var(--success)}
+.health-item__status--warn{color:var(--warning)}
+
+/* ============================================================
+   USER MANAGEMENT
+   ============================================================ */
+.toolbar{display:flex;gap:12px;margin-bottom:16px;align-items:center}
+.toolbar__search{
+  flex:1;max-width:320px;height:38px;padding:0 14px 0 36px;
+  font-size:13px;font-family:var(--font);border:1.5px solid var(--slate-200);
+  border-radius:var(--radius-sm);background:#fff;outline:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394A3B8'%3E%3Cpath d='M11.7 10.3a6.5 6.5 0 1 0-1.4 1.4l3.5 3.5a1 1 0 0 0 1.4-1.4l-3.5-3.5zM6.5 11A4.5 4.5 0 1 1 11 6.5 4.5 4.5 0 0 1 2 6.5 4.5 4.5 0 0 1 6.5 11z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:12px center;
+}
+.toolbar__btn{
+  height:38px;padding:0 18px;font-size:13px;font-weight:600;font-family:var(--font);
+  border-radius:var(--radius-sm);border:1.5px solid var(--slate-200);
+  background:#fff;color:var(--slate-600);cursor:pointer;transition:all .15s var(--ease-out);
+}
+.toolbar__btn:hover{background:var(--slate-50)}
+.toolbar__btn--primary{background:var(--brand-500);color:#fff;border-color:var(--brand-500)}
+.toolbar__btn--primary:hover{background:var(--brand-600)}
+
+.data-table{width:100%;background:#fff;border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-xs);border:1px solid var(--slate-100)}
+.data-table table{width:100%;border-collapse:collapse}
+.data-table th{
+  text-align:left;padding:12px 16px;font-size:11px;font-weight:700;color:var(--slate-400);
+  text-transform:uppercase;letter-spacing:.05em;background:var(--slate-50);border-bottom:1px solid var(--slate-100);
+}
+.data-table td{padding:12px 16px;font-size:13px;color:var(--slate-700);border-bottom:1px solid var(--slate-50)}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:var(--slate-50)}
+.status-badge{
+  display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;
+  padding:3px 10px;border-radius:12px;
+}
+.status-badge--active{background:var(--success-bg);color:#065F46}
+.status-badge--disabled{background:var(--danger-bg);color:#991B1B}
+.action-link{font-size:12px;font-weight:600;color:var(--brand-500);cursor:pointer;text-decoration:none;margin-right:12px}
+.action-link:hover{color:var(--brand-700)}
+.action-link--danger{color:var(--danger)}
+.action-link--danger:hover{color:#DC2626}
+
+.pagination-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0;font-size:12px;color:var(--slate-400)}
+.pagination-btns{display:flex;gap:4px}
+.pagination-btn{
+  width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--slate-200);
+  background:#fff;cursor:pointer;font-size:12px;font-weight:600;color:var(--slate-600);
+  display:flex;align-items:center;justify-content:center;transition:all .15s var(--ease-out);
+}
+.pagination-btn:hover{background:var(--slate-50)}
+.pagination-btn.active{background:var(--brand-500);color:#fff;border-color:var(--brand-500)}
+
+/* ============================================================
+   QUESTION REVIEW
+   ============================================================ */
+.review-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.review-count{font-size:13px;color:var(--slate-400)}
+.review-count strong{color:var(--slate-700)}
+.review-grid{display:flex;flex-direction:column;gap:12px}
+.review-card{
+  background:#fff;border-radius:var(--radius-lg);padding:20px;
+  box-shadow:var(--shadow-xs);border:1px solid var(--slate-100);
+  transition:all .2s var(--ease-out);
+}
+.review-card:hover{box-shadow:var(--shadow-md)}
+.review-card__header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.review-card__topic{font-size:12px;font-weight:700;color:var(--brand-500)}
+.review-card__reports{font-size:12px;color:var(--slate-400);display:flex;align-items:center;gap:4px}
+.review-card__reports strong{color:var(--danger)}
+.review-card__question{font-size:14px;color:var(--slate-700);line-height:1.6;margin-bottom:8px}
+.review-card__answer{
+  font-size:13px;color:var(--slate-600);margin-bottom:14px;
+  padding:10px 14px;background:var(--slate-50);border-radius:var(--radius-sm);
+  border-left:3px solid var(--brand-300);
+}
+.review-card__answer strong{color:var(--slate-700)}
+.review-card__actions{display:flex;gap:8px}
+.btn--sm{padding:6px 18px;font-size:12px;font-weight:600;border-radius:var(--radius-sm);border:none;cursor:pointer;font-family:var(--font);transition:all .15s var(--ease-out)}
+.btn--success{background:var(--success);color:#fff}
+.btn--success:hover{background:#059669}
+.btn--danger-outline{background:#fff;color:var(--danger);border:1.5px solid #FECACA}
+.btn--danger-outline:hover{background:var(--danger-bg)}
+
+/* ============================================================
+   API KEY
+   ============================================================ */
+.key-card{
+  background:#fff;border-radius:var(--radius-lg);padding:28px;
+  box-shadow:var(--shadow-xs);border:1px solid var(--slate-100);max-width:600px;
+}
+.key-display{
+  display:flex;align-items:center;gap:16px;padding:16px 20px;
+  background:var(--slate-50);border-radius:var(--radius-md);
+  font-family:var(--font-mono);font-size:18px;color:var(--slate-700);
+  margin-bottom:20px;letter-spacing:.03em;
+}
+.key-display__status{display:flex;align-items:center;gap:6px;font-size:12px;font-family:var(--font)}
+.key-form-row{display:flex;gap:12px;align-items:flex-end}
+.key-form-row .form-group{flex:1;margin-bottom:0}
+.key-hint{font-size:12px;color:var(--slate-400);margin-top:12px;display:flex;align-items:center;gap:4px}
+.key-hint::before{content:'⚠️';font-size:14px}
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:100;
+  align-items:center;justify-content:center;
+}
+.modal-overlay.active{display:flex}
+.modal{
+  background:#fff;border-radius:var(--radius-xl);padding:28px;width:400px;
+  box-shadow:var(--shadow-xl);animation:scaleIn .2s var(--ease-out);
+}
+@keyframes scaleIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+.modal__title{font-size:17px;font-weight:700;color:var(--slate-800);margin-bottom:20px}
+.modal__actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
+.btn--cancel{background:var(--slate-100);color:var(--slate-600);padding:8px 20px;font-size:13px}
+.btn--confirm{background:var(--brand-500);color:#fff;padding:8px 20px;font-size:13px}
+
+/* Toast */
+.toast{
+  position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-20px);
+  background:var(--slate-800);color:#fff;padding:10px 24px;
+  border-radius:20px;font-size:13px;font-weight:600;
+  z-index:200;opacity:0;transition:all .25s var(--ease-out);pointer-events:none;
+}
+.toast.active{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---- Responsive ---- */
+@media(max-width:1200px){.stat-grid{grid-template-columns:repeat(2,1fr)}.chart-grid{grid-template-columns:1fr}}
+@media(max-width:768px){.stat-grid{grid-template-columns:1fr}.login-page{flex-direction:column}.login-brand{padding:40px 24px}.login-form-area{width:100%;padding:32px 24px}.sidebar{width:200px}}
+
+/* ---- Switch ---- */
+.switch-wrap{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.switch-track{
+  width:40px;height:22px;border-radius:11px;background:var(--slate-200);
+  position:relative;transition:background .2s var(--ease-out);
+}
+.switch-track--on{background:var(--success)}
+.switch-thumb{
+  position:absolute;top:2px;left:2px;width:18px;height:18px;
+  border-radius:50%;background:#fff;box-shadow:var(--shadow-sm);
+  transition:left .2s var(--ease-out);
+}
+.switch-track--on .switch-thumb{left:20px}
+
+/* ---- Empty State ---- */
+.empty-state{
+  text-align:center;padding:48px 24px;color:var(--slate-400);
+}
+.empty-state__icon{font-size:48px;margin-bottom:12px}
+.empty-state__title{font-size:15px;font-weight:600;color:var(--slate-500);margin-bottom:4px}
+.empty-state__desc{font-size:12px}
+
+/* ---- Search Clear Button ---- */
+.search-wrap{position:relative;flex:1;max-width:320px}
+.search-wrap .toolbar__search{padding-right:32px}
+.search-clear{
+  position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  width:24px;height:24px;border-radius:50%;background:var(--slate-200);
+  border:none;cursor:pointer;font-size:13px;color:var(--slate-500);
+  display:none;align-items:center;justify-content:center;line-height:1;
+}
+.search-clear.visible{display:flex}
+.search-clear:hover{background:var(--slate-300)}
+
+/* ---- Eye Toggle ---- */
+.pwd-wrap{position:relative}
+.pwd-toggle{
+  position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  background:none;border:none;cursor:pointer;font-size:16px;color:var(--slate-400);
+  padding:4px;line-height:1;
+}
+.pwd-toggle:hover{color:var(--slate-600)}
+</style>
+</head>
+<body>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- ============================================================
+     LOGIN PAGE
+     ============================================================ -->
+<div class="login-page" id="loginPage">
+  <div class="login-brand">
+    <div class="login-brand__logo">📚</div>
+    <div class="login-brand__title">IRAgent Pro</div>
+    <div class="login-brand__sub">AI 备考平台 · 管理端</div>
+    <div class="login-brand__desc">以个人知识库为中心的 AI 学习系统<br>管理后台 — 系统监控 · 用户管理 · 内容审核</div>
+  </div>
+  <div class="login-form-area">
+    <div class="login-form-area__header">
+      <div class="login-form-area__title">管理员登录</div>
+      <div class="login-form-area__sub">请使用管理员账号登录系统</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">账号</label>
+      <input type="text" class="form-input" id="loginAccount" placeholder="admin" value="admin">
+    </div>
+    <div class="form-group">
+      <label class="form-label">密码</label>
+      <input type="password" class="form-input" id="loginPassword" placeholder="••••••••" value="admin123" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">验证码</label>
+        <input type="text" class="form-input" id="loginCaptcha" placeholder="验证码" value="1234">
+      </div>
+      <div style="padding-top:22px;">
+        <div class="captcha-img" onclick="this.style.background='linear-gradient(135deg,#C7D2FE,#A5B4FC)'">A3xK</div>
+      </div>
+    </div>
+    <div class="login-error" id="loginError">账号或密码错误，请重试</div>
+    <button class="btn btn--primary" onclick="doLogin()" style="margin-top:8px;">登 录</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     ADMIN LAYOUT
+     ============================================================ -->
+<div class="admin-layout" id="adminLayout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar__logo">
+      <div class="sidebar__logo-icon">📚</div>
+      <div class="sidebar__logo-text">IRAgent Pro</div>
+      <div class="sidebar__logo-ver">v2.0</div>
+    </div>
+    <nav class="sidebar__nav">
+      <div class="nav-section">
+        <div class="nav-section__title">主菜单</div>
+        <a class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard',this)">
+          <span class="nav-item__icon">📊</span> 系统概览
+        </a>
+        <a class="nav-item" data-page="users" onclick="switchPage('users',this)">
+          <span class="nav-item__icon">👥</span> 用户管理
+        </a>
+        <a class="nav-item" data-page="review" onclick="switchPage('review',this)">
+          <span class="nav-item__icon">🛡️</span> 题目审核
+          <span class="nav-item__badge">5</span>
+        </a>
+        <a class="nav-item" data-page="apikey" onclick="switchPage('apikey',this)">
+          <span class="nav-item__icon">🔑</span> API Key
+        </a>
+      </div>
+    </nav>
+    <div class="sidebar__footer">
+      <div class="sidebar__footer-avatar">A</div>
+      <div>
+        <div style="color:#fff;font-size:12px;font-weight:600;">Admin</div>
+        <div style="font-size:10px;opacity:.5;">系统管理员</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main-area">
+    <!-- Header -->
+    <header class="header">
+      <div class="header__breadcrumb">🏠 <span style="color:var(--slate-400);">首页</span> <span style="color:var(--slate-300);margin:0 4px;">›</span> <span id="breadcrumbTitle">系统概览</span></div>
+      <div class="header__spacer"></div>
+      <div class="header__time" id="headerTime"></div>
+      <button class="header__btn" onclick="switchPage('dashboard')" style="margin-left:12px;">📊 看板</button>
+      <button class="header__btn header__btn--danger" onclick="doLogout()">退出登录</button>
+    </header>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- ====== DASHBOARD ====== -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-title">系统概览</div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-card__header">
+              <span class="stat-card__label">缓存命中率</span>
+              <div class="stat-card__icon stat-card__icon--green">⚡</div>
+            </div>
+            <div class="stat-card__value">83.4<span style="font-size:16px;color:var(--slate-400);">%</span></div>
+            <div class="stat-card__trend stat-card__trend--up">↑ 2.1% <span style="color:var(--slate-400);margin-left:4px;">较昨日</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card__header">
+              <span class="stat-card__label">Token 节省</span>
+              <div class="stat-card__icon stat-card__icon--purple">💎</div>
+            </div>
+            <div class="stat-card__value">81<span style="font-size:16px;color:var(--slate-400);">%</span></div>
+            <div class="stat-card__trend stat-card__trend--down">↓ 15% <span style="color:var(--slate-400);margin-left:4px;">较昨日</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card__header">
+              <span class="stat-card__label">活跃用户</span>
+              <div class="stat-card__icon stat-card__icon--blue">👤</div>
+            </div>
+            <div class="stat-card__value">12</div>
+            <div class="stat-card__trend stat-card__trend--up">↑ 3 <span style="color:var(--slate-400);margin-left:4px;">较昨日</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card__header">
+              <span class="stat-card__label">AI 题目</span>
+              <div class="stat-card__icon stat-card__icon--amber">🤖</div>
+            </div>
+            <div class="stat-card__value">156</div>
+            <div class="stat-card__trend" style="color:var(--danger);">5 <span style="color:var(--slate-400);margin-left:4px;">待审核</span></div>
+          </div>
+        </div>
+
+        <div class="chart-grid">
+          <div class="chart-card">
+            <div class="chart-card__title">Token 消耗趋势（近7天）</div>
+            <div class="chart-box" id="tokenChart"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-card__title">服务健康状态</div>
+            <div class="chart-box" style="height:auto;">
+              <div class="health-grid" style="grid-template-columns:1fr;">
+                <div class="health-item"><span class="health-dot health-dot--green"></span><span class="health-item__name">PostgreSQL</span><span class="health-item__status health-item__status--ok">正常</span></div>
+                <div class="health-item"><span class="health-dot health-dot--green"></span><span class="health-item__name">Redis</span><span class="health-item__status health-item__status--ok">正常</span></div>
+                <div class="health-item"><span class="health-dot health-dot--green"></span><span class="health-item__name">Milvus</span><span class="health-item__status health-item__status--ok">正常</span></div>
+                <div class="health-item"><span class="health-dot health-dot--green"></span><span class="health-item__name">RocketMQ</span><span class="health-item__status health-item__status--ok">正常</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== USER MANAGEMENT ====== -->
+      <div class="page" id="page-users">
+        <div class="page-title">用户管理</div>
+        <div class="toolbar">
+          <div class="search-wrap">
+            <input type="text" class="toolbar__search" placeholder="搜索账号或邮箱..." id="userSearch" oninput="onSearchInput()">
+            <button class="search-clear" id="searchClear" onclick="clearSearch()">×</button>
+          </div>
+          <button class="toolbar__btn toolbar__btn--primary" onclick="filterUsers()">查询</button>
+          <button class="toolbar__btn" onclick="clearSearch()">重置</button>
+          <span style="font-size:12px;color:var(--slate-400);margin-left:auto;">共 <strong style="color:var(--slate-700);" id="userTotal">42</strong> 条</span>
+        </div>
+        <div class="data-table">
+          <table>
+            <thead><tr><th>账号</th><th>邮箱</th><th>昵称</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+            <tbody id="userTableBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination-row">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span>显示第 1-10 条，共 <span id="userTotal2">42</span> 条</span>
+            <select style="height:28px;border:1px solid var(--slate-200);border-radius:4px;font-size:11px;color:var(--slate-600);padding:0 4px;font-family:var(--font);">
+              <option>10 条/页</option><option>20 条/页</option><option>50 条/页</option>
+            </select>
+          </div>
+          <div class="pagination-btns">
+            <button class="pagination-btn" disabled style="opacity:.4;">‹</button>
+            <button class="pagination-btn active">1</button>
+            <button class="pagination-btn">2</button>
+            <button class="pagination-btn">3</button>
+            <button class="pagination-btn">…</button>
+            <button class="pagination-btn">5</button>
+            <button class="pagination-btn">›</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== QUESTION REVIEW ====== -->
+      <div class="page" id="page-review">
+        <div class="review-header">
+          <div class="page-title" style="margin-bottom:0;">题目审核</div>
+          <div class="review-count">共 <strong>5</strong> 条待审核</div>
+        </div>
+        <div class="review-grid" id="reviewGrid"></div>
+      </div>
+
+      <!-- ====== API KEY ====== -->
+      <div class="page" id="page-apikey">
+        <div class="page-title">API Key 管理</div>
+        <div class="key-card">
+          <div style="font-size:13px;font-weight:600;color:var(--slate-500);margin-bottom:8px;">当前 Key</div>
+          <div class="key-display">
+            <span>26ae</span><span style="color:var(--slate-300);">••••••••••••</span><span>e1de</span>
+            <span class="key-display__status" style="margin-left:auto;color:var(--success);">🟢 正常</span>
+          </div>
+          <div style="display:flex;gap:16px;margin-bottom:24px;font-size:11px;color:var(--slate-400);">
+            <span>🟢 正常 — Key 有效且已验证</span>
+            <span style="color:#D97706;">🟡 即将过期 — 有效期不足7天</span>
+            <span style="color:var(--danger);">🔴 失效 — Key 无效或已过期</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">更新 Key</label>
+            <div class="key-form-row">
+              <div class="form-group">
+              <div class="pwd-wrap">
+                <input type="password" class="form-input" id="newApiKey" placeholder="输入新的 API Key" style="padding-right:40px;">
+                <button class="pwd-toggle" id="pwdToggle" onclick="togglePwd()" title="显示/隐藏">👁️</button>
+              </div>
+              </div>
+              <button class="btn btn--primary" style="width:auto;height:44px;padding:0 24px;flex-shrink:0;" onclick="updateApiKey()">更新 Key</button>
+            </div>
+          </div>
+          <div class="key-hint">更新后立即生效，无需重启服务。请确保 Key 有效后再提交。</div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main-area -->
+</div><!-- /admin-layout -->
+
+<!-- Modal: Edit User Quota -->
+<div class="modal-overlay" id="quotaModal">
+  <div class="modal">
+    <div class="modal__title">编辑用户配额 — <span id="quotaUserName">—</span></div>
+    <div class="form-group">
+      <label class="form-label">并发配额（1-20）</label>
+      <input type="range" min="1" max="20" value="5" id="quotaSlider" style="width:100%;accent-color:var(--brand-500);"
+             oninput="document.getElementById('quotaValue').textContent=this.value">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--slate-400);padding:0 4px;margin-top:2px;">
+        <span>1</span><span>5</span><span>10</span><span>15</span><span>20</span>
+      </div>
+      <div style="text-align:center;font-size:28px;font-weight:800;color:var(--brand-500);margin-top:8px;" id="quotaValue">5</div>
+    </div>
+    <div class="modal__actions">
+      <button class="btn btn--cancel" onclick="closeModal('quotaModal')">取消</button>
+      <button class="btn btn--confirm" onclick="saveQuota()">确定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// APP LOGIC
+// ============================================================
+
+// ---- Clock (HH:MM, no distracting seconds) ----
+function updateClock(){
+  const n=new Date();
+  document.getElementById('headerTime').textContent=
+    n.getFullYear()+'-'+(n.getMonth()+1).toString().padStart(2,'0')+'-'+n.getDate().toString().padStart(2,'0')+
+    ' '+n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
+}
+setInterval(updateClock,30000);updateClock(); // refresh every 30s, not every second
+
+// ---- Login ----
+function doLogin(){
+  const acc=document.getElementById('loginAccount').value.trim();
+  const pw=document.getElementById('loginPassword').value.trim();
+  if(!acc||!pw){showError('请输入账号和密码');return}
+  if(acc!=='admin'||pw!=='admin123'){showError('账号或密码错误');return}
+  document.getElementById('loginPage').style.display='none';
+  document.getElementById('adminLayout').classList.add('active');
+  updateClock();
+  initDashboard();
+  renderUserTable();
+  renderReviewCards();
+  toast('登录成功！欢迎回来，Admin 👋');
+}
+function showError(msg){
+  const el=document.getElementById('loginError');
+  el.textContent=msg;el.style.display='block';
+  setTimeout(()=>el.style.display='none',2500);
+}
+function doLogout(){
+  document.getElementById('adminLayout').classList.remove('active');
+  document.getElementById('loginPage').style.display='flex';
+  toast('已退出登录');
+}
+
+// ---- Page Switching ----
+function switchPage(pageName,el){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(el)el.classList.add('active');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const page=document.getElementById('page-'+pageName);
+  if(page){page.classList.add('active');page.style.animation='none';page.offsetHeight;page.style.animation='fadeIn .25s var(--ease-out)'}
+  const titles={dashboard:'系统概览',users:'用户管理',review:'题目审核',apikey:'API Key 管理'};
+  const crumbs={dashboard:'系统概览',users:'用户管理 > 用户列表',review:'内容管理 > 题目审核',apikey:'系统设置 > API Key'};
+  document.getElementById('breadcrumbTitle').textContent=crumbs[pageName]||titles[pageName]||'';
+  if(pageName==='dashboard')renderTokenChart();
+}
+
+// ---- Dashboard ----
+function initDashboard(){setTimeout(renderTokenChart,300)}
+function renderTokenChart(){
+  const dom=document.getElementById('tokenChart');
+  if(!dom)return;
+  const chart=echarts.init(dom);
+  chart.setOption({
+    tooltip:{trigger:'axis'},
+    grid:{left:40,right:16,top:16,bottom:24},
+    xAxis:{type:'category',data:['周一','周二','周三','周四','周五','周六','周日'],axisLine:{lineStyle:{color:'#E2E8F0'}},axisLabel:{color:'#94A3B8',fontSize:11}},
+    yAxis:{type:'value',splitLine:{lineStyle:{color:'#F1F5F9'}},axisLabel:{color:'#94A3B8',fontSize:11}},
+    series:[
+      {name:'输入Token',type:'line',data:[1200,1450,1320,1680,1520,980,1100],smooth:true,symbol:'circle',symbolSize:6,lineStyle:{color:'#6366F1',width:2.5},itemStyle:{color:'#6366F1'},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(99,102,241,.15)'},{offset:1,color:'rgba(99,102,241,0)'}])}},
+      {name:'输出Token',type:'line',data:[3800,4200,3900,5100,4600,2900,3400],smooth:true,symbol:'circle',symbolSize:6,lineStyle:{color:'#8B5CF6',width:2.5},itemStyle:{color:'#8B5CF6'},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(139,92,246,.15)'},{offset:1,color:'rgba(139,92,246,0)'}])}}
+    ]
+  });
+  window.addEventListener('resize',()=>chart.resize());
+}
+
+// ---- Users ----
+const usersData=[
+  {account:'student_demo',email:'stu@example.com',nickname:'小明',status:1,createTime:'2026-03-15',quota:5},
+  {account:'user_001',email:'user1@test.com',nickname:'李华',status:1,createTime:'2026-04-02',quota:3},
+  {account:'user_002',email:'user2@test.com',nickname:'张三',status:0,createTime:'2026-04-10',quota:3},
+  {account:'teacher_wang',email:'wang@edu.cn',nickname:'王老师',status:1,createTime:'2026-02-20',quota:8},
+  {account:'test_user',email:'test@dev.com',nickname:'测试账号',status:1,createTime:'2026-05-01',quota:1},
+  {account:'zhangsan_99',email:'zs99@qq.com',nickname:'小张',status:0,createTime:'2026-03-28',quota:3},
+  {account:'math_lover',email:'math@163.com',nickname:'数学爱好者',status:1,createTime:'2026-04-15',quota:3},
+  {account:'eng_study',email:'eng@test.com',nickname:'英语达人',status:1,createTime:'2026-05-05',quota:3},
+  {account:'physics_pro',email:'phy@edu.cn',nickname:'物理超',status:0,createTime:'2026-01-10',quota:5},
+  {account:'chem_101',email:'chem@test.com',nickname:'化学小王子',status:1,createTime:'2026-04-22',quota:3},
+];
+let editingUserId=null;
+
+function renderUserTable(filter){
+  const tbody=document.getElementById('userTableBody');
+  const list=filter?usersData.filter(u=>u.account.includes(filter)||u.email.includes(filter)||u.nickname.includes(filter)):usersData;
+  document.getElementById('userTotal').textContent=list.length;
+  document.getElementById('userTotal2').textContent=list.length;
+  if(list.length===0){
+    tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state"><div class="empty-state__icon">🔍</div><div class="empty-state__title">未找到匹配用户</div><div class="empty-state__desc">尝试其他关键词或调整搜索条件</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML=list.map(u=>`
+    <tr>
+      <td style="font-weight:600;">${u.account}</td>
+      <td style="color:var(--slate-400);">${u.email}</td>
+      <td>${u.nickname}</td>
+      <td><span class="status-badge ${u.status===1?'status-badge--active':'status-badge--disabled'}">${u.status===1?'🟢 启用':'🔴 禁用'}</span></td>
+      <td style="color:var(--slate-400);font-size:12px;">${u.createTime}</td>
+      <td>
+        <a class="action-link" onclick="openQuotaModal('${u.account}',${u.quota},'${u.account}')">配额</a>
+        <span class="switch-wrap" onclick="toggleUserStatus('${u.account}')">
+          <span class="switch-track ${u.status===1?'switch-track--on':''}"><span class="switch-thumb"></span></span>
+          <span style="font-size:11px;color:var(--slate-500);">${u.status===1?'启用':'禁用'}</span>
+        </span>
+      </td>
+    </tr>
+  `).join('');
+}
+function filterUsers(){renderUserTable(document.getElementById('userSearch').value.trim())}
+function onSearchInput(){
+  const v=document.getElementById('userSearch').value;
+  document.getElementById('searchClear').classList.toggle('visible',v.length>0);
+  filterUsers();
+}
+function clearSearch(){
+  document.getElementById('userSearch').value='';
+  document.getElementById('searchClear').classList.remove('visible');
+  filterUsers();
+}
+function togglePwd(){
+  const inp=document.getElementById('newApiKey');
+  const btn=document.getElementById('pwdToggle');
+  if(inp.type==='password'){inp.type='text';btn.textContent='🙈'}
+  else{inp.type='password';btn.textContent='👁️'}
+}
+function toggleUserStatus(account){
+  const u=usersData.find(u=>u.account===account);
+  if(u){u.status=u.status===1?0:1;renderUserTable();toast(`用户「${account}」已${u.status===1?'启用':'禁用'}`)}
+}
+function openQuotaModal(account,quota,displayName){
+  editingUserId=account;
+  document.getElementById('quotaUserName').textContent=displayName;
+  document.getElementById('quotaSlider').value=quota;
+  document.getElementById('quotaValue').textContent=quota;
+  document.getElementById('quotaModal').classList.add('active');
+}
+function saveQuota(){
+  const u=usersData.find(u=>u.account===editingUserId);
+  if(u){u.quota=parseInt(document.getElementById('quotaSlider').value);renderUserTable();toast(`用户「${editingUserId}」配额已更新为 ${u.quota}`)}
+  closeModal('quotaModal');
+}
+function closeModal(id){document.getElementById(id).classList.remove('active')}
+
+// ---- Question Review ----
+const reviewData=[
+  {id:'q1',topic:'数学 · 闭区间最值',question:'设 f(x) 在区间 [0,4] 上连续可导，f(0)=0, f(4)=4，f\'(x)≥0。判断：f(x) 在 [0,4] 上的最大值一定为 4。',answer:'AI 判定：正确。f\'(x)≥0 表明 f(x) 单调递增，最大值在 x=4 处。',reports:2},
+  {id:'q2',topic:'英语 · 虚拟语气',question:'If I ___ you, I would study harder. (A) am (B) was (C) were (D) be',answer:'AI 判定：C。虚拟语气与现在事实相反，be 动词用 were。',reports:1},
+  {id:'q3',topic:'政治 · 唯物辩证法',question:'矛盾的同一性和斗争性的关系是？(A) 同一性是绝对的 (B) 斗争性是相对的 (C) 同一性是有条件的相对的 (D) 两者都是绝对的',answer:'AI 判定：C。同一性是有条件的、相对的；斗争性是无条件的、绝对的。',reports:3},
+  {id:'q4',topic:'数学 · 三角函数',question:'sin15° 的值为？\nA. (√6-√2)/4  B. (√6+√2)/4  C. (√3-1)/2  D. √2/2',answer:'AI 答案：A。sin15°=sin(45°-30°)=sin45°cos30°-cos45°sin30°=(√6-√2)/4。',reports:1},
+  {id:'q5',topic:'数学 · 概率统计',question:'从 1,2,3,4,5 中任取 3 个数，组成三位数，其中偶数的概率是？',answer:'AI 答案：2/5。总排列 A(5,3)=60，偶数末位 2 或 4，各 A(4,2)=12，共24个。24/60=2/5。',reports:2},
+];
+function renderReviewCards(){
+  document.getElementById('reviewGrid').innerHTML=reviewData.map(q=>`
+    <div class="review-card" id="review-${q.id}">
+      <div class="review-card__header">
+        <span class="review-card__topic">📐 ${q.topic}</span>
+        <span class="review-card__reports">⚠️ 报错 <strong>${q.reports}</strong> 次</span>
+      </div>
+      <div class="review-card__question">${q.question.replace(/\n/g,'<br>')}</div>
+      <div class="review-card__answer"><strong>AI 答案：</strong>${q.answer}</div>
+      <div class="review-card__actions">
+        <button class="btn--sm btn--success" onclick="reviewAction('${q.id}','approve')">✓ 通过</button>
+        <button class="btn--sm btn--danger-outline" onclick="reviewAction('${q.id}','reject')">✗ 驳回</button>
+      </div>
+    </div>
+  `).join('');
+}
+function reviewAction(id,action){
+  const card=document.getElementById('review-'+id);
+  const item=reviewData.find(q=>q.id===id);
+  const label=action==='approve'?'已通过':'已驳回';
+  const color=action==='approve'?'var(--success)':'var(--danger)';
+  // Step 1: show "已处理" state for 0.5s
+  if(card){
+    const actionsEl=card.querySelector('.review-card__actions');
+    actionsEl.innerHTML=`<span style="font-size:12px;font-weight:600;color:${color};">${action==='approve'?'✓':'✗'} ${label}</span>`;
+    card.style.borderColor=color;
+    setTimeout(()=>{
+      card.style.opacity='0';card.style.transform='scale(.98)';
+      card.style.transition='all .3s var(--ease-out)';
+      setTimeout(()=>{card.remove();checkReviewEmpty()},300);
+    },500);
+  }
+  toast(`题目「${item.topic}」${label}`);
+  const remaining=document.querySelectorAll('.review-card').length-1;
+  const badge=document.querySelector('.nav-item__badge');
+  if(badge)badge.textContent=Math.max(0,remaining);
+  document.querySelector('.review-count strong').textContent=Math.max(0,remaining);
+}
+function checkReviewEmpty(){
+  const remaining=document.querySelectorAll('.review-card').length;
+  if(remaining===0){
+    document.getElementById('reviewGrid').innerHTML=`
+      <div class="empty-state">
+        <div class="empty-state__icon">🎉</div>
+        <div class="empty-state__title">暂无待审核题目</div>
+        <div class="empty-state__desc">所有题目已处理完毕，干得漂亮！</div>
+      </div>
+    `;
+    document.querySelector('.review-count strong').textContent='0';
+  }
+}
+
+// ---- API Key ----
+function updateApiKey(){
+  const key=document.getElementById('newApiKey').value.trim();
+  if(!key){toast('请输入新的 API Key');return}
+  if(key.length<10){toast('API Key 格式不正确');return}
+  const masked=key.slice(0,4)+'••••••••••••'+key.slice(-4);
+  document.querySelector('.key-display').innerHTML=`<span>${key.slice(0,4)}</span><span style="color:var(--slate-300);">••••••••••••</span><span>${key.slice(-4)}</span><span class="key-display__status" style="margin-left:auto;color:var(--success);">🟢 正常 · 已更新</span>`;
+  document.getElementById('newApiKey').value='';
+  toast('API Key 已更新，立即生效 ✅');
+}
+
+// ---- Toast ----
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('active');
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('active'),2200);
+}
+
+// ---- Init ----
+renderUserTable();
+renderReviewCards();
+
+// Close modal on overlay click
+document.getElementById('quotaModal').addEventListener('click',function(e){if(e.target===this)closeModal('quotaModal')});
+
+// Keyboard shortcut: Enter on login
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape')closeModal('quotaModal');
+});
+</script>
+</body>
+</html>

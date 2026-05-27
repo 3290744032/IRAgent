@@ -1,0 +1,84 @@
+<!-- 登录/注册 -->
+<div style="display:flex;flex-direction:column;height:100%;background:linear-gradient(180deg,#EEF2FF 0%,#F8F9FA 60%);">
+  <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:var(--space-6)var(--space-6)var(--space-10);">
+    <!-- Logo -->
+    <div style="width:72px;height:72px;border-radius:var(--radius-xl);background:linear-gradient(135deg,var(--color-primary-500),var(--color-accent-500));display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;margin-bottom:var(--space-3);box-shadow:0 0 20px rgba(99,102,241,.25);">📚</div>
+    <div style="font-size:var(--text-2xl);font-weight:var(--weight-bold);color:var(--color-gray-800);">IRAgent AI 备考助手</div>
+    <div style="font-size:var(--text-sm);color:var(--color-gray-500);margin-top:var(--space-1);">你的私人 AI 导师 · 笔记驱动 · 精准提分</div>
+
+    <!-- Tabs -->
+    <div style="display:flex;width:100%;margin-top:var(--space-8);background:var(--color-gray-100);border-radius:var(--radius-lg);padding:4px;gap:4px;">
+      <button class="auth-tab active" data-atab="login">登录</button>
+      <button class="auth-tab" data-atab="register">注册</button>
+    </div>
+
+    <!-- Login Form -->
+    <form style="width:100%;margin-top:var(--space-6);display:flex;flex-direction:column;gap:var(--space-4);" id="loginForm">
+      <div style="position:relative;">
+        <input type="text" class="input" placeholder="手机号 / 邮箱" value="student_demo@iragent.ai" style="background:var(--color-gray-50);border-color:transparent;padding:var(--space-3-5)var(--space-4);">
+      </div>
+      <div style="position:relative;">
+        <input type="password" class="input" placeholder="密码" value="••••••••" style="background:var(--color-gray-50);border-color:transparent;padding:var(--space-3-5)var(--space-4);">
+      </div>
+      <div style="display:flex;gap:var(--space-3);">
+        <div style="position:relative;flex:1;">
+          <input type="text" class="input" placeholder="验证码" style="background:var(--color-gray-50);border-color:transparent;padding:var(--space-3-5)var(--space-4);">
+        </div>
+        <div style="height:48px;width:100px;border-radius:var(--radius-sm);background:linear-gradient(135deg,#E0E7FF,#C7D2FE);display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);color:var(--color-primary-600);cursor:pointer;flex-shrink:0;font-weight:var(--weight-medium);" onclick="this.style.background='linear-gradient(135deg,#C7D2FE,#A5B4FC)'">点击刷新</div>
+      </div>
+      <button type="button" class="btn btn--primary btn--xl btn--block" onclick="doLogin()" style="margin-top:var(--space-2);">登 录</button>
+    </form>
+
+    <!-- Register Form (hidden) -->
+    <form style="width:100%;margin-top:var(--space-6);display:none;flex-direction:column;gap:var(--space-4);" id="registerForm">
+      <input type="text" class="input" placeholder="手机号 / 邮箱" style="background:var(--color-gray-50);border-color:transparent;padding:var(--space-3-5)var(--space-4);">
+      <input type="password" class="input" placeholder="设置密码（6-16位）" style="background:var(--color-gray-50);border-color:transparent;padding:var(--space-3-5)var(--space-4);">
+      <input type="password" class="input" placeholder="确认密码" style="background:var(--color-gray-50);border-color:transparent;padding:var(--space-3-5)var(--space-4);">
+      <div style="display:flex;gap:var(--space-3);">
+        <div style="position:relative;flex:1;">
+          <input type="text" class="input" placeholder="验证码" style="background:var(--color-gray-50);border-color:transparent;padding:var(--space-3-5)var(--space-4);">
+        </div>
+        <div style="height:48px;width:100px;border-radius:var(--radius-sm);background:linear-gradient(135deg,#E0E7FF,#C7D2FE);display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);color:var(--color-primary-600);cursor:pointer;flex-shrink:0;font-weight:var(--weight-medium);">获取验证码</div>
+      </div>
+      <button type="button" class="btn btn--primary btn--xl btn--block" onclick="doLogin()" style="margin-top:var(--space-2);">注 册</button>
+    </form>
+
+    <!-- Copyright -->
+    <div style="margin-top:auto;font-size:var(--text-xs);color:var(--color-gray-400);text-align:center;padding-top:var(--space-8);">© 2026 IRAgent AI Learning Assistant</div>
+  </div>
+</div>
+
+<style>
+.auth-tab{
+  flex:1;padding:var(--space-2-5);text-align:center;font-size:var(--text-sm);
+  font-weight:var(--weight-medium);border-radius:var(--radius-md);cursor:pointer;
+  color:var(--color-gray-500);border:none;background:transparent;
+  transition:all var(--duration-fast) var(--ease-out);font-family:var(--font-family);
+}
+.auth-tab.active{background:#fff;color:var(--color-primary-600);box-shadow:var(--shadow-xs);}
+</style>
+
+<script>
+// Tab switching
+document.querySelectorAll('.auth-tab').forEach(tab => {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+    if (this.dataset.atab === 'login') {
+      document.getElementById('loginForm').style.display = 'flex';
+      document.getElementById('registerForm').style.display = 'none';
+    } else {
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('registerForm').style.display = 'flex';
+    }
+  });
+});
+
+function doLogin() {
+  // Show tab bar
+  document.getElementById('tabBar').style.display = 'flex';
+  // Navigate to main app
+  App.switchTab('knowledge', 'knowledge-list');
+  App.toast('登录成功！欢迎回来，小明 👋');
+}
+</script>

@@ -1,0 +1,124 @@
+<!-- 我的: 备考仪表盘 + 学习周报 + 设置 -->
+<div>
+  <!-- Dashboard Header -->
+  <div class="dashboard-header">
+    <div class="dashboard-header__greeting">下午好 ☀️</div>
+    <div class="dashboard-header__name">小明同学</div>
+    <div class="dashboard-header__exam">🎯 目标：考研 数学 130 分</div>
+  </div>
+
+  <!-- Coverage Ring -->
+  <div class="coverage-ring-area">
+    <div class="coverage-card">
+      <div class="coverage-ring">
+        <div class="coverage-ring__inner">
+          <div class="coverage-ring__value">62%</div>
+          <div class="coverage-ring__label">考点覆盖</div>
+        </div>
+      </div>
+      <div class="coverage-stats">
+        <div class="coverage-stats__row"><span>已掌握考点</span><strong>5 / 8</strong></div>
+        <div class="coverage-stats__row"><span>笔记数量</span><strong>5 份</strong></div>
+        <div class="coverage-stats__row"><span>累计刷题</span><strong>67 道</strong></div>
+        <div class="coverage-stats__row"><span>本周学习</span><strong style="color:var(--color-primary-500);">8.5 小时</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Today Tasks -->
+  <div class="today-tasks">
+    <div style="font-size:var(--text-base);font-weight:var(--weight-semibold);color:var(--color-gray-800);margin-bottom:var(--space-3);">📋 今日任务</div>
+    <div class="task-item" onclick="App.switchTab('errors','errors-list')">
+      <span class="task-item__icon">🔄</span>
+      <div class="task-item__info">
+        <div class="task-item__title">复习 3 道错题</div>
+        <div class="task-item__detail">间隔复习队列中 · 预计 15 分钟</div>
+      </div>
+      <span class="task-item__arrow">→</span>
+    </div>
+    <div class="task-item" onclick="App.switchTab('practice','practice-hub')">
+      <span class="task-item__icon">📝</span>
+      <div class="task-item__info">
+        <div class="task-item__title">每日一练 · 5 题</div>
+        <div class="task-item__detail">限时 15 分钟 · 覆盖今日薄弱考点</div>
+      </div>
+      <span class="task-item__arrow">→</span>
+    </div>
+    <div class="task-item" onclick="App.switchTab('study','study-chat')">
+      <span class="task-item__icon">🎯</span>
+      <div class="task-item__info">
+        <div class="task-item__title">专项突破 · 闭区间最值</div>
+        <div class="task-item__detail">掌握度仅 65% · 高频考点需要加强</div>
+      </div>
+      <span class="task-item__arrow">→</span>
+    </div>
+  </div>
+
+  <!-- Learning Report -->
+  <div style="margin:var(--space-4);">
+    <div style="font-size:var(--text-base);font-weight:var(--weight-semibold);color:var(--color-gray-800);margin-bottom:var(--space-3);">📊 学习周报</div>
+    <div class="card">
+      <div class="card__body">
+        <div style="font-size:var(--text-xs);color:var(--color-gray-400);margin-bottom:var(--space-3);">5月15日 — 5月21日</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);text-align:center;">
+          <div><div style="font-size:var(--text-xl);font-weight:var(--weight-bold);color:var(--color-gray-800);">8.5h</div><div style="font-size:10px;color:var(--color-gray-400);">学习时长</div></div>
+          <div><div style="font-size:var(--text-xl);font-weight:var(--weight-bold);color:var(--color-gray-800);">67</div><div style="font-size:10px;color:var(--color-gray-400);">做题数</div></div>
+          <div><div style="font-size:var(--text-xl);font-weight:var(--weight-bold);color:var(--color-success);">72%</div><div style="font-size:10px;color:var(--color-gray-400);">正确率</div></div>
+          <div><div style="font-size:var(--text-xl);font-weight:var(--weight-bold);color:var(--color-primary-500);">+3</div><div style="font-size:10px;color:var(--color-gray-400);">新掌握</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Radar Chart Placeholder -->
+  <div class="radar-placeholder">
+    <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--color-gray-700);margin-bottom:var(--space-4);">🎯 考点掌握度雷达图</div>
+    <div class="radar-placeholder__img"></div>
+    <div class="radar-placeholder__label">导数的定义 88% · 求导公式 92% · 闭区间最值 65% · 单调性 78% · 三角变换 70%</div>
+  </div>
+
+  <!-- Settings -->
+  <div class="settings-list">
+    <div class="settings-item" onclick="App.toast('考试类型：考研 · 目标：数学 130')">
+      <span class="settings-item__icon">🎯</span>
+      <span class="settings-item__text">考试目标</span>
+      <span class="settings-item__value">考研 · 数学 130</span>
+      <span class="settings-item__arrow">→</span>
+    </div>
+    <div class="settings-item" onclick="App.toast('知识库管理')">
+      <span class="settings-item__icon">📚</span>
+      <span class="settings-item__text">知识库管理</span>
+      <span class="settings-item__value">5 份笔记</span>
+      <span class="settings-item__arrow">→</span>
+    </div>
+    <div class="settings-item" onclick="App.toast('数据导出功能开发中')">
+      <span class="settings-item__icon">📤</span>
+      <span class="settings-item__text">数据导出</span>
+      <span class="settings-item__value">错题 + 笔记</span>
+      <span class="settings-item__arrow">→</span>
+    </div>
+    <div class="settings-item" onclick="App.goOnboarding()">
+      <span class="settings-item__icon">🔄</span>
+      <span class="settings-item__text">重新设置考试目标</span>
+      <span class="settings-item__arrow">→</span>
+    </div>
+    <div class="settings-item settings-item--danger" onclick="doLogout()">
+      <span class="settings-item__icon">🚪</span>
+      <span class="settings-item__text">退出登录</span>
+      <span class="settings-item__arrow">→</span>
+    </div>
+  </div>
+
+  <!-- Prototype-only: re-trigger onboarding -->
+  <div style="text-align:center;padding:var(--space-4)var(--space-4)var(--space-8);">
+    <button class="btn btn--ghost btn--sm" onclick="App.goOnboarding()">🔄 重走引导（原型演示）</button>
+  </div>
+</div>
+
+<script>
+function doLogout() {
+  App.hideTabBar();
+  Router.load('auth');
+  App.toast('已退出登录');
+}
+</script>

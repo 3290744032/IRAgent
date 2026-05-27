@@ -1,0 +1,42 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+local.properties
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Keystore files
+*.jks
+*.keystore
+
+# Generated files
+gen/
+out/
+
+# Debug APK
+app/build/outputs/apk/
+*.apk
+*.aab
+
+# Log files
+*.log
+
+# Local configuration
+local.properties
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.swp
+*.bak
+*.tmp

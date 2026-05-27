@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教科书风格渲染器</title>
+    <script src="https://cdn.jsdelivr.net/npm/mathjs@11.8.0/lib/browser/math.min.js"></script>
+    <script src="https://www.geogebra.org/apps/deployggb.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #ffffff; }
+        #ggb-element, #textbook-canvas { width: 100%; height: 100%; position: absolute; top: 0; left: 0; background: #ffffff; }
+        #textbook-canvas { display: none; }
+        #loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; justify-content: center; align-items: center;
+            flex-direction: column; background: rgba(255,255,255,0.95); z-index: 100;
+        }
+        .loading-spinner {
+            width: 48px; height: 48px; border: 4px solid #e0e0e0;
+            border-top-color: #333; border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .loading-text { margin-top: 16px; font-family: sans-serif; font-size: 16px; color: #666; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+<div id="ggb-element"></div>
+<canvas id="textbook-canvas"></canvas>
+<div id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">正在生成图像...</div>
+</div>
+
+<script>
+    /**
+     * 协议解析器：支持普通函数、参数方程、极坐标方程、分段函数
+     */
+    var PlotParser = {
+        parse: function(lines) {
+            var text = (Array.isArray(lines) ? lines.join('\n') : lines).trim();
+            var config = {
+                type: 'cartesian',
+                xMin: -5.2, xMax: 5.2,
+                yMin: -2.05, yMax: 2.05,
+                asymptotes: [], points: {}, vLines: [], hLines: []
+            };
+
+            // 检测图像类型
+            var typeMatch = text.match(/type:\s*(\w+)/i);
+            if (typeMatch) {
+                config.type = typeMatch[1].toLowerCase();
+            }
+
+            // 解析数值参数
+            function getVal(key, def) {
+                var m = text.match(new RegExp(key + ':\\s*(-?[\\d.]+)', 'i'));
+                return m ? parseFloat(m[1]) : def;
+            }
+            config.xMin = getVal('xMin', config.xMin);
+            config.xMax = getVal('xMax', config.xMax);
+            config.yMin = getVal('yMin', config.yMin);
+            config.yMax = getVal('yMax', config.yMax);
+
+            // 解析渐近线
+            var asyMatch = text.match(/asymptotes:\s*(.+)$/im);
+            if (asyMatch) {
+                config.asymptotes = asyMatch[1].split(',').map(function(s) { return s.trim(); });
+            }
+
+            var boundsRegex = /^bounds:\s*(.+)$/gim;
+            var bm;
+            while ((bm = boundsRegex.exec(text)) !== null) {
+                var parts = bm[1].split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+                for (var i = 0; i < parts.length; i++) {
+                    var item = parts[i];
+                    var vx = item.match(/^x\s*=\s*(-?[\d.]+)$/i);
+                    if (vx) {
+                        config.vLines.push(parseFloat(vx[1]));
+                        continue;
+                    }
+                    var vy = item.match(/^y\s*=\s*(-?[\d.]+)$/i);
+                    if (vy) {
+                        config.hLines.push(parseFloat(vy[1]));
+                        continue;
+                    }
+                }
+            }
+
+            // 根据类型解析表达式
+            if (config.type === 'parametric') {
+                var xExprMatch = text.match(/xExpr:\s*(.+)$/im);
+                var yExprMatch = text.match(/yExpr:\s*(.+)$/im);
+                if (xExprMatch && yExprMatch) {
+                    config.xExpr = xExprMatch[1].trim();
+                    config.yExpr = yExprMatch[1].trim();
+                    config.tMin = getVal('tMin', 0);
+                    config.tMax = getVal('tMax', 2 * Math.PI);
+                } else {
+                    return null;
+                }
+            } else if (config.type === 'polar') {
+                var rExprMatch = text.match(/rExpr:\s*(.+)$/im);
+                if (rExprMatch) {
+                    config.rExpr = rExprMatch[1].trim();
+                    config.thetaMin = getVal('thetaMin', 0);
+                    config.thetaMax = getVal('thetaMax', 2 * Math.PI);
+                } else {
+                    return null;
+                }
+            } else if (config.type === 'piecewise') {
+                config.pieces = [];
+                var pieceRegex = /expr:\s*(.+?),\s*(.+)$/gim;
+                var match;
+                while ((match = pieceRegex.exec(text)) !== null) {
+                    config.pieces.push({
+                        expr: match[1].trim(),
+                        condition: match[2].trim()
+                    });
+                }
+                if (config.pieces.length === 0) {
+                    return null;
+                }
+            } else {
+                config.exprs = [];
+                var exprRegex = /^expr:\s*(.+)$/gim;
+                var em;
+                while ((em = exprRegex.exec(text)) !== null) {
+                    var raw = em[1].trim();
+                    var vx = raw.match(/^x\s*=\s*(-?[\d.]+)$/i);
+                    if (vx) {
+                        config.vLines.push(parseFloat(vx[1]));
+                        continue;
+                    }
+                    var vy = raw.match(/^y\s*=\s*(-?[\d.]+)$/i);
+                    if (vy) {
+                        config.hLines.push(parseFloat(vy[1]));
+                        continue;
+                    }
+                    var expr = raw.replace(/^y\s*=\s*/i, "").trim().replace(/\barctan\b/gi, 'atan');
+                    if (expr) {
+                        var parts = expr.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+                        for (var p = 0; p < parts.length; p++) {
+                            config.exprs.push(parts[p]);
+                        }
+                    }
+                }
+                if (config.exprs.length === 0) {
+                    var exprMatch = text.match(/y\s*=\s*(.+)$/im);
+                    if (exprMatch) {
+                        config.exprs.push(exprMatch[1].trim().replace(/\barctan\b/gi, 'atan'));
+                    } else {
+                        return null;
+                    }
+                }
+            }
+
+            // 解析点 O(0,0), A(1,1), B(1,e), C(1,1/e) 等
+            var pointRegex = /([A-Za-z])\s*\(\s*(-?[\d./eE]+(?:\s*[-+*/]\s*[\d./eE]+)?)\s*,\s*(-?[\d./eE]+(?:\s*[-+*/]\s*[\d./eE]+)?)\s*\)/g;
+            var pMatch;
+            while ((pMatch = pointRegex.exec(text)) !== null) {
+                var px = parseFloat(pMatch[2]);
+                var py = parseFloat(pMatch[3]);
+                if (isNaN(px)) {
+                    try { px = math.evaluate(pMatch[2]); } catch (e) { px = NaN; }
+                }
+                if (isNaN(py)) {
+                    try { py = math.evaluate(pMatch[3]); } catch (e) { py = NaN; }
+                }
+                if (!isNaN(px) && !isNaN(py)) {
+                    config.points[pMatch[1].toUpperCase()] = { x: px, y: py };
+                }
+            }
+
+            return config;
+        }
+    };
+
+    /**
+     * 2. 教科书风格 Canvas 渲染引擎
+     */
+    var TextbookRenderer = {
+        canvas: null, ctx: null, cfg: null,
+        // 还原你最喜欢的边距设置
+        leftPad: 38, rightPad: 34, topPad: 28, bottomPad: 38,
+
+        init: function(el) {
+            this.canvas = el;
+            this.ctx = el.getContext('2d');
+        },
+
+        px: function(x, w) {
+            return this.leftPad + (x - this.cfg.xMin) * (w - this.leftPad - this.rightPad) / (this.cfg.xMax - this.cfg.xMin);
+        },
+
+        py: function(y, h) {
+            return this.topPad + (this.cfg.yMax - y) * (h - this.topPad - this.bottomPad) / (this.cfg.yMax - this.cfg.yMin);
+        },
+
+        // 修复了导致 SyntaxError 的笔误
+        drawArrow: function(x1, y1, x2, y2) {
+            var ctx = this.ctx;
+            var angle = Math.atan2(y2 - y1, x2 - x1);
+            var head = 18; // 箭头大小
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - head * Math.cos(angle - Math.PI / 7), y2 - head * Math.sin(angle - Math.PI / 7));
+            ctx.lineTo(x2 - head * Math.cos(angle + Math.PI / 7), y2 - head * Math.sin(angle + Math.PI / 7));
+            ctx.closePath();
+            ctx.fill();
+        },
+
+        render: function(config) {
+            this.cfg = config;
+            var w = window.innerWidth;
+            var h = window.innerHeight;
+            var ratio = window.devicePixelRatio || 1;
+
+            this.canvas.width = Math.round(w * ratio);
+            this.canvas.height = Math.round(h * ratio);
+            this.canvas.style.width = w + "px";
+            this.canvas.style.height = h + "px";
+
+            var ctx = this.ctx;
+            ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+            ctx.clearRect(0, 0, w, h);
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, w, h);
+
+            // 0. 计算合适的刻度间隔
+            var xRange = config.xMax - config.xMin;
+            var yRange = config.yMax - config.yMin;
+            var xStep = this.calculateTickStep(xRange);
+            var yStep = this.calculateTickStep(yRange);
+
+            // 1. 绘制坐标网格（教科书风格）
+            ctx.save();
+            ctx.strokeStyle = "#e8e8e8";
+            ctx.lineWidth = 1;
+            
+            // 垂直网格线
+            for (var tx = Math.ceil(config.xMin / xStep) * xStep; tx <= config.xMax; tx += xStep) {
+                if (Math.abs(tx) < 0.0001) continue; // 跳过原点
+                var px = this.px(tx, w);
+                ctx.beginPath();
+                ctx.moveTo(px, this.topPad);
+                ctx.lineTo(px, h - this.bottomPad);
+                ctx.stroke();
+            }
+            
+            // 水平网格线
+            for (var ty = Math.ceil(config.yMin / yStep) * yStep; ty <= config.yMax; ty += yStep) {
+                if (Math.abs(ty) < 0.0001) continue; // 跳过原点
+                var py = this.py(ty, h);
+                ctx.beginPath();
+                ctx.moveTo(this.leftPad, py);
+                ctx.lineTo(w - this.rightPad, py);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // 2. 绘制坐标轴
+            ctx.strokeStyle = "#000000";
+            ctx.fillStyle = "#000000";
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = "round";
+            this.drawArrow(this.px(config.xMin, w), this.py(0, h), this.px(config.xMax, w), this.py(0, h));
+            this.drawArrow(this.px(0, w), this.py(config.yMin, h), this.px(0, w), this.py(config.yMax, h));
+
+            // 3. 绘制X轴刻度和标签
+            ctx.font = "12px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "top";
+            for (var sx = Math.ceil(config.xMin / xStep) * xStep; sx <= config.xMax; sx += xStep) {
+                if (Math.abs(sx) < 0.0001) continue;
+                var spx = this.px(sx, w);
+                var spy = this.py(0, h);
+                
+                // 刻度线
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(spx, spy - 5);
+                ctx.lineTo(spx, spy + 5);
+                ctx.stroke();
+                
+                // 标签
+                var label = this.formatTickLabel(sx);
+                ctx.fillText(label, spx, spy + 8);
+            }
+
+            // 4. 绘制Y轴刻度和标签
+            ctx.textAlign = "right";
+            ctx.textBaseline = "middle";
+            for (var sy = Math.ceil(config.yMin / yStep) * yStep; sy <= config.yMax; sy += yStep) {
+                if (Math.abs(sy) < 0.0001) continue;
+                var spyx = this.px(0, w);
+                var spyy = this.py(sy, h);
+                
+                // 刻度线
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(spyx - 5, spyy);
+                ctx.lineTo(spyx + 5, spyy);
+                ctx.stroke();
+                
+                // 标签
+                var ylabel = this.formatTickLabel(sy);
+                ctx.fillText(ylabel, spyx - 8, spyy);
+            }
+
+            // 5. 绘制渐近线
+            if (config.asymptotes && config.asymptotes.length > 0) {
+                ctx.save();
+                ctx.strokeStyle = "#999999";
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([8, 6]);
+                var self = this;
+                config.asymptotes.forEach(function(line) {
+                    var yMatch = line.match(/y\s*=\s*(-?[\d.]+)/i);
+                    if (yMatch) {
+                        var yVal = parseFloat(yMatch[1]);
+                        ctx.beginPath();
+                        ctx.moveTo(self.px(config.xMin, w), self.py(yVal, h));
+                        ctx.lineTo(self.px(config.xMax, w), self.py(yVal, h));
+                        ctx.stroke();
+                    }
+                });
+                ctx.restore();
+            }
+
+            // 6. 根据类型绘制函数曲线
+            try {
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 3;
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
+                ctx.beginPath();
+
+                if (config.type === 'parametric') {
+                    // 参数方程
+                    var xNode = math.parse(config.xExpr);
+                    var xCode = xNode.compile();
+                    var yNode = math.parse(config.yExpr);
+                    var yCode = yNode.compile();
+                    
+                    var started = false;
+                    for (var i = 0; i <= 800; i++) {
+                        var t = config.tMin + (config.tMax - config.tMin) * i / 800;
+                        var x = xCode.evaluate({ t: t });
+                        var y = yCode.evaluate({ t: t });
+                        if (isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)) { started = false; continue; }
+                        var cx = this.px(x, w), cy = this.py(y, h);
+                        if (!started) { ctx.moveTo(cx, cy); started = true; }
+                        else { ctx.lineTo(cx, cy); }
+                    }
+                } else if (config.type === 'polar') {
+                    // 极坐标方程
+                    var rNode = math.parse(config.rExpr);
+                    var rCode = rNode.compile();
+                    
+                    var started = false;
+                    for (var i = 0; i <= 800; i++) {
+                        var theta = config.thetaMin + (config.thetaMax - config.thetaMin) * i / 800;
+                        var r = rCode.evaluate({ theta: theta, t: theta });
+                        if (isNaN(r) || !isFinite(r) || r < -100 || r > 100) { started = false; continue; }
+                        var x = r * Math.cos(theta);
+                        var y = r * Math.sin(theta);
+                        var cx = this.px(x, w), cy = this.py(y, h);
+                        if (!started) { ctx.moveTo(cx, cy); started = true; }
+                        else { ctx.lineTo(cx, cy); }
+                    }
+                } else if (config.type === 'piecewise') {
+                    // 分段函数
+                    var started = false;
+                    for (var i = 0; i <= 800; i++) {
+                        var x = config.xMin + (config.xMax - config.xMin) * i / 800;
+                        var y = null;
+                        
+                        for (var j = 0; j < config.pieces.length; j++) {
+                            var piece = config.pieces[j];
+                            var condNode = math.parse(piece.condition);
+                            if (condNode.evaluate({ x: x })) {
+                                var exprNode = math.parse(piece.expr);
+                                y = exprNode.evaluate({ x: x });
+                                break;
+                            }
+                        }
+                        
+                        if (y === null || isNaN(y) || !isFinite(y) || y < config.yMin - yRange || y > config.yMax + yRange) { 
+                            started = false; continue; 
+                        }
+                        var cx = this.px(x, w), cy = this.py(y, h);
+                        if (!started) { ctx.moveTo(cx, cy); started = true; }
+                        else { ctx.lineTo(cx, cy); }
+                    }
+                } else {
+                    // 普通直角坐标函数
+                    var exprList = (config.exprs && config.exprs.length > 0) ? config.exprs : (config.expr ? [config.expr] : []);
+                    var colors = ["#000000", "#444444", "#777777"];
+                    var compiled = [];
+                    for (var k = 0; k < exprList.length; k++) {
+                        var expr = exprList[k];
+                        var node = math.parse(expr);
+                        compiled.push({ expr: expr, code: node.compile() });
+                    }
+
+                    var xs = [];
+                    if (config.points) {
+                        xs = Object.keys(config.points).map(function(n) { return config.points[n].x; }).filter(function(v) { return typeof v === "number" && isFinite(v); });
+                    }
+                    var leftX = xs.length > 0 ? Math.min.apply(null, xs) : config.xMin;
+                    var inferredRightX = xs.length > 0 ? Math.max.apply(null, xs) : config.xMax;
+                    var rightX = null;
+                    if (config.vLines && config.vLines.length > 0 && isFinite(config.vLines[0])) {
+                        rightX = config.vLines[0];
+                    } else if (isFinite(inferredRightX)) {
+                        rightX = inferredRightX;
+                    }
+                    if (compiled.length >= 2 && rightX !== null && config.points) {
+                        if (xs.length > 0) {
+                            var fromX = Math.max(config.xMin, Math.min(leftX, rightX));
+                            var toX = Math.min(config.xMax, Math.max(leftX, rightX));
+                            if (toX > fromX) {
+                                var topPts = [];
+                                var bottomPts = [];
+                                for (var si = 0; si <= 400; si++) {
+                                    var x = fromX + (toX - fromX) * si / 400;
+                                    var y0 = compiled[0].code.evaluate({ x: x });
+                                    var y1 = compiled[1].code.evaluate({ x: x });
+                                    if (isNaN(y0) || isNaN(y1) || !isFinite(y0) || !isFinite(y1)) continue;
+                                    var yu = Math.max(y0, y1);
+                                    var yl = Math.min(y0, y1);
+                                    topPts.push({ x: this.px(x, w), y: this.py(yu, h) });
+                                    bottomPts.push({ x: this.px(x, w), y: this.py(yl, h) });
+                                }
+                                if (topPts.length > 2 && bottomPts.length > 2) {
+                                    ctx.save();
+                                    ctx.fillStyle = "rgba(120,120,120,0.18)";
+                                    ctx.beginPath();
+                                    ctx.moveTo(topPts[0].x, topPts[0].y);
+                                    for (var ti = 1; ti < topPts.length; ti++) ctx.lineTo(topPts[ti].x, topPts[ti].y);
+                                    for (var bi = bottomPts.length - 1; bi >= 0; bi--) ctx.lineTo(bottomPts[bi].x, bottomPts[bi].y);
+                                    ctx.closePath();
+                                    ctx.fill();
+                                    ctx.restore();
+                                }
+                            }
+                        }
+                    }
+
+                    if (compiled.length === 1 && rightX !== null && config.hLines && config.hLines.length > 0 && isFinite(config.hLines[0])) {
+                        var baseY = config.hLines[0];
+                        var fromX = Math.max(config.xMin, Math.min(leftX, rightX));
+                        var toX = Math.min(config.xMax, Math.max(leftX, rightX));
+                        if (toX > fromX) {
+                            var curvePts = [];
+                            var basePts = [];
+                            for (var si = 0; si <= 400; si++) {
+                                var x = fromX + (toX - fromX) * si / 400;
+                                var y = compiled[0].code.evaluate({ x: x });
+                                if (isNaN(y) || !isFinite(y)) continue;
+                                curvePts.push({ x: this.px(x, w), y: this.py(y, h) });
+                                basePts.push({ x: this.px(x, w), y: this.py(baseY, h) });
+                            }
+                            if (curvePts.length > 2 && basePts.length > 2) {
+                                ctx.save();
+                                ctx.fillStyle = "rgba(120,120,120,0.18)";
+                                ctx.beginPath();
+                                ctx.moveTo(basePts[0].x, basePts[0].y);
+                                for (var ci = 0; ci < curvePts.length; ci++) ctx.lineTo(curvePts[ci].x, curvePts[ci].y);
+                                ctx.lineTo(basePts[basePts.length - 1].x, basePts[basePts.length - 1].y);
+                                for (var bi = basePts.length - 2; bi >= 0; bi--) ctx.lineTo(basePts[bi].x, basePts[bi].y);
+                                ctx.closePath();
+                                ctx.fill();
+                                ctx.restore();
+                            }
+
+                            if ((!config.vLines || config.vLines.length === 0) && xs.length > 0) {
+                                ctx.save();
+                                ctx.strokeStyle = "#666666";
+                                ctx.lineWidth = 2.0;
+                                ctx.setLineDash([8, 6]);
+                                ctx.beginPath();
+                                ctx.moveTo(this.px(rightX, w), this.py(config.yMin, h));
+                                ctx.lineTo(this.px(rightX, w), this.py(config.yMax, h));
+                                ctx.stroke();
+                                ctx.restore();
+                            }
+                        }
+                    }
+
+                    if (config.vLines && config.vLines.length > 0) {
+                        ctx.save();
+                        ctx.strokeStyle = "#666666";
+                        ctx.lineWidth = 2.0;
+                        ctx.setLineDash([8, 6]);
+                        for (var vi = 0; vi < config.vLines.length; vi++) {
+                            var vx = config.vLines[vi];
+                            if (!isFinite(vx)) continue;
+                            ctx.beginPath();
+                            ctx.moveTo(this.px(vx, w), this.py(config.yMin, h));
+                            ctx.lineTo(this.px(vx, w), this.py(config.yMax, h));
+                            ctx.stroke();
+                        }
+                        ctx.restore();
+                    }
+                    if (config.hLines && config.hLines.length > 0) {
+                        ctx.save();
+                        ctx.strokeStyle = "#666666";
+                        ctx.lineWidth = 2.0;
+                        ctx.setLineDash([8, 6]);
+                        for (var hi = 0; hi < config.hLines.length; hi++) {
+                            var hy = config.hLines[hi];
+                            if (!isFinite(hy)) continue;
+                            ctx.beginPath();
+                            ctx.moveTo(this.px(config.xMin, w), this.py(hy, h));
+                            ctx.lineTo(this.px(config.xMax, w), this.py(hy, h));
+                            ctx.stroke();
+                        }
+                        ctx.restore();
+                    }
+
+                    for (var k = 0; k < compiled.length; k++) {
+                        var code = compiled[k].code;
+                        ctx.strokeStyle = colors[k % colors.length];
+                        ctx.lineWidth = 3;
+                        ctx.lineCap = "round";
+                        ctx.lineJoin = "round";
+                        ctx.beginPath();
+                        var started = false;
+                        for (var i = 0; i <= 800; i++) {
+                            var x = config.xMin + (config.xMax - config.xMin) * i / 800;
+                            var y = code.evaluate({ x: x });
+                            if (isNaN(y) || !isFinite(y) || y < config.yMin - yRange || y > config.yMax + yRange) { 
+                                started = false; continue; 
+                            }
+                            var cx = this.px(x, w), cy = this.py(y, h);
+                            if (!started) { ctx.moveTo(cx, cy); started = true; }
+                            else { ctx.lineTo(cx, cy); }
+                        }
+                        ctx.stroke();
+                    }
+                }
+                if (config.type !== 'cartesian') {
+                    ctx.stroke();
+                }
+            } catch (e) { console.error("Curve Error:", e); }
+
+            // 7. 绘制坐标轴标签
+            ctx.fillStyle = "#000000";
+            ctx.font = "italic 24px Georgia, serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "top";
+            ctx.fillText("x", w - 25, this.py(0, h) + 15);
+            ctx.textAlign = "right";
+            ctx.textBaseline = "bottom";
+            ctx.fillText("y", this.px(0, w) - 10, 20);
+
+            // 8. 绘制关键点
+            if (config.points) {
+                ctx.font = "italic 20px Georgia, serif";
+                var renderer = this;
+                Object.keys(config.points).forEach(function(name) {
+                    var pt = config.points[name];
+                    var cx = renderer.px(pt.x, w), cy = renderer.py(pt.y, h);
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.textAlign = "left";
+                    ctx.textBaseline = "bottom";
+                    ctx.fillText(name, cx + 8, cy - 3);
+                });
+            }
+        },
+        
+        calculateTickStep: function(range) {
+            var rawStep = range / 8;
+            var magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+            var normalized = rawStep / magnitude;
+            
+            if (normalized < 1.5) return magnitude;
+            else if (normalized < 3) return 2 * magnitude;
+            else if (normalized < 7) return 5 * magnitude;
+            else return 10 * magnitude;
+        },
+        
+        formatTickLabel: function(value) {
+            if (Math.abs(value) < 0.0001) return "0";
+            if (Math.abs(value - Math.round(value)) < 0.0001) {
+                return value.toString();
+            }
+            if (Math.abs(value) >= 100 || Math.abs(value) < 0.01) {
+                return value.toExponential(1);
+            }
+            return value.toFixed(2).replace(/\.?0+$/, "");
+        }
+    };
+
+    /**
+     * 3. 桥接 Android 接口
+     *    改进：先等待 WebView layout 完成（有有效尺寸），再渲染，最后捕获截图
+     */
+    function setExpressions(expressions) {
+        document.getElementById("loading-overlay").style.display = "flex";
+        var config = PlotParser.parse(expressions);
+        if (config) {
+            document.getElementById("ggb-element").style.display = "none";
+            var canvas = document.getElementById("textbook-canvas");
+            canvas.style.display = "block";
+
+            TextbookRenderer.init(canvas);
+
+            var maxLayoutRetries = 20;
+            var layoutInterval = 150;
+
+            function doRender() {
+                TextbookRenderer.render(config);
+                document.getElementById("loading-overlay").style.display = "none";
+                tryCaptureWithRetry(8, 200);
+            }
+
+            function tryCaptureWithRetry(retriesLeft, delay) {
+                if (canvas.width > 10 && canvas.height > 10) {
+                    var dataUrl = canvas.toDataURL("image/png");
+                    if (dataUrl && dataUrl.length > 1000) {
+                        if (window.androidBridge && typeof window.androidBridge.onImageCaptured === "function") {
+                            window.androidBridge.onImageCaptured(dataUrl);
+                        }
+                        return;
+                    }
+                }
+                if (retriesLeft > 0) {
+                    setTimeout(function() { tryCaptureWithRetry(retriesLeft - 1, Math.min(delay * 1.5, 1000)); }, delay);
+                } else {
+                    if (window.androidBridge && typeof window.androidBridge.onImageCaptured === "function") {
+                        window.androidBridge.onImageCaptured("");
+                    }
+                }
+            }
+
+            function waitForLayout(attemptsLeft) {
+                if (window.innerWidth > 10 && window.innerHeight > 10) {
+                    doRender();
+                } else if (attemptsLeft > 0) {
+                    setTimeout(function() { waitForLayout(attemptsLeft - 1); }, layoutInterval);
+                } else {
+                    doRender();
+                }
+            }
+
+            setTimeout(function() { waitForLayout(maxLayoutRetries); }, 50);
+        } else {
+            document.getElementById("loading-overlay").style.display = "none";
+        }
+    }
+
+    window.onload = function() {
+        if (window.androidBridge && typeof window.androidBridge.onGeoGebraReady === "function") {
+            window.androidBridge.onGeoGebraReady();
+        }
+    };
+</script>
+</body>
+</html>

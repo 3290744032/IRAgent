@@ -1,0 +1,203 @@
+<!-- 深度学习: 输入话题 → Socratic 分步教学 -->
+<div style="display:flex;flex-direction:column;height:100%;">
+  <!-- Header -->
+  <div style="padding:var(--space-2)var(--space-4);background:linear-gradient(135deg,#7C3AED,#6366F1);color:#fff;display:flex;align-items:center;gap:var(--space-3);flex-shrink:0;">
+    <button onclick="App.goBack()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">←</button>
+    <span style="font-size:var(--text-sm);font-weight:var(--weight-semibold);flex:1;">🧠 深度学习</span>
+  </div>
+
+  <!-- ====== INPUT STATE ====== -->
+  <div id="deepInputState" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--space-6);text-align:center;">
+    <div style="font-size:64px;margin-bottom:var(--space-4);">🧠</div>
+    <div style="font-size:var(--text-xl);font-weight:var(--weight-bold);color:var(--color-gray-800);margin-bottom:var(--space-2);">深度学习模式</div>
+    <div style="font-size:var(--text-sm);color:var(--color-gray-500);margin-bottom:var(--space-6);line-height:var(--leading-relaxed);">
+      AI 将以苏格拉底式分步引导，<br>层层深入帮你彻底理解一个知识点
+    </div>
+    <div class="mode-input-row" style="width:100%;max-width:300px;">
+      <input type="text" class="input mode-input" id="deepTopicInput"
+             placeholder="输入想深入学习的知识点"
+             onkeydown="if(event.key==='Enter')startDeepSession()">
+      <button class="btn btn--primary btn--md btn--round mode-btn" onclick="startDeepSession()" style="background:linear-gradient(135deg,#7C3AED,#6366F1);">开始</button>
+    </div>
+    <div style="margin-top:var(--space-4);display:flex;gap:var(--space-2);flex-wrap:wrap;justify-content:center;">
+      <button class="btn--quick-reply" onclick="document.getElementById('deepTopicInput').value='闭区间最值';startDeepSession()">闭区间最值</button>
+      <button class="btn--quick-reply" onclick="document.getElementById('deepTopicInput').value='导数的几何意义';startDeepSession()">导数的几何意义</button>
+      <button class="btn--quick-reply" onclick="document.getElementById('deepTopicInput').value='三角函数图像变换';startDeepSession()">三角函数图像变换</button>
+    </div>
+  </div>
+
+  <!-- ====== TEACHING STATE (hidden initially) ====== -->
+  <div id="deepTeachingState" style="display:none;flex:1;flex-direction:column;">
+    <!-- Progress Bar -->
+    <div style="padding:var(--space-3)var(--space-4);background:var(--bg-surface);border-bottom:1px solid var(--color-gray-100);">
+      <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-2);">
+        <span style="font-size:var(--text-xs);color:var(--color-gray-500);">学习进度</span>
+        <span style="font-size:var(--text-xs);color:var(--color-primary-500);font-weight:var(--weight-semibold);" id="deepStepLabel">准备中...</span>
+      </div>
+      <div class="progress-bar"><div class="progress-bar__fill" id="deepProgressFill" style="width:0%;"></div></div>
+    </div>
+
+    <!-- Messages -->
+    <div class="chat-messages" id="deepMessages" style="flex:1;"></div>
+
+    <!-- Loading -->
+    <div id="deepLoading" style="display:none;align-items:center;justify-content:center;gap:var(--space-3);padding:var(--space-4);color:var(--color-primary-500);font-size:var(--text-xs);">
+      <div class="spinner"></div><span>AI 正在准备下一步...</span>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex;gap:var(--space-2);padding:var(--space-3)var(--space-4);background:var(--bg-surface);border-top:1px solid var(--color-gray-100);overflow-x:auto;" id="deepActions">
+      <button class="btn--quick-reply" onclick="deepStepReply('understood')">✅ 听懂了</button>
+      <button class="btn--quick-reply" onclick="deepStepReply('confused')">🤔 没听懂</button>
+      <button class="btn--quick-reply btn--quick-reply--primary" onclick="deepStepReply('continue')">👉 继续讲</button>
+    </div>
+
+    <!-- Summary Button -->
+    <div style="padding:0 var(--space-4) var(--space-3);background:var(--bg-surface);" id="deepSummaryBtnArea" hidden>
+      <button class="btn btn--outline btn--md btn--block" onclick="openDeepSummary()">📊 查看学习总结</button>
+    </div>
+  </div>
+
+  <!-- History Bottom Sheet -->
+  <div class="upload-sheet-overlay" id="deepHistoryOverlay" onclick="closeDeepHistory()"></div>
+  <div class="upload-sheet" id="deepHistorySheet">
+    <div class="upload-sheet__handle"></div>
+    <div class="upload-sheet__title">学习历史</div>
+    <div style="padding:0 var(--space-4);">
+      <div class="history-item"><div class="history-item__dot" style="background:var(--color-success);"></div><div class="history-item__info"><div class="history-item__title">闭区间最值 — 15 分钟</div><div class="history-item__time">2026-05-21</div></div></div>
+      <div class="history-item"><div class="history-item__dot"></div><div class="history-item__info"><div class="history-item__title">导数的概念</div><div class="history-item__time">2026-05-20</div></div></div>
+      <div class="history-item"><div class="history-item__dot"></div><div class="history-item__info"><div class="history-item__title">三角函数图像变换</div><div class="history-item__time">2026-05-19</div></div></div>
+    </div>
+  </div>
+
+  <!-- Summary Bottom Sheet -->
+  <div class="upload-sheet-overlay" id="deepSummaryOverlay" onclick="closeDeepSummary()"></div>
+  <div class="upload-sheet" id="deepSummarySheet" style="max-height:80%;">
+    <div class="upload-sheet__handle"></div>
+    <div class="upload-sheet__title">学习总结</div>
+    <div style="padding:var(--space-4);overflow-y:auto;" id="deepSummaryContent"></div>
+  </div>
+</div>
+
+<script>
+// ---- Read params ----
+const _pTopic = Router.currentParams.topic || '';
+const _pSubject = Router.currentParams.subject || '数学';
+
+// If topic passed from chat, skip input and start directly
+if (_pTopic) {
+  document.getElementById('deepTopicInput').value = _pTopic;
+  setTimeout(() => startDeepSession(), 300);
+}
+
+// ---- Start Session ----
+function startDeepSession() {
+  const topic = document.getElementById('deepTopicInput').value.trim();
+  if (!topic) { document.getElementById('deepTopicInput').focus(); return; }
+
+  // Switch to teaching state
+  document.getElementById('deepInputState').style.display = 'none';
+  const teaching = document.getElementById('deepTeachingState');
+  teaching.style.display = 'flex';
+
+  // Build first message
+  const container = document.getElementById('deepMessages');
+  container.innerHTML = `
+    <div class="msg msg--ai anim-fade-in-up">
+      <div class="msg__avatar">AI</div>
+      <div class="msg__body">
+        <div class="msg__name">IRAgent · 深度学习导师</div>
+        <div class="msg__bubble">
+          今天我们一起深度学习 <strong>${escapeHtml(topic)}</strong>。这个考点在${_pSubject}考试中属于高频考点。<br><br>
+          <strong>第一步：先回顾你已经知道的内容</strong><br><br>
+          根据你的笔记和学习记录，你对这个话题已有一定基础。让我们从你最熟悉的切入点开始，逐步深入。<br><br>
+          准备好了吗？我先帮你梳理一下核心概念框架。
+        </div>
+        <div class="msg__time">${getNow()}</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('deepStepLabel').textContent = '第 1/6 步 · ' + topic;
+  document.getElementById('deepProgressFill').style.width = '16%';
+  _deepStep = 1;
+}
+
+let _deepStep = 1;
+const _totalSteps = 3;
+
+function deepStepReply(type) {
+  const container = document.getElementById('deepMessages');
+  const loading = document.getElementById('deepLoading');
+  const topic = document.getElementById('deepTopicInput').value.trim();
+  const labels = { 'understood':'听懂了 ✅', 'confused':'没听懂，换种方式 🤔', 'continue':'继续讲 👉' };
+
+  // User reply
+  const userMsg = document.createElement('div');
+  userMsg.className = 'msg msg--user anim-fade-in-up';
+  userMsg.innerHTML = `<div class="msg__avatar">我</div><div class="msg__body"><div class="msg__name">我</div><div class="msg__bubble">${labels[type]||'继续'}</div><div class="msg__time">${getNow()}</div></div>`;
+  container.appendChild(userMsg);
+
+  loading.style.display = 'flex';
+  container.scrollTop = container.scrollHeight;
+
+  _deepStep = Math.min(_deepStep+1, _totalSteps+1);
+  document.getElementById('deepProgressFill').style.width = Math.min((_deepStep/_totalSteps)*100,100)+'%';
+  document.getElementById('deepStepLabel').textContent = '第 '+Math.min(_deepStep,_totalSteps)+'/'+_totalSteps+' 步';
+  if (_deepStep>=2) document.getElementById('deepSummaryBtnArea').hidden = false;
+
+  setTimeout(() => {
+    loading.style.display = 'none';
+    const responses = {
+      'understood':`<strong>太好了！</strong>那我们深入一步。<br><br>针对 <strong>${escapeHtml(topic)}</strong>，接下来我们做一个随堂小测来检验理解。想想看：这个知识点最容易在什么地方出错？`,
+      'confused':`没关系，让我换个角度。<br><br>想象一个生活中的类比来理解 <strong>${escapeHtml(topic)}</strong>——有时候抽象的概念用一个具体的比喻就能豁然开朗。<br><br>你之前在哪一步卡住了？`,
+      'continue':`<strong>很好！</strong>继续深入。<br><br>针对 <strong>${escapeHtml(topic)}</strong>，我们来做一道变式题：如果题目的条件稍微改变，你的解题方法还成立吗？这能检验你是否真正理解了这个知识点。`
+    };
+    const aiMsg = document.createElement('div');
+    aiMsg.className = 'msg msg--ai anim-fade-in-up';
+    aiMsg.innerHTML = `<div class="msg__avatar">AI</div><div class="msg__body"><div class="msg__name">IRAgent · 深度学习导师</div><div class="msg__bubble">${responses[type]||responses['continue']}</div><div class="msg__time">${getNow()}</div></div>`;
+    container.appendChild(aiMsg);
+    container.scrollTop = container.scrollHeight;
+  }, 1500);
+}
+
+function openDeepSummary() {
+  const topic = document.getElementById('deepTopicInput').value.trim();
+  document.getElementById('deepSummaryContent').innerHTML = `
+    <div style="text-align:center;padding:var(--space-3)0;">
+      <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#10B981,#34D399);display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin:0 auto var(--space-3);">🎉</div>
+      <div style="font-size:var(--text-lg);font-weight:var(--weight-bold);">学习完成！</div>
+      <div style="font-size:var(--text-xs);color:var(--color-gray-400);margin-top:4px;">话题：${escapeHtml(topic)} · 用时 15 分钟</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-top:var(--space-4);">
+      <div style="text-align:center;padding:var(--space-3);background:var(--color-gray-50);border-radius:var(--radius-md);"><div style="font-size:var(--text-lg);font-weight:var(--weight-bold);color:var(--color-primary-600);">+23%</div><div style="font-size:10px;color:var(--color-gray-400);">掌握度提升</div></div>
+      <div style="text-align:center;padding:var(--space-3);background:var(--color-gray-50);border-radius:var(--radius-md);"><div style="font-size:var(--text-lg);font-weight:var(--weight-bold);color:var(--color-success);">3 步</div><div style="font-size:10px;color:var(--color-gray-400);">教学步骤</div></div>
+    </div>
+    <div style="margin-top:var(--space-4);">
+      <div class="suggestion-item" onclick="closeDeepSummary();App.navigateTo('study-video',{topic:'${escapeHtml(topic).replace(/'/g,"\\'")}',subject:'${_pSubject}')">→ 🎬 生成「${escapeHtml(topic)}」视频讲解</div>
+    </div>
+    <div style="display:flex;gap:var(--space-3);margin-top:var(--space-4);">
+      <button class="btn btn--outline btn--md" style="flex:1;" onclick="closeDeepSummary()">继续学习</button>
+      <button class="btn btn--primary btn--md" style="flex:1;" onclick="closeDeepSummary();App.navigateTo('study-video',{topic:'${escapeHtml(topic).replace(/'/g,"\\'")}',subject:'${_pSubject}')">🎬 视频讲解</button>
+    </div>
+  `;
+  document.getElementById('deepSummaryOverlay').classList.add('active');
+  document.getElementById('deepSummarySheet').classList.add('active');
+}
+function closeDeepSummary() {
+  document.getElementById('deepSummaryOverlay').classList.remove('active');
+  document.getElementById('deepSummarySheet').classList.remove('active');
+}
+function openDeepHistory() {
+  document.getElementById('deepHistoryOverlay').classList.add('active');
+  document.getElementById('deepHistorySheet').classList.add('active');
+}
+function closeDeepHistory() {
+  document.getElementById('deepHistoryOverlay').classList.remove('active');
+  document.getElementById('deepHistorySheet').classList.remove('active');
+}
+function getNow() {
+  const n = new Date();
+  return n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
+}
+</script>
