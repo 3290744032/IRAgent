@@ -77,4 +77,8 @@ public class KnowledgeRepository {
     public void deleteNote(String noteId, ResultCallback<Boolean> callback) {
         apiService.deleteNote(noteId).enqueue(createCallback(callback, r -> r != null));
     }
+
+    public void updateNote(String noteId, java.util.Map<String, String> body, ResultCallback<Boolean> callback) {
+        apiService.updateNote(noteId, body).enqueue(createCallback(callback, r -> r != null));
+    }
 }

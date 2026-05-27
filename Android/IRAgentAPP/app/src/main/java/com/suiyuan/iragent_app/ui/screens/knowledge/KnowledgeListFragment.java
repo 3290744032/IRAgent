@@ -233,6 +233,29 @@ public class KnowledgeListFragment extends Fragment {
         ((ViewGroup) rvNotes.getParent()).addView(emptyView, rvIdx + 2, lp);
     }
 
+    private void showUploadPreview(UploadResult result) {
+        UploadResult.Classification cls = result.getClassification();
+        String subject = cls != null && cls.getSubject() != null ? cls.getSubject() : "未分类";
+        String chapter = cls != null && cls.getChapter() != null ? cls.getChapter() : "";
+        String tags = cls != null && cls.getTags() != null ? cls.getTags() : "";
+
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("上传成功！AI 已自动分类")
+            .setMessage("科目：" + subject + "\n章节：" + chapter + "\n标签：" + tags +
+                    "\n\n知识点数：" + result.getChunkCount() +
+                    "\n可在笔记详情中编辑修改")
+            .setPositiveButton("查看笔记", (d, w) -> {
+                if (result.getNoteId() != null) {
+                    Bundle args = new Bundle();
+                    args.putString("note_id", result.getNoteId());
+                    Navigation.findNavController(requireView()).navigate(R.id.nav_knowledge_detail, args);
+                }
+            })
+            .setNegativeButton("继续浏览", null)
+            .show();
+        viewModel.listNotes("", 0, 20);
+    }
+
     private void showSearchResults(List<NoteFragment> results) {
         llSearchResults.removeAllViews();
         llSearchResults.setVisibility(View.VISIBLE);
@@ -310,9 +333,7 @@ public class KnowledgeListFragment extends Fragment {
 
         viewModel.getUploadResult().observe(getViewLifecycleOwner(), result -> {
             if (result != null) {
-                Toast.makeText(getContext(),
-                        "上传成功，解析了 " + result.getChunkCount() + " 个知识点",
-                        Toast.LENGTH_SHORT).show();
+                showUploadPreview(result);
             }
         });
 

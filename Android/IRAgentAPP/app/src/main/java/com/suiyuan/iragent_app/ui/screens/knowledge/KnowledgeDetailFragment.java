@@ -68,6 +68,13 @@ public class KnowledgeDetailFragment extends Fragment {
         if (!noteId.isEmpty()) {
             viewModel.loadNoteDetail(noteId);
         }
+        // 编辑按钮
+        view.findViewById(R.id.btn_edit_note).setOnClickListener(v -> {
+            if (noteId.isEmpty()) return;
+            NoteDetail d = viewModel.getNoteDetail().getValue();
+            if (d == null) return;
+            showEditDialog(noteId, d);
+        });
     }
 
     private void loadMathTemplate() {
@@ -198,5 +205,34 @@ public class KnowledgeDetailFragment extends Fragment {
     private static String formatDate(String dateStr) {
         if (dateStr == null || dateStr.length() < 10) return dateStr;
         return dateStr.substring(5, 10);
+    }
+
+    private void showEditDialog(String noteId, NoteDetail detail) {
+        LinearLayout layout = new LinearLayout(requireContext());
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(32, 24, 32, 24);
+
+        android.widget.EditText etTitle = new android.widget.EditText(requireContext());
+        etTitle.setText(detail.getTitle()); etTitle.setHint("标题"); layout.addView(etTitle);
+        android.widget.EditText etSubject = new android.widget.EditText(requireContext());
+        etSubject.setText(detail.getSubject() != null ? detail.getSubject() : ""); etSubject.setHint("科目"); layout.addView(etSubject);
+        android.widget.EditText etChapter = new android.widget.EditText(requireContext());
+        etChapter.setText(detail.getChapter() != null ? detail.getChapter() : ""); etChapter.setHint("章节"); layout.addView(etChapter);
+        android.widget.EditText etTags = new android.widget.EditText(requireContext());
+        etTags.setText(detail.getTags() != null ? detail.getTags() : ""); etTags.setHint("标签"); layout.addView(etTags);
+
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("编辑笔记")
+            .setView(layout)
+            .setPositiveButton("保存", (d, w) -> {
+                java.util.Map<String, String> body = new java.util.HashMap<>();
+                body.put("title", etTitle.getText().toString());
+                body.put("subject", etSubject.getText().toString());
+                body.put("chapter", etChapter.getText().toString());
+                body.put("tags", etTags.getText().toString());
+                viewModel.updateNote(noteId, body);
+            })
+            .setNegativeButton("取消", null)
+            .show();
     }
 }

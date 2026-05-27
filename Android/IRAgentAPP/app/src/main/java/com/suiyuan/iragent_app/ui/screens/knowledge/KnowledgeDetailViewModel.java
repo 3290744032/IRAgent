@@ -51,4 +51,12 @@ public class KnowledgeDetailViewModel extends AndroidViewModel {
             }
         });
     }
+
+    public void updateNote(String noteId, java.util.Map<String, String> body) {
+        repository.updateNote(noteId, body, new KnowledgeRepository.ResultCallback<Boolean>() {
+            @Override public void onSuccess(Boolean ok) { loadNoteDetail(noteId); }
+            @Override public void onError(int code, String msg) { error.postValue("保存失败: " + msg); }
+            @Override public void onException(Exception e) { error.postValue(e.getMessage()); }
+        });
+    }
 }

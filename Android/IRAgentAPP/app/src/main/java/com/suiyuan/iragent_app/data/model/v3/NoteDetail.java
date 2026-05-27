@@ -20,7 +20,7 @@ public class NoteDetail {
     private List<NoteChunk> chunks;
     @SerializedName("linked_knowledge_points")
     private List<LinkedKnowledgePoint> linkedKnowledgePoints;
-    @SerializedName("linked_questions")
+    @SerializedName("linkedQuestions")
     private List<LinkedQuestion> linkedQuestions;
     @SerializedName("created_at")
     private String createdAt;
