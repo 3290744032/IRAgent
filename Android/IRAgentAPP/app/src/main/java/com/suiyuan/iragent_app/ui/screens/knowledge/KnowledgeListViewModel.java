@@ -140,4 +140,22 @@ public class KnowledgeListViewModel extends AndroidViewModel {
             error.postValue(e.getMessage());
         }
     }
+
+    public void deleteNote(String noteId) {
+        isLoading.postValue(true);
+        repository.deleteNote(noteId, new KnowledgeRepository.ResultCallback<Boolean>() {
+            @Override public void onSuccess(Boolean data) {
+                isLoading.postValue(false);
+                listNotes(currentSubject, 0, 20);
+            }
+            @Override public void onError(int code, String msg) {
+                isLoading.postValue(false);
+                error.postValue("删除失败: " + msg);
+            }
+            @Override public void onException(Exception e) {
+                isLoading.postValue(false);
+                error.postValue(e.getMessage());
+            }
+        });
+    }
 }

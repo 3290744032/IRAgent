@@ -73,4 +73,8 @@ public class KnowledgeRepository {
         SearchRequest request = new SearchRequest(query, topK);
         apiService.searchNotes(request).enqueue(createCallback(callback, ApiResponse::getData));
     }
+
+    public void deleteNote(String noteId, ResultCallback<Boolean> callback) {
+        apiService.deleteNote(noteId).enqueue(createCallback(callback, r -> r != null));
+    }
 }

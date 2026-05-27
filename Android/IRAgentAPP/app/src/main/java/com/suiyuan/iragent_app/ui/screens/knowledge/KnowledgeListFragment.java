@@ -411,6 +411,17 @@ public class KnowledgeListFragment extends Fragment {
             }
 
             holder.itemView.setOnClickListener(v -> listener.onNoteClick(note));
+            holder.itemView.setOnLongClickListener(v -> {
+                new androidx.appcompat.app.AlertDialog.Builder(v.getContext())
+                    .setTitle("删除笔记")
+                    .setMessage("确定删除「" + note.getTitle() + "」吗？删除后不可恢复。")
+                    .setPositiveButton("删除", (d, w) -> {
+                        viewModel.deleteNote(note.getId());
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
+                return true;
+            });
         }
 
         @Override
