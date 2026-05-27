@@ -64,9 +64,9 @@ public class KnowledgeDetailViewModel extends AndroidViewModel {
         });
     }
 
-    public void optimizeNote(String noteId) {
+    public void optimizeNote(String noteId, String instruction) {
         isLoading.postValue(true);
-        repository.optimizeNote(noteId, new KnowledgeRepository.ResultCallback<Map<String, Object>>() {
+        repository.optimizeNote(noteId, instruction, new KnowledgeRepository.ResultCallback<Map<String, Object>>() {
             @Override
             public void onSuccess(Map<String, Object> data) {
                 isLoading.postValue(false);

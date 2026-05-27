@@ -9,21 +9,23 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="12dp">
 
         <!-- Note header card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardElevation="3dp"
-            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="1dp"
+            app:strokeColor="#E5E7EB"
+            app:cardCornerRadius="12dp"
             app:cardBackgroundColor="@color/white">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="20dp">
+                android:padding="16dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -187,12 +189,29 @@
                     android:background="@color/gray_light"
                     android:layout_marginTop="16dp" />
 
-                <!-- Note full content -->
+                <!-- Note full content (view mode) -->
                 <android.webkit.WebView
                     android:id="@+id/wv_note_content"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp" />
+                    android:layout_marginTop="12dp" />
+
+                <!-- Note full content (edit mode) -->
+                <android.widget.EditText
+                    android:id="@+id/et_detail_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="300dp"
+                    android:layout_marginTop="12dp"
+                    android:visibility="gone"
+                    android:gravity="start"
+                    android:textSize="14sp"
+                    android:textColor="@color/on_surface"
+                    android:textColorHint="@color/text_tertiary"
+                    android:background="@drawable/bg_input_rounded"
+                    android:padding="12dp"
+                    android:hint="编辑笔记内容..."
+                    android:inputType="textMultiLine"
+                    android:scrollbars="vertical" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -200,39 +219,9 @@
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardElevation="2dp"
-            app:cardCornerRadius="12dp"
-            app:cardBackgroundColor="@color/white"
-            android:layout_marginTop="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="关联考点"
-                    android:textSize="16sp"
-                    android:textColor="@color/on_surface"
-                    android:fontFamily="sans-serif-medium" />
-
-                <LinearLayout
-                    android:id="@+id/ll_knowledge_points"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:layout_marginTop="12dp" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Linked questions -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:cardElevation="2dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="1dp"
+            app:strokeColor="#E5E7EB"
             app:cardCornerRadius="12dp"
             app:cardBackgroundColor="@color/white"
             android:layout_marginTop="12dp">
@@ -241,13 +230,47 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="14dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="关联考点"
+                    android:textSize="14sp"
+                    android:textColor="@color/on_surface"
+                    android:fontFamily="sans-serif-medium" />
+
+                <LinearLayout
+                    android:id="@+id/ll_knowledge_points"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="10dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Linked questions -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardElevation="0dp"
+            app:strokeWidth="1dp"
+            app:strokeColor="#E5E7EB"
+            app:cardCornerRadius="12dp"
+            app:cardBackgroundColor="@color/white"
+            android:layout_marginTop="10dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="14dp">
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="关联题目"
-                    android:textSize="16sp"
+                    android:textSize="14sp"
                     android:textColor="@color/on_surface"
                     android:fontFamily="sans-serif-medium" />
 
@@ -256,13 +279,13 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:layout_marginTop="12dp" />
+                    android:layout_marginTop="10dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <View
             android:layout_width="match_parent"
-            android:layout_height="48dp" />
+            android:layout_height="24dp" />
 
     </LinearLayout>
 </ScrollView>

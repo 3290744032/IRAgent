@@ -26,7 +26,8 @@ public interface ApiServiceV3 {
     Call<ApiResponse<Map<String, Object>>> updateNote(@Path("id") String id, @Body Map<String, String> body);
 
     @POST("kb/notes/{id}/optimize")
-    Call<ApiResponse<Map<String, Object>>> optimizeNote(@Path("id") String id);
+    @retrofit2.http.Headers("Content-Type: application/json")
+    Call<ApiResponse<Map<String, Object>>> optimizeNote(@Path("id") String id, @Body Map<String, String> body);
 
     @DELETE("kb/notes/{id}")
     Call<ApiResponse<Map<String, Object>>> deleteNote(@Path("id") String id);

@@ -82,8 +82,8 @@ public class KnowledgeRepository {
         apiService.updateNote(noteId, body).enqueue(createCallback(callback, r -> r != null));
     }
 
-    public void optimizeNote(String noteId, ResultCallback<Map<String, Object>> callback) {
-        apiService.optimizeNote(noteId).enqueue(new Callback<ApiResponse<Map<String, Object>>>() {
+    public void optimizeNote(String noteId, String instruction, ResultCallback<Map<String, Object>> callback) {
+        apiService.optimizeNote(noteId, java.util.Map.of("instruction", instruction)).enqueue(new Callback<ApiResponse<Map<String, Object>>>() {
             @Override
             public void onResponse(Call<ApiResponse<Map<String, Object>>> call,
                                    Response<ApiResponse<Map<String, Object>>> response) {

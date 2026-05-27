@@ -37,7 +37,7 @@ public class KnowledgeDetailFragment extends Fragment {
     private WebView wvContent;
     private LinearLayout llKnowledgePoints, llLinkedQuestions, llDetailTags;
     private TextView tvChapter, tvDate, tvTitle;
-    private android.widget.EditText etTitle, etSubject, etChapter, etTags;
+    private android.widget.EditText etTitle, etSubject, etChapter, etTags, etContent;
     private View llEditMeta;
     private Button btnEdit, btnAI, btnSave, btnCancel;
     private boolean isEditing = false;
@@ -69,6 +69,7 @@ public class KnowledgeDetailFragment extends Fragment {
         etSubject = view.findViewById(R.id.et_detail_subject);
         etChapter = view.findViewById(R.id.et_detail_chapter);
         etTags = view.findViewById(R.id.et_detail_tags);
+        etContent = view.findViewById(R.id.et_detail_content);
         llEditMeta = view.findViewById(R.id.ll_edit_meta);
 
         btnEdit = view.findViewById(R.id.btn_edit_note);
@@ -95,6 +96,13 @@ public class KnowledgeDetailFragment extends Fragment {
             }
         });
 
+        viewModel.getOptimizedContent().observe(getViewLifecycleOwner(), content -> {
+            if (content != null && isEditing) {
+                etContent.setText(content);
+                viewModel.getOptimizedContent().setValue(null);
+            }
+        });
+
         noteId = getArguments() != null ? getArguments().getString("note_id", "") : "";
         if (!noteId.isEmpty()) {
             viewModel.loadNoteDetail(noteId);
@@ -105,7 +113,19 @@ public class KnowledgeDetailFragment extends Fragment {
         btnCancel.setOnClickListener(v -> exitEditMode());
         btnAI.setOnClickListener(v -> {
             if (noteId.isEmpty()) return;
-            viewModel.optimizeNote(noteId);
+            android.widget.EditText et = new android.widget.EditText(requireContext());
+            et.setHint("例：整理成表格 / 提取所有公式 / 简化语言");
+            et.setMinLines(2);
+            new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle("AI 优化笔记")
+                .setMessage("告诉 AI 你想怎么处理这篇笔记：")
+                .setView(et)
+                .setPositiveButton("开始优化", (d, w) -> {
+                    String inst = et.getText().toString().trim();
+                    viewModel.optimizeNote(noteId, inst.isEmpty() ? "美化排版，统一格式" : inst);
+                })
+                .setNegativeButton("取消", null)
+                .show();
         });
     }
 
@@ -116,14 +136,17 @@ public class KnowledgeDetailFragment extends Fragment {
 
         tvTitle.setVisibility(View.GONE);
         llDetailTags.setVisibility(View.GONE);
+        wvContent.setVisibility(View.GONE);
         etTitle.setVisibility(View.VISIBLE);
         llEditMeta.setVisibility(View.VISIBLE);
         etTags.setVisibility(View.VISIBLE);
+        etContent.setVisibility(View.VISIBLE);
 
         etTitle.setText(d.getTitle());
         etSubject.setText(d.getSubject() != null ? d.getSubject() : "");
         etChapter.setText(d.getChapter() != null ? d.getChapter() : "");
         etTags.setText(d.getTags() != null ? d.getTags() : "");
+        etContent.setText(d.getContent() != null ? d.getContent() : "");
 
         btnEdit.setVisibility(View.GONE);
         btnAI.setVisibility(View.GONE);
@@ -135,16 +158,17 @@ public class KnowledgeDetailFragment extends Fragment {
         isEditing = false;
         tvTitle.setVisibility(View.VISIBLE);
         llDetailTags.setVisibility(View.VISIBLE);
+        wvContent.setVisibility(View.VISIBLE);
         etTitle.setVisibility(View.GONE);
         llEditMeta.setVisibility(View.GONE);
         etTags.setVisibility(View.GONE);
+        etContent.setVisibility(View.GONE);
 
         btnEdit.setVisibility(View.VISIBLE);
         btnAI.setVisibility(View.VISIBLE);
         btnSave.setVisibility(View.GONE);
         btnCancel.setVisibility(View.GONE);
 
-        // 重新渲染以恢复原始数据
         NoteDetail d = viewModel.getNoteDetail().getValue();
         if (d != null) renderNoteDetail(d);
     }
@@ -155,6 +179,7 @@ public class KnowledgeDetailFragment extends Fragment {
         String subject = etSubject.getText().toString().trim();
         String chapter = etChapter.getText().toString().trim();
         String tags = etTags.getText().toString().trim();
+        String content = etContent.getText().toString().trim();
 
         if (title.isEmpty()) {
             Snackbar.make(requireView(), "标题不能为空", Snackbar.LENGTH_SHORT).show();
@@ -166,6 +191,7 @@ public class KnowledgeDetailFragment extends Fragment {
         body.put("subject", subject);
         body.put("chapter", chapter);
         body.put("tags", tags);
+        body.put("content", content);
 
         viewModel.updateNote(noteId, body);
         exitEditMode();
@@ -224,14 +250,14 @@ public class KnowledgeDetailFragment extends Fragment {
             for (String tag : detail.getTags().split(",")) {
                 TextView tv = new TextView(requireContext());
                 tv.setText(tag.trim());
-                tv.setTextSize(11);
+                tv.setTextSize(13);
                 tv.setTextColor(getResources().getColor(R.color.primary_color, null));
                 tv.setBackgroundResource(R.drawable.bg_tag_chip);
-                int p = (int) (getResources().getDisplayMetrics().density * 8);
-                tv.setPadding(p, p / 2, p, p / 2);
+                int p = (int) (getResources().getDisplayMetrics().density * 10);
+                tv.setPadding(p, (int)(p * 0.6f), p, (int)(p * 0.6f));
                 LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                tp.setMargins(0, 0, (int) (getResources().getDisplayMetrics().density * 6), 0);
+                tp.setMargins(0, 0, (int) (getResources().getDisplayMetrics().density * 6), 4);
                 tv.setLayoutParams(tp);
                 llDetailTags.addView(tv);
             }
@@ -241,12 +267,12 @@ public class KnowledgeDetailFragment extends Fragment {
         llKnowledgePoints.removeAllViews();
         if (detail.getChunks() != null) {
             for (com.suiyuan.iragent_app.data.model.v3.NoteChunk chunk : detail.getChunks()) {
-                addKnowledgePointRow(chunk.getKnowledgePoint(), "知识点");
+                addKnowledgePointRow(chunk.getKnowledgePoint(), "知识点", true);
             }
         }
         if (detail.getLinkedKnowledgePoints() != null) {
             for (LinkedKnowledgePoint kp : detail.getLinkedKnowledgePoints()) {
-                addKnowledgePointRow(kp.getName(), "相似度 " + (int)(kp.getSimilarity() * 100) + "%");
+                addKnowledgePointRow(kp.getName(), "相似度 " + (int)(kp.getSimilarity() * 100) + "%", false);
             }
         }
 
@@ -254,37 +280,60 @@ public class KnowledgeDetailFragment extends Fragment {
         llLinkedQuestions.removeAllViews();
         if (detail.getLinkedQuestions() != null) {
             for (LinkedQuestion q : detail.getLinkedQuestions()) {
+                LinearLayout card = new LinearLayout(requireContext());
+                card.setOrientation(LinearLayout.VERTICAL);
+                card.setBackgroundResource(R.drawable.bg_card_white);
+                card.setPadding(14, 12, 14, 12);
+                LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                cp.setMargins(0, 0, 0, 8);
+                card.setLayoutParams(cp);
+
+                // Left accent bar via background
+                View accent = new View(requireContext());
+                accent.setLayoutParams(new LinearLayout.LayoutParams(3, ViewGroup.LayoutParams.MATCH_PARENT));
+                accent.setBackgroundColor(getResources().getColor(R.color.primary_color, null));
+                card.addView(accent);
+
                 TextView tv = new TextView(requireContext());
                 tv.setText(q.getText());
                 tv.setTextSize(14);
-                tv.setTextColor(getResources().getColor(R.color.gray_text, null));
-                tv.setPadding(0, 12, 0, 12);
-                tv.setBackgroundResource(android.R.color.white);
-                llLinkedQuestions.addView(tv);
+                tv.setTextColor(getResources().getColor(R.color.on_surface, null));
+                tv.setLineSpacing(0f, 1.3f);
+                tv.setPadding(12, 0, 0, 0);
+                LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
+                        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                tv.setLayoutParams(tp);
+                card.addView(tv);
+
+                llLinkedQuestions.addView(card);
             }
         }
     }
 
-    private void addKnowledgePointRow(String name, String meta) {
+    private void addKnowledgePointRow(String name, String meta, boolean isOwn) {
         LinearLayout row = new LinearLayout(requireContext());
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setPadding(16, 12, 16, 12);
-        row.setBackgroundColor(Color.WHITE);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        row.setPadding(12, 10, 12, 10);
+        row.setBackgroundResource(R.drawable.bg_card_white);
         LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        rowParams.setMargins(0, 0, 0, 4);
+        rowParams.setMargins(0, 0, 0, 6);
         row.setLayoutParams(rowParams);
 
         View dot = new View(requireContext());
-        dot.setLayoutParams(new LinearLayout.LayoutParams(24, 24));
-        dot.setBackgroundColor(getResources().getColor(R.color.primary_color, null));
+        LinearLayout.LayoutParams dotLp = new LinearLayout.LayoutParams(8, 8);
+        dot.setLayoutParams(dotLp);
+        dot.setBackgroundResource(isOwn ? R.drawable.bg_dot_purple : R.drawable.bg_dot_blue);
         row.addView(dot);
 
         TextView tvName = new TextView(requireContext());
         tvName.setText(name);
         tvName.setTextSize(14);
+        tvName.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         tvName.setTextColor(getResources().getColor(R.color.on_surface, null));
-        tvName.setPadding(12, 0, 0, 0);
+        tvName.setPadding(10, 0, 0, 0);
         LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         tvName.setLayoutParams(nameParams);
@@ -292,8 +341,12 @@ public class KnowledgeDetailFragment extends Fragment {
 
         TextView tvMeta = new TextView(requireContext());
         tvMeta.setText(meta);
-        tvMeta.setTextSize(11);
-        tvMeta.setTextColor(getResources().getColor(R.color.text_tertiary, null));
+        tvMeta.setTextSize(12);
+        tvMeta.setTextColor(getResources().getColor(R.color.primary_color, null));
+        tvMeta.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
+        tvMeta.setBackgroundResource(R.drawable.bg_tag_chip);
+        int p = (int) (getResources().getDisplayMetrics().density * 6);
+        tvMeta.setPadding(p, p / 2, p, p / 2);
         row.addView(tvMeta);
 
         llKnowledgePoints.addView(row);
