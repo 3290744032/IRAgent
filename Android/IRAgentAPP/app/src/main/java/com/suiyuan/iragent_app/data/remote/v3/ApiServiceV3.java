@@ -20,9 +20,10 @@ public interface ApiServiceV3 {
             @Query("size") int size);
 
     @GET("kb/notes/{id}")
-    @DELETE("kb/notes/{id}")
-    retrofit2.Call<com.suiyuan.iragent_app.data.model.ApiResponse<java.util.Map<String, Object>>> deleteNote(@retrofit2.http.Path("id") String id);
     Call<ApiResponse<NoteDetail>> getNoteDetail(@Path("id") String id);
+
+    @DELETE("kb/notes/{id}")
+    Call<ApiResponse<Map<String, Object>>> deleteNote(@Path("id") String id);
 
     @Multipart
     @POST("kb/upload")

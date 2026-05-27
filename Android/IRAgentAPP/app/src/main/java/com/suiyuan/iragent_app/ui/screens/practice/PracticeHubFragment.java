@@ -7,12 +7,12 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,11 +28,15 @@ import androidx.navigation.Navigation;
 
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.suiyuan.iragent_app.R;
+import com.suiyuan.iragent_app.data.model.v3.DiagnosisJson;
 import com.suiyuan.iragent_app.data.model.v3.GradedQuestion;
 import com.suiyuan.iragent_app.data.model.v3.GradingReport;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -43,12 +47,11 @@ public class PracticeHubFragment extends Fragment {
 
     private View layoutHub, layoutGrading;
     private View layoutGradingInput, layoutGradingProgress, layoutGradingReport;
-    private EditText etContent, etMaxScore;
-    private Spinner spSubject;
     private TextView tvGradingStatus;
     private ProgressBar pbGrading;
     private TextView tvReportScore, tvReportLabel;
     private LinearLayout llReportStats, llReportQuestions;
+    private String mMathTemplate;
 
     @Nullable
     @Override
@@ -68,9 +71,6 @@ public class PracticeHubFragment extends Fragment {
         layoutGradingInput = view.findViewById(R.id.layout_grading_input);
         layoutGradingProgress = view.findViewById(R.id.layout_grading_progress);
         layoutGradingReport = view.findViewById(R.id.layout_grading_report);
-        etContent = view.findViewById(R.id.et_grading_content);
-        etMaxScore = view.findViewById(R.id.et_max_score);
-        spSubject = view.findViewById(R.id.sp_subject);
         tvGradingStatus = view.findViewById(R.id.tv_grading_status);
         pbGrading = view.findViewById(R.id.pb_grading);
         tvReportScore = view.findViewById(R.id.tv_report_score);
@@ -78,13 +78,8 @@ public class PracticeHubFragment extends Fragment {
         llReportStats = view.findViewById(R.id.ll_report_stats);
         llReportQuestions = view.findViewById(R.id.ll_report_questions);
 
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_spinner_item,
-                new String[]{"数学", "物理", "化学", "英语", "政治", "历史"});
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spSubject.setAdapter(adapter);
+        loadMathTemplate();
 
-        view.findViewById(R.id.btn_start_grading).setOnClickListener(v -> startGrading());
         view.findViewById(R.id.btn_pick_image).setOnClickListener(v -> pickImageForGrading());
         view.findViewById(R.id.btn_grading_back).setOnClickListener(v -> backToHub());
         view.findViewById(R.id.btn_grading).setOnClickListener(v -> enterGrading());
@@ -205,11 +200,11 @@ public class PracticeHubFragment extends Fragment {
             layoutGradingProgress.setVisibility(View.VISIBLE);
             layoutGradingReport.setVisibility(View.GONE);
 
-            // 照片显示
-            android.widget.ImageView iv = view.findViewById(R.id.iv_grading_image);
+            // 照片显示（复用或新建 ImageView）
+            android.widget.ImageView iv = layoutGradingProgress.findViewWithTag("grading_image");
             if (iv == null) {
                 iv = new android.widget.ImageView(requireContext());
-                iv.setId(View.generateViewId());
+                iv.setTag("grading_image");
                 iv.setAdjustViewBounds(true);
                 iv.setMaxHeight((int)(300 * getResources().getDisplayMetrics().density));
                 iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
@@ -220,26 +215,10 @@ public class PracticeHubFragment extends Fragment {
             iv.setVisibility(View.VISIBLE);
 
             tvGradingStatus.setText("豆包视觉批改中...");
-            viewModel.submitImageGrading(bytes, spSubject.getSelectedItem().toString(),
-                    Integer.parseInt(etMaxScore.getText().toString()));
+            viewModel.submitImageGrading(bytes, "数学", 100);
         } catch (Exception e) {
             Toast.makeText(getContext(), "图片读取失败", Toast.LENGTH_SHORT).show();
         }
-    }
-
-    private void startGrading() {
-        String content = etContent.getText().toString().trim();
-        if (content.isEmpty()) {
-            Toast.makeText(getContext(), "请输入试卷内容", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        String subject = spSubject.getSelectedItem().toString();
-        int maxScore = 100;
-        try { maxScore = Integer.parseInt(etMaxScore.getText().toString()); } catch (Exception ignored) {}
-
-        layoutGradingInput.setVisibility(View.GONE);
-        layoutGradingProgress.setVisibility(View.VISIBLE);
-        viewModel.submitGrading(content, subject, maxScore);
     }
 
     private void setupObservers() {
@@ -299,37 +278,184 @@ public class PracticeHubFragment extends Fragment {
         llReportQuestions.removeAllViews();
         if (report.getQuestions() != null) {
             for (GradedQuestion q : report.getQuestions()) {
-                LinearLayout row = new LinearLayout(requireContext());
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setPadding(16, 12, 16, 12);
-                row.setOnClickListener(v -> Toast.makeText(getContext(),
-                        q.getQuestionText(), Toast.LENGTH_SHORT).show());
+                LinearLayout card = new LinearLayout(requireContext());
+                card.setOrientation(LinearLayout.VERTICAL);
+                card.setPadding(16, 12, 16, 12);
+                LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                cp.setMargins(0, 0, 0, 12);
+                card.setLayoutParams(cp);
+                card.setBackgroundResource(R.drawable.bg_ai_bubble);
+
+                // Header: index + knowledge point + correct/wrong
+                LinearLayout header = new LinearLayout(requireContext());
+                header.setOrientation(LinearLayout.HORIZONTAL);
+                header.setPadding(0, 0, 0, 8);
+                header.setLayoutParams(new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
                 TextView tvIdx = new TextView(requireContext());
-                tvIdx.setText(String.valueOf(q.getIndex()));
-                tvIdx.setTextSize(12);
-                tvIdx.setTextColor(getResources().getColor(R.color.text_tertiary, null));
-                tvIdx.setMinWidth(36);
-                row.addView(tvIdx);
+                tvIdx.setText(" #" + q.getIndex() + " ");
+                tvIdx.setTextSize(13);
+                tvIdx.setTypeface(null, android.graphics.Typeface.BOLD);
+                tvIdx.setTextColor(getResources().getColor(R.color.on_surface, null));
+                header.addView(tvIdx);
 
                 TextView tvTopic = new TextView(requireContext());
                 tvTopic.setText(q.getKnowledgePoint());
                 tvTopic.setTextSize(13);
                 tvTopic.setTextColor(getResources().getColor(R.color.gray_text, null));
-                LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams topicLp = new LinearLayout.LayoutParams(
                         0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-                tvTopic.setLayoutParams(tp);
-                row.addView(tvTopic);
+                tvTopic.setLayoutParams(topicLp);
+                header.addView(tvTopic);
 
                 TextView tvResult = new TextView(requireContext());
                 tvResult.setText(q.isCorrect() ? "✓ 正确" : "✗ 错误");
                 tvResult.setTextSize(12);
+                tvResult.setTypeface(null, android.graphics.Typeface.BOLD);
                 tvResult.setTextColor(q.isCorrect() ?
                         Color.parseColor("#10B981") : Color.parseColor("#EF4444"));
-                row.addView(tvResult);
+                header.addView(tvResult);
 
-                llReportQuestions.addView(row);
+                card.addView(header);
+
+                // Question text
+                if (q.getQuestionText() != null && !q.getQuestionText().isEmpty()) {
+                    TextView labelQ = new TextView(requireContext());
+                    labelQ.setText("题目");
+                    labelQ.setTextSize(11);
+                    labelQ.setTextColor(getResources().getColor(R.color.text_tertiary, null));
+                    labelQ.setPadding(0, 4, 0, 2);
+                    card.addView(labelQ);
+                    WebView wvQ = createMathWebView();
+                    renderMathInWebView(wvQ, q.getQuestionText());
+                    card.addView(wvQ);
+                }
+
+                // Student answer
+                if (q.getStudentAnswer() != null && !q.getStudentAnswer().isEmpty()) {
+                    TextView labelS = new TextView(requireContext());
+                    labelS.setText("你的答案");
+                    labelS.setTextSize(11);
+                    labelS.setTextColor(getResources().getColor(R.color.text_tertiary, null));
+                    labelS.setPadding(0, 4, 0, 2);
+                    card.addView(labelS);
+                    WebView wvS = createMathWebView();
+                    renderMathInWebView(wvS, q.getStudentAnswer());
+                    card.addView(wvS);
+                }
+
+                // Correct answer
+                if (q.getCorrectAnswer() != null && !q.getCorrectAnswer().isEmpty()) {
+                    TextView labelC = new TextView(requireContext());
+                    labelC.setText("正确答案");
+                    labelC.setTextSize(11);
+                    labelC.setTextColor(getResources().getColor(R.color.text_tertiary, null));
+                    labelC.setPadding(0, 4, 0, 2);
+                    card.addView(labelC);
+                    WebView wvC = createMathWebView();
+                    renderMathInWebView(wvC, q.getCorrectAnswer());
+                    card.addView(wvC);
+                }
+
+                // Score
+                TextView tvScore = new TextView(requireContext());
+                tvScore.setText("得分: " + q.getScore() + " / " + q.getMaxScore());
+                tvScore.setTextSize(12);
+                tvScore.setTextColor(getResources().getColor(R.color.gray_text, null));
+                tvScore.setPadding(0, 6, 0, 2);
+                card.addView(tvScore);
+
+                // Diagnosis (if wrong and diagnosis exists)
+                String analysis = getDiagnosisText(q.getDiagnosis());
+                if (!q.isCorrect() && analysis != null && !analysis.isEmpty()) {
+                    TextView labelD = new TextView(requireContext());
+                    labelD.setText("解析");
+                    labelD.setTextSize(11);
+                    labelD.setTextColor(Color.parseColor("#6366F1"));
+                    labelD.setPadding(0, 6, 0, 2);
+                    card.addView(labelD);
+                    WebView wvD = createMathWebView();
+                    renderMathInWebView(wvD, analysis);
+                    card.addView(wvD);
+                }
+
+                llReportQuestions.addView(card);
             }
         }
+    }
+
+    private void loadMathTemplate() {
+        try {
+            InputStream is = requireContext().getAssets().open("math_template.html");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) sb.append(line).append("\n");
+            mMathTemplate = sb.toString();
+            reader.close();
+            is.close();
+        } catch (IOException e) {
+            mMathTemplate = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body><div id='content'></div></body></html>";
+        }
+    }
+
+    private WebView createMathWebView() {
+        WebView wv = new WebView(requireContext());
+        WebSettings s = wv.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
+        s.setLoadWithOverviewMode(true);
+        s.setUseWideViewPort(true);
+        s.setAllowFileAccess(false);
+        wv.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        wv.setBackgroundColor(Color.TRANSPARENT);
+        wv.setPadding(0, 2, 0, 2);
+        LinearLayout.LayoutParams wvp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        wv.setLayoutParams(wvp);
+        return wv;
+    }
+
+    private void renderMathInWebView(WebView wv, String content) {
+        String escaped = escapeJsString(content);
+        wv.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                view.evaluateJavascript("renderMathContent('" + escaped + "')", null);
+            }
+        });
+        wv.loadDataWithBaseURL("https://cdn.jsdelivr.net", mMathTemplate,
+                "text/html", "UTF-8", null);
+    }
+
+    private String getDiagnosisText(DiagnosisJson diag) {
+        if (diag == null) return null;
+        StringBuilder sb = new StringBuilder();
+        if (diag.getFormulaConfusion() != null && diag.getFormulaConfusion().getAnalysis() != null)
+            sb.append(diag.getFormulaConfusion().getAnalysis()).append("\n\n");
+        if (diag.getCalculationError() != null && diag.getCalculationError().getAnalysis() != null)
+            sb.append(diag.getCalculationError().getAnalysis()).append("\n\n");
+        if (diag.getPrerequisiteCheck() != null && diag.getPrerequisiteCheck().getAnalysis() != null)
+            sb.append(diag.getPrerequisiteCheck().getAnalysis());
+        return sb.toString().trim();
+    }
+
+    private String escapeJsString(String content) {
+        if (content == null || content.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (char c : content.toCharArray()) {
+            switch (c) {
+                case '\\': sb.append("\\\\"); break;
+                case '\'': sb.append("\\'"); break;
+                case '"': sb.append("\\\""); break;
+                case '\n': sb.append("\\n"); break;
+                case '\r': sb.append("\\r"); break;
+                case '\t': sb.append("\\t"); break;
+                default: sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 }
