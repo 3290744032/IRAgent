@@ -44,6 +44,8 @@ public class KnowledgeListViewModel extends AndroidViewModel {
     public MutableLiveData<String> getError() { return error; }
     public MutableLiveData<Boolean> getIsLoading() { return isLoading; }
 
+    public void clearError() { error.postValue(null); }
+
     public void listNotes(String subject, int page, int size) {
         isLoading.postValue(true);
         repository.listNotes(subject, page, size, new KnowledgeRepository.ResultCallback<List<NoteItem>>() {

@@ -80,6 +80,9 @@ public class DashboardFragment extends Fragment {
         setupRadarChart();
 
         PreferencesManager pm = new PreferencesManager(requireContext());
+        // 从本地读取真实用户名，不硬编码
+        String account = pm.getAccount();
+        tvUserName.setText(account != null && !account.isEmpty() ? account : "同学");
         String examType = pm.getExamType();
         int targetScore = pm.getTargetScore();
         if (!examType.isEmpty()) {
@@ -181,8 +184,8 @@ public class DashboardFragment extends Fragment {
     private float calculateCoverage(DashboardOverview overview) {
         int totalKps = overview.getMasteredErrors() + overview.getTotalErrors();
         int mastered = overview.getMasteredErrors();
-        if (totalKps == 0) return 0.62f;
-        return (float) mastered / totalKps;
+        if (totalKps == 0) return 0f;
+        return (float) overview.getMasteredErrors() / overview.getTotalErrors();
     }
 
     private void buildCoverageStats(DashboardOverview overview) {

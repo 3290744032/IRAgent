@@ -21,7 +21,6 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.suiyuan.iragent_app.R;
 import com.suiyuan.iragent_app.ui.screens.deeplearn.DeepLearnViewModel;
-import com.suiyuan.iragent_app.util.MockSseSource;
 import com.suiyuan.iragent_app.util.TtsHttpClient;
 
 public class VideoLessonFragment extends Fragment {
@@ -111,7 +110,11 @@ public class VideoLessonFragment extends Fragment {
         super.onResume();
         if (mAutoStartTimeline) {
             mAutoStartTimeline = false;
-            mMainHandler.postDelayed(this::startTimelineTest, 300);
+            viewModel.getTimelineLiveData().observe(getViewLifecycleOwner(), timelineJson -> {
+                if (timelineJson != null && !timelineJson.isEmpty()) {
+                    showTimelineDialog(timelineJson);
+                }
+            });
         }
     }
 
@@ -142,10 +145,6 @@ public class VideoLessonFragment extends Fragment {
                 loadingState.setVisibility(Boolean.TRUE.equals(loading) ? View.VISIBLE : View.GONE);
             }
         });
-    }
-
-    private void startTimelineTest() {
-        showTimelineDialog(MockSseSource.buildTimelineJson());
     }
 
     private void showTimelineDialog(String timelineJson) {

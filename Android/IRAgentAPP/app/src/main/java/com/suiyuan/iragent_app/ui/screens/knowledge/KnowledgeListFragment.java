@@ -2,6 +2,7 @@ package com.suiyuan.iragent_app.ui.screens.knowledge;
 
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -12,6 +13,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,7 +28,10 @@ import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.snackbar.Snackbar;
+
 import com.suiyuan.iragent_app.R;
+import com.suiyuan.iragent_app.data.model.v3.NoteFragment;
 import com.suiyuan.iragent_app.data.model.v3.NoteItem;
 
 import java.util.Arrays;
@@ -40,6 +45,8 @@ public class KnowledgeListFragment extends Fragment {
     private LinearLayout llStats;
     private EditText etSearch;
     private NoteCardAdapter adapter;
+    private LinearLayout llSearchResults;
+    private View loadingView, emptyView;
     private final Handler searchHandler = new Handler(Looper.getMainLooper());
     private Runnable searchRunnable;
 
@@ -73,8 +80,11 @@ public class KnowledgeListFragment extends Fragment {
 
         setupSubjectTabs();
         setupRecyclerView();
+        setupSearchResultsContainer(view);
+        setupLoadingView(view);
+        setupEmptyView(view);
         setupSearch();
-        setupObservers();
+        setupObservers(view);
 
         view.findViewById(R.id.fab_upload).setOnClickListener(v -> filePickerLauncher.launch("*/*"));
 
@@ -91,7 +101,7 @@ public class KnowledgeListFragment extends Fragment {
             return;
         }
         kgWebView.setBackgroundColor(android.graphics.Color.TRANSPARENT);
-        kgWebView.getSettings().setJavaScriptEnabled(false);
+        kgWebView.getSettings().setJavaScriptEnabled(true);
         kgWebView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
         kgWebView.loadUrl("file:///android_asset/knowledge_graph.html");
     }
@@ -138,6 +148,17 @@ public class KnowledgeListFragment extends Fragment {
         }
     }
 
+    private void setupSearchResultsContainer(View view) {
+        llSearchResults = new LinearLayout(requireContext());
+        llSearchResults.setOrientation(LinearLayout.VERTICAL);
+        llSearchResults.setVisibility(View.GONE);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        llSearchResults.setLayoutParams(lp);
+        int rvIndex = ((ViewGroup) rvNotes.getParent()).indexOfChild(rvNotes);
+        ((ViewGroup) rvNotes.getParent()).addView(llSearchResults, rvIndex);
+    }
+
     private void setupRecyclerView() {
         adapter = new NoteCardAdapter(noteItem -> {
             Bundle args = new Bundle();
@@ -164,6 +185,9 @@ public class KnowledgeListFragment extends Fragment {
                     String query = s.toString().trim();
                     if (!query.isEmpty()) {
                         viewModel.searchNotes(query, 5);
+                    } else {
+                        llSearchResults.removeAllViews();
+                        llSearchResults.setVisibility(View.GONE);
                     }
                 };
                 searchHandler.postDelayed(searchRunnable, 300);
@@ -171,17 +195,114 @@ public class KnowledgeListFragment extends Fragment {
         });
     }
 
-    private void setupObservers() {
+    private void setupLoadingView(View view) {
+        loadingView = new ProgressBar(requireContext(), null, android.R.attr.progressBarStyle);
+        ((ProgressBar) loadingView).setVisibility(View.GONE);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.gravity = Gravity.CENTER;
+        int rvIdx = ((ViewGroup) rvNotes.getParent()).indexOfChild(rvNotes);
+        ((ViewGroup) rvNotes.getParent()).addView(loadingView, rvIdx + 1, lp);
+    }
+
+    private void setupEmptyView(View view) {
+        emptyView = new LinearLayout(requireContext());
+        ((LinearLayout) emptyView).setOrientation(LinearLayout.VERTICAL);
+        ((LinearLayout) emptyView).setGravity(Gravity.CENTER);
+        emptyView.setVisibility(View.GONE);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+
+        TextView icon = new TextView(requireContext());
+        icon.setText("📂");
+        icon.setTextSize(48);
+        icon.setGravity(Gravity.CENTER);
+        ((LinearLayout) emptyView).addView(icon);
+
+        TextView tv = new TextView(requireContext());
+        tv.setText("暂无笔记数据");
+        tv.setTextSize(14);
+        tv.setTextColor(Color.parseColor("#9CA3AF"));
+        tv.setGravity(Gravity.CENTER);
+        tv.setPadding(0, 12, 0, 0);
+        ((LinearLayout) emptyView).addView(tv);
+
+        int rvIdx = ((ViewGroup) rvNotes.getParent()).indexOfChild(rvNotes);
+        ((ViewGroup) rvNotes.getParent()).addView(emptyView, rvIdx + 2, lp);
+    }
+
+    private void showSearchResults(List<NoteFragment> results) {
+        llSearchResults.removeAllViews();
+        llSearchResults.setVisibility(View.VISIBLE);
+
+        TextView header = new TextView(requireContext());
+        header.setText("搜索结果 (" + results.size() + ")");
+        header.setTextSize(14);
+        header.setTextColor(Color.parseColor("#374151"));
+        header.setTypeface(Typeface.DEFAULT_BOLD);
+        header.setPadding(16, 12, 16, 4);
+        llSearchResults.addView(header);
+
+        for (NoteFragment frag : results) {
+            LinearLayout card = new LinearLayout(requireContext());
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setBackgroundResource(R.drawable.bg_card_white);
+            card.setPadding(16, 12, 16, 12);
+            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            cp.setMargins(16, 0, 16, 8);
+            card.setLayoutParams(cp);
+
+            TextView tvContent = new TextView(requireContext());
+            tvContent.setText(frag.getContent());
+            tvContent.setTextSize(13);
+            tvContent.setTextColor(Color.parseColor("#1F2937"));
+            tvContent.setMaxLines(3);
+            card.addView(tvContent);
+
+            LinearLayout meta = new LinearLayout(requireContext());
+            meta.setOrientation(LinearLayout.HORIZONTAL);
+            meta.setPadding(0, 6, 0, 0);
+            if (frag.getKnowledgePoint() != null) {
+                TextView tvKp = new TextView(requireContext());
+                tvKp.setText(frag.getKnowledgePoint());
+                tvKp.setTextSize(11);
+                tvKp.setTextColor(Color.parseColor("#6366F1"));
+                meta.addView(tvKp);
+            }
+            TextView tvSim = new TextView(requireContext());
+            tvSim.setText(String.format("相似度 %.0f%%", frag.getSimilarity() * 100));
+            tvSim.setTextSize(11);
+            tvSim.setTextColor(Color.parseColor("#9CA3AF"));
+            tvSim.setPadding(8, 0, 0, 0);
+            meta.addView(tvSim);
+            card.addView(meta);
+
+            llSearchResults.addView(card);
+        }
+    }
+
+    private void setupObservers(View view) {
         viewModel.getNotesList().observe(getViewLifecycleOwner(), notes -> {
             if (notes != null) {
                 adapter.setNotes(notes);
                 updateStats(notes);
+                boolean empty = notes.isEmpty();
+                emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
+                rvNotes.setVisibility(empty ? View.GONE : View.VISIBLE);
             }
         });
 
+        viewModel.getIsLoading().observe(getViewLifecycleOwner(), loading -> {
+            if (loading != null) loadingView.setVisibility(loading ? View.VISIBLE : View.GONE);
+        });
+
         viewModel.getSearchResults().observe(getViewLifecycleOwner(), results -> {
-            if (results != null && !results.isEmpty() && adapter != null) {
-                // Show search results in-place by converting to note items
+            if (results != null && !results.isEmpty()) {
+                showSearchResults(results);
+            } else {
+                llSearchResults.removeAllViews();
+                llSearchResults.setVisibility(View.GONE);
             }
         });
 
@@ -195,7 +316,10 @@ public class KnowledgeListFragment extends Fragment {
 
         viewModel.getError().observe(getViewLifecycleOwner(), error -> {
             if (error != null) {
-                Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show();
+                Snackbar.make(view, error, Snackbar.LENGTH_LONG)
+                        .setAction("重试", v -> viewModel.listNotes("", 0, 20))
+                        .show();
+                viewModel.clearError();
             }
         });
     }
@@ -257,7 +381,9 @@ public class KnowledgeListFragment extends Fragment {
             holder.tvDate.setText(formatDate(note.getCreatedAt()));
 
             // Preview from tags
-            holder.tvPreview.setText(note.getTags());
+            String chapter = note.getChapter() != null && !note.getChapter().isEmpty() ? note.getChapter() : "";
+            String previewText = chapter.isEmpty() ? note.getTitle() : chapter + " · " + note.getTitle();
+            holder.tvPreview.setText(previewText);
 
             String linked = "关联 " + note.getLinkedQuestionCount() + " 道题目";
             holder.tvLinkedCount.setText(linked);

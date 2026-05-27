@@ -49,11 +49,14 @@ public class ChatRepositoryV3 {
             String q = (question != null && !question.trim().isEmpty()) ? question : "请帮我解答这道题";
             Log.d(TAG, "chatStreamWithImage: POST " + baseUrl + "chat/stream-image question=" + q + " imageSize=" + imageBytes.length);
 
-            MultipartBody body = new MultipartBody.Builder()
+            MultipartBody.Builder builder = new MultipartBody.Builder()
                     .setType(MultipartBody.FORM)
                     .addFormDataPart("question", q)
-                    .addFormDataPart("image", "image.jpg", RequestBody.create(imageBytes, MediaType.parse("image/jpeg")))
-                    .build();
+                    .addFormDataPart("image", "image.jpg", RequestBody.create(imageBytes, MediaType.parse("image/jpeg")));
+            if (conversationId != null && !conversationId.isEmpty()) {
+                builder.addFormDataPart("conversationId", conversationId);
+            }
+            MultipartBody body = builder.build();
 
             Request request = new Request.Builder()
                     .url(baseUrl + "chat/stream-image")

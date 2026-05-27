@@ -161,10 +161,15 @@ public class SmartPaperFragment extends Fragment {
 
     private void onNextClick() {
         SmartPaper paper = viewModel.getPaper().getValue();
-        if (paper == null) return;
+        if (paper == null || paper.getQuestions() == null || paper.getQuestions().isEmpty()) return;
 
         int idx = viewModel.getQuestionIndex().getValue() != null
                 ? viewModel.getQuestionIndex().getValue() : 0;
+        if (idx >= paper.getQuestions().size()) return;
+        String sel = viewModel.getSelectedOption().getValue();
+        if (viewModel.isLastQuestion() && (sel == null || sel.isEmpty())) {
+            return;
+        }
         String qId = paper.getQuestions().get(idx).getId();
         viewModel.nextQuestion(qId);
 
@@ -177,6 +182,12 @@ public class SmartPaperFragment extends Fragment {
         viewModel.getPaper().observe(getViewLifecycleOwner(), paper -> {
             if (paper != null) {
                 showPhase(layoutLoading, false);
+                if (paper.getQuestions() == null || paper.getQuestions().isEmpty()) {
+                    showPhase(layoutQuiz, false);
+                    Toast.makeText(getContext(), "未找到符合条件的题目，请调整筛选条件", Toast.LENGTH_LONG).show();
+                    showPhase(layoutConfig, true);
+                    return;
+                }
                 showPhase(layoutQuiz, true);
                 renderQuestion(paper);
             }
@@ -195,6 +206,10 @@ public class SmartPaperFragment extends Fragment {
                 int idx = viewModel.getQuestionIndex().getValue() != null
                         ? viewModel.getQuestionIndex().getValue() : 0;
                 updateOptionHighlights(paper.getQuestions().get(idx).getOptions(), sel);
+                if (viewModel.isLastQuestion()) {
+                    btnNext.setEnabled(sel != null && !sel.isEmpty());
+                    btnNext.setAlpha(btnNext.isEnabled() ? 1f : 0.4f);
+                }
             }
         });
 
@@ -256,10 +271,18 @@ public class SmartPaperFragment extends Fragment {
             }
         }
 
-        updateOptionHighlights(q.getOptions(), viewModel.getSelectedOption().getValue());
+        String selected = viewModel.getSelectedOption().getValue();
+        updateOptionHighlights(q.getOptions(), selected);
 
         boolean last = viewModel.isLastQuestion();
         btnNext.setText(last ? "提交" : "下一题");
+        if (last) {
+            btnNext.setEnabled(selected != null && !selected.isEmpty());
+            btnNext.setAlpha(btnNext.isEnabled() ? 1f : 0.4f);
+        } else {
+            btnNext.setEnabled(true);
+            btnNext.setAlpha(1f);
+        }
     }
 
     private void updateOptionHighlights(java.util.List<String> options, String selected) {

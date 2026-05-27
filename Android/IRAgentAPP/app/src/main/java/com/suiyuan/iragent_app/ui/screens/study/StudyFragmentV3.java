@@ -435,7 +435,11 @@ public class StudyFragmentV3 extends Fragment {
             if (done != null && done) finishStreamingMessage();
         });
         viewModel.getError().observe(getViewLifecycleOwner(), error -> {
-            if (error != null) { finishStreamingMessage(); addErrorMessage(error); }
+            if (error != null) {
+                finishStreamingMessage();
+                addErrorMessage(error);
+                viewModel.clearError();
+            }
         });
         viewModel.getConversationTitle().observe(getViewLifecycleOwner(), title -> {
             if (tvTitle != null && title != null) tvTitle.setText(title);

@@ -10,7 +10,7 @@ import android.view.View;
 
 public class CoverageRingView extends View {
 
-    private float percentage = 0.62f;
+    private float percentage = 0f;
     private final Paint ringPaint;
     private final Paint bgPaint;
     private final Paint textPaint;

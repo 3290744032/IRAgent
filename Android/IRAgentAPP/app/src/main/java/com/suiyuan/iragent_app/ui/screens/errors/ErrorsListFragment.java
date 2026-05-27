@@ -4,10 +4,12 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -20,6 +22,8 @@ import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.snackbar.Snackbar;
+
 import com.suiyuan.iragent_app.R;
 import com.suiyuan.iragent_app.data.model.v3.ErrorItem;
 
@@ -31,6 +35,7 @@ public class ErrorsListFragment extends Fragment {
     private RecyclerView rvErrors;
     private ErrorCardAdapter adapter;
     private LinearLayout reviewBanner;
+    private View loadingView, emptyView;
 
     @Nullable
     @Override
@@ -57,8 +62,20 @@ public class ErrorsListFragment extends Fragment {
         rvErrors.setLayoutManager(new LinearLayoutManager(getContext()));
         rvErrors.setAdapter(adapter);
 
+        setupLoadingView(view);
+        setupEmptyView(view);
+
         viewModel.getErrorsList().observe(getViewLifecycleOwner(), errors -> {
-            if (errors != null) adapter.setErrors(errors);
+            if (errors != null) {
+                adapter.setErrors(errors);
+                boolean empty = errors.isEmpty();
+                emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
+                rvErrors.setVisibility(empty ? View.GONE : View.VISIBLE);
+            }
+        });
+
+        viewModel.getIsLoading().observe(getViewLifecycleOwner(), loading -> {
+            if (loading != null) loadingView.setVisibility(loading ? View.VISIBLE : View.GONE);
         });
 
         viewModel.getReviewQueue().observe(getViewLifecycleOwner(), queue -> {
@@ -70,11 +87,55 @@ public class ErrorsListFragment extends Fragment {
         });
 
         viewModel.getError().observe(getViewLifecycleOwner(), error -> {
-            if (error != null) Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show();
+            if (error != null) {
+                Snackbar.make(view, error, Snackbar.LENGTH_LONG)
+                        .setAction("重试", v -> {
+                            viewModel.listErrors("", "", 0, 20);
+                            viewModel.loadReviewQueue();
+                        })
+                        .show();
+                viewModel.clearError();
+            }
         });
 
         viewModel.listErrors("", "", 0, 20);
         viewModel.loadReviewQueue();
+    }
+
+    private void setupLoadingView(View view) {
+        loadingView = new ProgressBar(requireContext(), null, android.R.attr.progressBarStyle);
+        ((ProgressBar) loadingView).setVisibility(View.GONE);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.gravity = Gravity.CENTER;
+        int rvIdx = ((ViewGroup) rvErrors.getParent()).indexOfChild(rvErrors);
+        ((ViewGroup) rvErrors.getParent()).addView(loadingView, rvIdx + 1, lp);
+    }
+
+    private void setupEmptyView(View view) {
+        emptyView = new LinearLayout(requireContext());
+        ((LinearLayout) emptyView).setOrientation(LinearLayout.VERTICAL);
+        ((LinearLayout) emptyView).setGravity(Gravity.CENTER);
+        emptyView.setVisibility(View.GONE);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+
+        TextView icon = new TextView(requireContext());
+        icon.setText("📭");
+        icon.setTextSize(48);
+        icon.setGravity(Gravity.CENTER);
+        ((LinearLayout) emptyView).addView(icon);
+
+        TextView tv = new TextView(requireContext());
+        tv.setText("暂无错题数据");
+        tv.setTextSize(14);
+        tv.setTextColor(Color.parseColor("#9CA3AF"));
+        tv.setGravity(Gravity.CENTER);
+        tv.setPadding(0, 12, 0, 0);
+        ((LinearLayout) emptyView).addView(tv);
+
+        int rvIdx = ((ViewGroup) rvErrors.getParent()).indexOfChild(rvErrors);
+        ((ViewGroup) rvErrors.getParent()).addView(emptyView, rvIdx + 2, lp);
     }
 
     private static class ErrorCardAdapter extends RecyclerView.Adapter<ErrorCardAdapter.ViewHolder> {

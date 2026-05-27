@@ -52,6 +52,8 @@ public class StudyViewModelV3 extends AndroidViewModel {
         streamDone.postValue(false);
     }
 
+    public void clearError() { error.postValue(null); }
+
     public void setConversationId(String conversationId) {
         this.currentConversationId = conversationId != null ? conversationId : "";
     }

@@ -106,6 +106,24 @@ public class DailyPracticeFragment extends Fragment {
         viewModel.loadPractice(subject, 5);
 
         btnSubmitAll.setOnClickListener(v -> onSubmitAll());
+
+        Button btnSkip = new Button(requireContext());
+        btnSkip.setText("跳过，部分提交");
+        btnSkip.setTextSize(14);
+        btnSkip.setBackgroundResource(R.drawable.bg_quick_chip);
+        btnSkip.setTextColor(Color.parseColor("#6B7280"));
+        btnSkip.setAllCaps(false);
+        LinearLayout.LayoutParams skipLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        skipLp.setMargins(0, 12, 0, 0);
+        btnSkip.setLayoutParams(skipLp);
+        btnSkip.setOnClickListener(v -> {
+            if (sessionId != null) {
+                viewModel.submitAll(sessionId, "daily_practice");
+            }
+        });
+        ((LinearLayout) btnSubmitAll.getParent()).addView(btnSkip);
+
         btnBackHub.setOnClickListener(v -> requireActivity().onBackPressed());
 
         setupObservers();

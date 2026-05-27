@@ -34,6 +34,8 @@ public class ErrorsListViewModel extends AndroidViewModel {
     public MutableLiveData<String> getError() { return error; }
     public MutableLiveData<Boolean> getIsLoading() { return isLoading; }
 
+    public void clearError() { error.postValue(null); }
+
     public void listErrors(String subject, String errorType, int page, int size) {
         isLoading.postValue(true);
         repository.listErrors(subject, errorType, page, size,

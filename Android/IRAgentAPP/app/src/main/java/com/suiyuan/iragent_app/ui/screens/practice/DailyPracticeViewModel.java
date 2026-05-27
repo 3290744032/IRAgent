@@ -10,6 +10,9 @@ import androidx.lifecycle.MutableLiveData;
 import com.suiyuan.iragent_app.data.model.v3.*;
 import com.suiyuan.iragent_app.data.repository.v3.PracticeV2Repository;
 
+import android.util.Base64;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -75,7 +78,8 @@ public class DailyPracticeViewModel extends AndroidViewModel {
         }
         for (String qId : photoUriMap.keySet()) {
             if (!answerMap.containsKey(qId)) {
-                entries.add(new SubmitAnswerRequest.AnswerEntry(qId, "[photo]", 30));
+                String base64 = uriToBase64(photoUriMap.get(qId));
+                entries.add(new SubmitAnswerRequest.AnswerEntry(qId, base64 != null ? "[photo]" : "", 30, base64));
             }
         }
         SubmitAnswerRequest req = new SubmitAnswerRequest(sessionId, source, entries);
@@ -102,5 +106,15 @@ public class DailyPracticeViewModel extends AndroidViewModel {
                     @Override public void onError(int code, String message) { error.postValue("反馈提交失败: " + message); }
                     @Override public void onException(Exception e) { error.postValue("反馈提交异常: " + e.getMessage()); }
                 });
+    }
+
+    private String uriToBase64(Uri uri) {
+        try (InputStream is = getApplication().getContentResolver().openInputStream(uri);
+             ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+            byte[] buf = new byte[4096];
+            int n;
+            while ((n = is.read(buf)) != -1) bos.write(buf, 0, n);
+            return Base64.encodeToString(bos.toByteArray(), Base64.NO_WRAP);
+        } catch (Exception e) { return null; }
     }
 }

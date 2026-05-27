@@ -18,11 +18,18 @@ public class SubmitAnswerRequest {
         @SerializedName("questionId") private String questionId;
         @SerializedName("selectedAnswer") private String selectedAnswer;
         @SerializedName("timeUsed") private int timeUsed;
+        @SerializedName("photoBase64") private String photoBase64;
 
         public AnswerEntry(String questionId, String selectedAnswer, int timeUsed) {
             this.questionId = questionId;
             this.selectedAnswer = selectedAnswer;
             this.timeUsed = timeUsed;
+        }
+        public AnswerEntry(String questionId, String selectedAnswer, int timeUsed, String photoBase64) {
+            this.questionId = questionId;
+            this.selectedAnswer = selectedAnswer;
+            this.timeUsed = timeUsed;
+            this.photoBase64 = photoBase64;
         }
     }
 }

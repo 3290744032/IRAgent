@@ -4,9 +4,13 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.Gravity;
+
+import java.util.List;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -17,15 +21,19 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.snackbar.Snackbar;
 import com.suiyuan.iragent_app.R;
 import com.suiyuan.iragent_app.data.model.v3.DiagnosisItem;
 import com.suiyuan.iragent_app.data.model.v3.DiagnosisJson;
 import com.suiyuan.iragent_app.data.model.v3.ErrorDetail;
+import com.suiyuan.iragent_app.data.model.v3.SimilarQuestion;
 
 public class ErrorsDetailFragment extends Fragment {
 
     private ErrorsDetailViewModel viewModel;
     private LinearLayout rootLayout;
+    private Button btnMaster;
 
     @Nullable
     @Override
@@ -43,13 +51,32 @@ public class ErrorsDetailFragment extends Fragment {
 
         viewModel.getErrorDetail().observe(getViewLifecycleOwner(), this::renderErrorDetail);
         viewModel.getMarkMasteredResult().observe(getViewLifecycleOwner(), result -> {
-            Toast.makeText(getContext(), "已标记为已掌握", Toast.LENGTH_SHORT).show();
+            if (result != null && result) {
+                btnMaster.setText("已掌握");
+                btnMaster.setEnabled(false);
+                btnMaster.setBackgroundColor(Color.parseColor("#E5E7EB"));
+                btnMaster.setTextColor(Color.parseColor("#9CA3AF"));
+                AlphaAnimation fade = new AlphaAnimation(1f, 0.6f);
+                fade.setDuration(600);
+                fade.setFillAfter(true);
+                rootLayout.startAnimation(fade);
+                Toast.makeText(getContext(), "已标记为已掌握", Toast.LENGTH_SHORT).show();
+            }
         });
         viewModel.getSimilarQuestions().observe(getViewLifecycleOwner(), questions -> {
-            Toast.makeText(getContext(), "已添加 " + questions.size() + " 道同类题", Toast.LENGTH_SHORT).show();
+            if (questions != null && !questions.isEmpty()) {
+                showSimilarQuestionsSheet(questions);
+            }
         });
         viewModel.getError().observe(getViewLifecycleOwner(), error -> {
-            if (error != null) Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show();
+            if (error != null) {
+                Snackbar.make(view, error, Snackbar.LENGTH_LONG)
+                        .setAction("重试", v -> {
+                            String eid = getArguments() != null ? getArguments().getString("error_id", "") : "";
+                            if (!eid.isEmpty()) viewModel.loadErrorDetail(eid);
+                        })
+                        .show();
+            }
         });
 
         String errorId = getArguments() != null ? getArguments().getString("error_id", "") : "";
@@ -139,17 +166,28 @@ public class ErrorsDetailFragment extends Fragment {
         actions.setOrientation(LinearLayout.HORIZONTAL);
         actions.setPadding(0, 24, 0, 0);
 
-        Button btnMaster = new Button(requireContext());
-        btnMaster.setText("标记为已掌握");
+        btnMaster = new Button(requireContext());
+        boolean alreadyMastered = detail.isMastered();
+        if (alreadyMastered) {
+            btnMaster.setText("已掌握 ✓");
+            btnMaster.setEnabled(false);
+            btnMaster.setAlpha(0.5f);
+        } else {
+            btnMaster.setText("标记为已掌握");
+            btnMaster.setOnClickListener(v -> {
+                btnMaster.setText("已掌握 ✓");
+                btnMaster.setEnabled(false);
+                btnMaster.setAlpha(0.5f);
+                Toast.makeText(getContext(), "已标记为已掌握", Toast.LENGTH_SHORT).show();
+                viewModel.markMastered(detail.getId());
+            });
+        }
         btnMaster.setBackgroundColor(Color.WHITE);
         btnMaster.setTextColor(getResources().getColor(R.color.primary_color, null));
         LinearLayout.LayoutParams mp1 = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         mp1.setMargins(0, 0, 8, 0);
         btnMaster.setLayoutParams(mp1);
-        btnMaster.setOnClickListener(v -> {
-            viewModel.markMastered(detail.getId());
-        });
         actions.addView(btnMaster);
 
         Button btnSimilar = new Button(requireContext());
@@ -166,6 +204,74 @@ public class ErrorsDetailFragment extends Fragment {
         actions.addView(btnSimilar);
 
         rootLayout.addView(actions);
+    }
+
+    private void showSimilarQuestionsSheet(List<SimilarQuestion> questions) {
+        BottomSheetDialog dialog = new BottomSheetDialog(requireContext());
+        LinearLayout sheet = new LinearLayout(requireContext());
+        sheet.setOrientation(LinearLayout.VERTICAL);
+        sheet.setPadding(16, 24, 16, 32);
+
+        TextView title = new TextView(requireContext());
+        title.setText("同类题推荐 (" + questions.size() + ")");
+        title.setTextSize(16);
+        title.setTextColor(Color.parseColor("#1F2937"));
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, 0, 0, 16);
+        sheet.addView(title);
+
+        for (SimilarQuestion q : questions) {
+            LinearLayout card = new LinearLayout(requireContext());
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setBackgroundResource(R.drawable.bg_card_white);
+            card.setPadding(16, 12, 16, 12);
+            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            cp.setMargins(0, 0, 0, 8);
+            card.setLayoutParams(cp);
+
+            TextView tvText = new TextView(requireContext());
+            tvText.setText(q.getText());
+            tvText.setTextSize(13);
+            tvText.setTextColor(Color.parseColor("#1F2937"));
+            tvText.setMaxLines(3);
+            card.addView(tvText);
+
+            if (q.getTags() != null && !q.getTags().isEmpty()) {
+                LinearLayout tagRow = new LinearLayout(requireContext());
+                tagRow.setOrientation(LinearLayout.HORIZONTAL);
+                tagRow.setPadding(0, 6, 0, 0);
+                for (String tag : q.getTags()) {
+                    TextView tvTag = new TextView(requireContext());
+                    tvTag.setText(tag);
+                    tvTag.setTextSize(10);
+                    tvTag.setTextColor(Color.parseColor("#6366F1"));
+                    tvTag.setBackgroundResource(R.drawable.btn_quick_reply);
+                    tvTag.setPadding(8, 2, 8, 2);
+                    tvTag.setLayoutParams(new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                    tagRow.addView(tvTag);
+                    if (q.getTags().indexOf(tag) < q.getTags().size() - 1) {
+                        ((LinearLayout.LayoutParams) tvTag.getLayoutParams()).setMargins(0, 0, 6, 0);
+                    }
+                }
+                card.addView(tagRow);
+            }
+
+            card.setOnClickListener(vv -> {
+                // 点击同类题 → 跳转到答疑 Tab 并自动填入题目
+                android.os.Bundle args = new android.os.Bundle();
+                args.putString("question", q.getText());
+                androidx.navigation.NavController nc = androidx.navigation.Navigation.findNavController(requireActivity(), R.id.nav_host_fragment);
+                nc.navigate(R.id.nav_chat, args);
+                dialog.dismiss();
+            });
+            sheet.addView(card);
+        }
+
+        dialog.setContentView(sheet);
+        dialog.show();
     }
 
     private void addSectionTitle(String title) {
