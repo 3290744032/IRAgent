@@ -8,6 +8,7 @@ import android.view.ViewGroup;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -17,6 +18,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.google.android.material.snackbar.Snackbar;
 import com.suiyuan.iragent_app.R;
 import com.suiyuan.iragent_app.data.model.v3.LinkedKnowledgePoint;
 import com.suiyuan.iragent_app.data.model.v3.LinkedQuestion;
@@ -26,14 +28,20 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.HashMap;
+import java.util.Map;
 
 public class KnowledgeDetailFragment extends Fragment {
 
     private KnowledgeDetailViewModel viewModel;
     private WebView wvContent;
-    private LinearLayout llKnowledgePoints;
-    private LinearLayout llLinkedQuestions;
+    private LinearLayout llKnowledgePoints, llLinkedQuestions, llDetailTags;
     private TextView tvChapter, tvDate, tvTitle;
+    private android.widget.EditText etTitle, etSubject, etChapter, etTags;
+    private View llEditMeta;
+    private Button btnEdit, btnAI, btnSave, btnCancel;
+    private boolean isEditing = false;
+    private String noteId;
     private String mMathTemplate;
 
     @Nullable
@@ -52,29 +60,115 @@ public class KnowledgeDetailFragment extends Fragment {
         wvContent = view.findViewById(R.id.wv_note_content);
         llKnowledgePoints = view.findViewById(R.id.ll_knowledge_points);
         llLinkedQuestions = view.findViewById(R.id.ll_linked_questions);
+        llDetailTags = view.findViewById(R.id.ll_detail_tags);
         tvChapter = view.findViewById(R.id.tv_detail_chapter);
         tvDate = view.findViewById(R.id.tv_detail_date);
         tvTitle = view.findViewById(R.id.tv_detail_title);
+
+        etTitle = view.findViewById(R.id.et_detail_title);
+        etSubject = view.findViewById(R.id.et_detail_subject);
+        etChapter = view.findViewById(R.id.et_detail_chapter);
+        etTags = view.findViewById(R.id.et_detail_tags);
+        llEditMeta = view.findViewById(R.id.ll_edit_meta);
+
+        btnEdit = view.findViewById(R.id.btn_edit_note);
+        btnAI = view.findViewById(R.id.btn_ai_optimize);
+        btnSave = view.findViewById(R.id.btn_save_note);
+        btnCancel = view.findViewById(R.id.btn_cancel_edit);
 
         loadMathTemplate();
         setupWebView();
 
         viewModel.getNoteDetail().observe(getViewLifecycleOwner(), this::renderNoteDetail);
+        viewModel.getIsLoading().observe(getViewLifecycleOwner(), loading -> {
+            if (loading != null && loading) {
+                btnAI.setText("优化中...");
+                btnAI.setEnabled(false);
+            } else {
+                btnAI.setText("AI 优化");
+                btnAI.setEnabled(true);
+            }
+        });
         viewModel.getError().observe(getViewLifecycleOwner(), error -> {
-            if (error != null) Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show();
+            if (error != null) {
+                Toast.makeText(getContext(), error, Toast.LENGTH_LONG).show();
+            }
         });
 
-        String noteId = getArguments() != null ? getArguments().getString("note_id", "") : "";
+        noteId = getArguments() != null ? getArguments().getString("note_id", "") : "";
         if (!noteId.isEmpty()) {
             viewModel.loadNoteDetail(noteId);
         }
-        // 编辑按钮
-        view.findViewById(R.id.btn_edit_note).setOnClickListener(v -> {
+
+        btnEdit.setOnClickListener(v -> enterEditMode());
+        btnSave.setOnClickListener(v -> saveChanges());
+        btnCancel.setOnClickListener(v -> exitEditMode());
+        btnAI.setOnClickListener(v -> {
             if (noteId.isEmpty()) return;
-            NoteDetail d = viewModel.getNoteDetail().getValue();
-            if (d == null) return;
-            showEditDialog(noteId, d);
+            viewModel.optimizeNote(noteId);
         });
+    }
+
+    private void enterEditMode() {
+        NoteDetail d = viewModel.getNoteDetail().getValue();
+        if (d == null) return;
+        isEditing = true;
+
+        tvTitle.setVisibility(View.GONE);
+        llDetailTags.setVisibility(View.GONE);
+        etTitle.setVisibility(View.VISIBLE);
+        llEditMeta.setVisibility(View.VISIBLE);
+        etTags.setVisibility(View.VISIBLE);
+
+        etTitle.setText(d.getTitle());
+        etSubject.setText(d.getSubject() != null ? d.getSubject() : "");
+        etChapter.setText(d.getChapter() != null ? d.getChapter() : "");
+        etTags.setText(d.getTags() != null ? d.getTags() : "");
+
+        btnEdit.setVisibility(View.GONE);
+        btnAI.setVisibility(View.GONE);
+        btnSave.setVisibility(View.VISIBLE);
+        btnCancel.setVisibility(View.VISIBLE);
+    }
+
+    private void exitEditMode() {
+        isEditing = false;
+        tvTitle.setVisibility(View.VISIBLE);
+        llDetailTags.setVisibility(View.VISIBLE);
+        etTitle.setVisibility(View.GONE);
+        llEditMeta.setVisibility(View.GONE);
+        etTags.setVisibility(View.GONE);
+
+        btnEdit.setVisibility(View.VISIBLE);
+        btnAI.setVisibility(View.VISIBLE);
+        btnSave.setVisibility(View.GONE);
+        btnCancel.setVisibility(View.GONE);
+
+        // 重新渲染以恢复原始数据
+        NoteDetail d = viewModel.getNoteDetail().getValue();
+        if (d != null) renderNoteDetail(d);
+    }
+
+    private void saveChanges() {
+        if (noteId.isEmpty()) return;
+        String title = etTitle.getText().toString().trim();
+        String subject = etSubject.getText().toString().trim();
+        String chapter = etChapter.getText().toString().trim();
+        String tags = etTags.getText().toString().trim();
+
+        if (title.isEmpty()) {
+            Snackbar.make(requireView(), "标题不能为空", Snackbar.LENGTH_SHORT).show();
+            return;
+        }
+
+        Map<String, String> body = new HashMap<>();
+        body.put("title", title);
+        body.put("subject", subject);
+        body.put("chapter", chapter);
+        body.put("tags", tags);
+
+        viewModel.updateNote(noteId, body);
+        exitEditMode();
     }
 
     private void loadMathTemplate() {
@@ -99,6 +193,7 @@ public class KnowledgeDetailFragment extends Fragment {
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
         settings.setAllowFileAccess(false);
+        settings.setDefaultTextEncodingName("UTF-8");
         wvContent.setBackgroundColor(Color.TRANSPARENT);
         wvContent.setLayerType(View.LAYER_TYPE_HARDWARE, null);
     }
@@ -121,6 +216,25 @@ public class KnowledgeDetailFragment extends Fragment {
             });
             wvContent.loadDataWithBaseURL("https://cdn.jsdelivr.net", mMathTemplate,
                     "text/html", "UTF-8", null);
+        }
+
+        // Tags
+        llDetailTags.removeAllViews();
+        if (detail.getTags() != null && !detail.getTags().isEmpty()) {
+            for (String tag : detail.getTags().split(",")) {
+                TextView tv = new TextView(requireContext());
+                tv.setText(tag.trim());
+                tv.setTextSize(11);
+                tv.setTextColor(getResources().getColor(R.color.primary_color, null));
+                tv.setBackgroundResource(R.drawable.bg_tag_chip);
+                int p = (int) (getResources().getDisplayMetrics().density * 8);
+                tv.setPadding(p, p / 2, p, p / 2);
+                LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                tp.setMargins(0, 0, (int) (getResources().getDisplayMetrics().density * 6), 0);
+                tv.setLayoutParams(tp);
+                llDetailTags.addView(tv);
+            }
         }
 
         // Chunks / knowledge points
@@ -196,6 +310,8 @@ public class KnowledgeDetailFragment extends Fragment {
                 case '\n': sb.append("\\n"); break;
                 case '\r': sb.append("\\r"); break;
                 case '\t': sb.append("\\t"); break;
+                case '\u2028': sb.append("\\u2028"); break;
+                case '\u2029': sb.append("\\u2029"); break;
                 default: sb.append(c);
             }
         }
@@ -205,34 +321,5 @@ public class KnowledgeDetailFragment extends Fragment {
     private static String formatDate(String dateStr) {
         if (dateStr == null || dateStr.length() < 10) return dateStr;
         return dateStr.substring(5, 10);
-    }
-
-    private void showEditDialog(String noteId, NoteDetail detail) {
-        LinearLayout layout = new LinearLayout(requireContext());
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(32, 24, 32, 24);
-
-        android.widget.EditText etTitle = new android.widget.EditText(requireContext());
-        etTitle.setText(detail.getTitle()); etTitle.setHint("标题"); layout.addView(etTitle);
-        android.widget.EditText etSubject = new android.widget.EditText(requireContext());
-        etSubject.setText(detail.getSubject() != null ? detail.getSubject() : ""); etSubject.setHint("科目"); layout.addView(etSubject);
-        android.widget.EditText etChapter = new android.widget.EditText(requireContext());
-        etChapter.setText(detail.getChapter() != null ? detail.getChapter() : ""); etChapter.setHint("章节"); layout.addView(etChapter);
-        android.widget.EditText etTags = new android.widget.EditText(requireContext());
-        etTags.setText(detail.getTags() != null ? detail.getTags() : ""); etTags.setHint("标签"); layout.addView(etTags);
-
-        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-            .setTitle("编辑笔记")
-            .setView(layout)
-            .setPositiveButton("保存", (d, w) -> {
-                java.util.Map<String, String> body = new java.util.HashMap<>();
-                body.put("title", etTitle.getText().toString());
-                body.put("subject", etSubject.getText().toString());
-                body.put("chapter", etChapter.getText().toString());
-                body.put("tags", etTags.getText().toString());
-                viewModel.updateNote(noteId, body);
-            })
-            .setNegativeButton("取消", null)
-            .show();
     }
 }

@@ -65,8 +65,8 @@ public class KnowledgeRepository {
         apiService.getNoteDetail(noteId).enqueue(createCallback(callback, ApiResponse::getData));
     }
 
-    public void uploadNote(okhttp3.MultipartBody.Part file, ResultCallback<UploadResult> callback) {
-        apiService.uploadNote(file).enqueue(createCallback(callback, ApiResponse::getData));
+    public void uploadNote(okhttp3.MultipartBody.Part file, okhttp3.RequestBody title, ResultCallback<UploadResult> callback) {
+        apiService.uploadNote(file, title).enqueue(createCallback(callback, ApiResponse::getData));
     }
 
     public void searchNotes(String query, int topK, ResultCallback<List<NoteFragment>> callback) {
@@ -80,5 +80,23 @@ public class KnowledgeRepository {
 
     public void updateNote(String noteId, java.util.Map<String, String> body, ResultCallback<Boolean> callback) {
         apiService.updateNote(noteId, body).enqueue(createCallback(callback, r -> r != null));
+    }
+
+    public void optimizeNote(String noteId, ResultCallback<Map<String, Object>> callback) {
+        apiService.optimizeNote(noteId).enqueue(new Callback<ApiResponse<Map<String, Object>>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<Map<String, Object>>> call,
+                                   Response<ApiResponse<Map<String, Object>>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
+                    callback.onSuccess(response.body().getData());
+                } else {
+                    callback.onError(response.code(), response.message());
+                }
+            }
+            @Override
+            public void onFailure(Call<ApiResponse<Map<String, Object>>> call, Throwable t) {
+                callback.onException(new Exception(t));
+            }
+        });
     }
 }

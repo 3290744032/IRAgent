@@ -22,14 +22,18 @@ public interface ApiServiceV3 {
     @GET("kb/notes/{id}")
     Call<ApiResponse<NoteDetail>> getNoteDetail(@Path("id") String id);
 
-    @DELETE("kb/notes/{id}")
     @PUT("kb/notes/{id}")
-    retrofit2.Call<com.suiyuan.iragent_app.data.model.ApiResponse<java.util.Map<String, Object>>> updateNote(@retrofit2.http.Path("id") String id, @retrofit2.http.Body java.util.Map<String, String> body);
+    Call<ApiResponse<Map<String, Object>>> updateNote(@Path("id") String id, @Body Map<String, String> body);
+
+    @POST("kb/notes/{id}/optimize")
+    Call<ApiResponse<Map<String, Object>>> optimizeNote(@Path("id") String id);
+
+    @DELETE("kb/notes/{id}")
     Call<ApiResponse<Map<String, Object>>> deleteNote(@Path("id") String id);
 
     @Multipart
     @POST("kb/upload")
-    Call<ApiResponse<UploadResult>> uploadNote(@Part MultipartBody.Part file);
+    Call<ApiResponse<UploadResult>> uploadNote(@Part MultipartBody.Part file, @Part("title") okhttp3.RequestBody title);
 
     @POST("kb/search")
     Call<ApiResponse<List<NoteFragment>>> searchNotes(@Body SearchRequest body);

@@ -1,8 +1,8 @@
 package com.suiyuan.iragent_app.ui.screens.knowledge;
 
-import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -11,6 +11,7 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -21,6 +22,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
@@ -28,14 +30,22 @@ import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.snackbar.Snackbar;
 
 import com.suiyuan.iragent_app.R;
 import com.suiyuan.iragent_app.data.model.v3.NoteFragment;
 import com.suiyuan.iragent_app.data.model.v3.NoteItem;
+import com.suiyuan.iragent_app.data.model.v3.UploadResult;
 
+import java.io.File;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class KnowledgeListFragment extends Fragment {
 
@@ -50,14 +60,57 @@ public class KnowledgeListFragment extends Fragment {
     private final Handler searchHandler = new Handler(Looper.getMainLooper());
     private Runnable searchRunnable;
 
+    private MaterialCardView cardUpload;
+    private LinearLayout llUploadTrigger, llUploadProgress;
+    private TextView tvUploadStep, tvUploadProgress;
+    private ProgressBar pbUpload;
+
     private static final List<String> SUBJECTS = Arrays.asList("全部", "数学", "物理", "化学", "英语", "政治", "历史");
+
+    private String pendingNoteName;
+    private Uri cameraPhotoUri;
+
+    private final ActivityResultLauncher<String> imagePickerLauncher =
+            registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
+                if (uri != null) showNameDialog(uri);
+            });
 
     private final ActivityResultLauncher<String> filePickerLauncher =
             registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
-                if (uri != null) {
-                    viewModel.uploadNote(uri);
-                }
+                if (uri != null) showNameDialog(uri);
             });
+
+    private final ActivityResultLauncher<Uri> cameraLauncher =
+            registerForActivityResult(new ActivityResultContracts.TakePicture(), success -> {
+                if (success && cameraPhotoUri != null) showNameDialog(cameraPhotoUri);
+                cameraPhotoUri = null;
+            });
+
+    private void showNameDialog(Uri uri) {
+        LinearLayout layout = new LinearLayout(requireContext());
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(24, 16, 24, 8);
+
+        android.widget.EditText etName = new android.widget.EditText(requireContext());
+        etName.setText(pendingNoteName != null ? pendingNoteName : "我的笔记");
+        etName.setHint("输入笔记名称");
+        etName.setTextSize(15);
+        etName.setBackgroundResource(R.drawable.bg_input_rounded);
+        etName.setPadding(16, 12, 16, 12);
+        layout.addView(etName);
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+            .setTitle("📝 笔记名称")
+            .setView(layout)
+            .setPositiveButton("开始上传", (d, w) -> {
+                String name = etName.getText().toString().trim();
+                if (name.isEmpty()) name = "我的笔记";
+                pendingNoteName = name;
+                viewModel.uploadNote(uri, name);
+            })
+            .setNegativeButton("取消", null)
+            .show();
+    }
 
     @Nullable
     @Override
@@ -78,6 +131,13 @@ public class KnowledgeListFragment extends Fragment {
         llStats = view.findViewById(R.id.ll_stats);
         etSearch = view.findViewById(R.id.et_search);
 
+        cardUpload = view.findViewById(R.id.card_upload);
+        llUploadTrigger = view.findViewById(R.id.ll_upload_trigger);
+        llUploadProgress = view.findViewById(R.id.ll_upload_progress);
+        tvUploadStep = view.findViewById(R.id.tv_upload_step);
+        tvUploadProgress = view.findViewById(R.id.tv_upload_progress);
+        pbUpload = view.findViewById(R.id.pb_upload);
+
         setupSubjectTabs();
         setupRecyclerView();
         setupSearchResultsContainer(view);
@@ -86,12 +146,48 @@ public class KnowledgeListFragment extends Fragment {
         setupSearch();
         setupObservers(view);
 
-        view.findViewById(R.id.fab_upload).setOnClickListener(v -> filePickerLauncher.launch("*/*"));
+        cardUpload.setOnClickListener(v -> showAttachSheet());
 
         // Setup knowledge graph WebView
         setupKnowledgeGraph(view);
 
         viewModel.listNotes("", 0, 20);
+    }
+
+    private void showAttachSheet() {
+        BottomSheetDialog sheet = new BottomSheetDialog(requireContext());
+        View sheetView = getLayoutInflater().inflate(R.layout.dialog_attach_sheet, null);
+        sheet.setContentView(sheetView);
+
+        sheetView.findViewById(R.id.ll_attach_camera).setOnClickListener(v -> {
+            sheet.dismiss();
+            try {
+                File photoFile = createTempImageFile();
+                cameraPhotoUri = FileProvider.getUriForFile(requireContext(),
+                        requireContext().getPackageName() + ".fileprovider", photoFile);
+                cameraLauncher.launch(cameraPhotoUri);
+            } catch (Exception e) {
+                Toast.makeText(getContext(), "无法启动相机", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        sheetView.findViewById(R.id.ll_attach_gallery).setOnClickListener(v -> {
+            sheet.dismiss();
+            imagePickerLauncher.launch("image/*");
+        });
+
+        sheetView.findViewById(R.id.ll_attach_file).setOnClickListener(v -> {
+            sheet.dismiss();
+            filePickerLauncher.launch("*/*");
+        });
+
+        sheet.show();
+    }
+
+    private File createTempImageFile() throws IOException {
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+        File cacheDir = requireContext().getCacheDir();
+        return File.createTempFile("IMG_" + timeStamp + "_", ".jpg", cacheDir);
     }
 
     private void setupKnowledgeGraph(View view) {
@@ -239,11 +335,30 @@ public class KnowledgeListFragment extends Fragment {
         String chapter = cls != null && cls.getChapter() != null ? cls.getChapter() : "";
         String tags = cls != null && cls.getTags() != null ? cls.getTags() : "";
 
-        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-            .setTitle("上传成功！AI 已自动分类")
-            .setMessage("科目：" + subject + "\n章节：" + chapter + "\n标签：" + tags +
-                    "\n\n知识点数：" + result.getChunkCount() +
-                    "\n可在笔记详情中编辑修改")
+        LinearLayout layout = new LinearLayout(requireContext());
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(24, 8, 24, 8);
+
+        // AI 分类结果卡片
+        LinearLayout card = new LinearLayout(requireContext());
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackgroundResource(R.drawable.bg_primary_light);
+        card.setPadding(16, 16, 16, 16);
+        LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        card.setLayoutParams(cardLp);
+
+        addInfoRow(card, "📖 科目", subject.isEmpty() ? "未分类" : subject);
+        addInfoRow(card, "📂 章节", chapter.isEmpty() ? "自动识别中" : chapter);
+        addInfoRow(card, "🏷️ 标签", tags.isEmpty() ? "—" : tags);
+        addInfoRow(card, "📦 知识点", result.getChunkCount() + " 个片段");
+
+        layout.addView(card);
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+            .setIcon(null)
+            .setTitle("✅ 上传成功，AI 已分类")
+            .setView(layout)
             .setPositiveButton("查看笔记", (d, w) -> {
                 if (result.getNoteId() != null) {
                     Bundle args = new Bundle();
@@ -254,6 +369,36 @@ public class KnowledgeListFragment extends Fragment {
             .setNegativeButton("继续浏览", null)
             .show();
         viewModel.listNotes("", 0, 20);
+    }
+
+    private void addInfoRow(LinearLayout parent, String label, String value) {
+        LinearLayout row = new LinearLayout(requireContext());
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, 4, 0, 4);
+        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        row.setLayoutParams(rlp);
+
+        TextView tvLabel = new TextView(requireContext());
+        tvLabel.setText(label);
+        tvLabel.setTextSize(13);
+        tvLabel.setTextColor(Color.parseColor("#6B7280"));
+        tvLabel.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        TextView tvValue = new TextView(requireContext());
+        tvValue.setText(value);
+        tvValue.setTextSize(14);
+        tvValue.setTextColor(Color.parseColor("#1F2937"));
+        tvValue.setTypeface(Typeface.DEFAULT_BOLD);
+        tvValue.setPadding(12, 0, 0, 0);
+        LinearLayout.LayoutParams vp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        tvValue.setLayoutParams(vp);
+
+        row.addView(tvLabel);
+        row.addView(tvValue);
+        parent.addView(row);
     }
 
     private void showSearchResults(List<NoteFragment> results) {
@@ -322,6 +467,24 @@ public class KnowledgeListFragment extends Fragment {
             if (loading != null) loadingView.setVisibility(loading ? View.VISIBLE : View.GONE);
         });
 
+        viewModel.getUploadStep().observe(getViewLifecycleOwner(), step -> {
+            if (step != null && !step.isEmpty()) {
+                llUploadTrigger.setVisibility(View.GONE);
+                llUploadProgress.setVisibility(View.VISIBLE);
+                tvUploadStep.setText(step);
+            } else {
+                llUploadTrigger.setVisibility(View.VISIBLE);
+                llUploadProgress.setVisibility(View.GONE);
+            }
+        });
+
+        viewModel.getUploadProgress().observe(getViewLifecycleOwner(), progress -> {
+            if (progress != null) {
+                pbUpload.setProgress(progress);
+                tvUploadProgress.setText(progress + "%");
+            }
+        });
+
         viewModel.getSearchResults().observe(getViewLifecycleOwner(), results -> {
             if (results != null && !results.isEmpty()) {
                 showSearchResults(results);
@@ -333,7 +496,10 @@ public class KnowledgeListFragment extends Fragment {
 
         viewModel.getUploadResult().observe(getViewLifecycleOwner(), result -> {
             if (result != null) {
+                llUploadTrigger.setVisibility(View.VISIBLE);
+                llUploadProgress.setVisibility(View.GONE);
                 showUploadPreview(result);
+                viewModel.getUploadResult().setValue(null);
             }
         });
 

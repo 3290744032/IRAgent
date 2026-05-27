@@ -31,6 +31,8 @@ public class KnowledgeListViewModel extends AndroidViewModel {
     private final MutableLiveData<UploadResult> uploadResult = new MutableLiveData<>();
     private final MutableLiveData<String> error = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
+    private final MutableLiveData<String> uploadStep = new MutableLiveData<>();
+    private final MutableLiveData<Integer> uploadProgress = new MutableLiveData<>(0);
 
     public KnowledgeListViewModel(@NonNull Application application) {
         super(application);
@@ -43,6 +45,8 @@ public class KnowledgeListViewModel extends AndroidViewModel {
     public MutableLiveData<UploadResult> getUploadResult() { return uploadResult; }
     public MutableLiveData<String> getError() { return error; }
     public MutableLiveData<Boolean> getIsLoading() { return isLoading; }
+    public MutableLiveData<String> getUploadStep() { return uploadStep; }
+    public MutableLiveData<Integer> getUploadProgress() { return uploadProgress; }
 
     public void clearError() { error.postValue(null); }
 
@@ -92,19 +96,30 @@ public class KnowledgeListViewModel extends AndroidViewModel {
         });
     }
 
-    public void uploadNote(android.net.Uri fileUri) {
+    public void uploadNote(android.net.Uri fileUri, String noteName) {
         isLoading.postValue(true);
+        uploadStep.postValue("上传中...");
+        uploadProgress.postValue(10);
         try {
+            String mimeType = getApplication().getContentResolver().getType(fileUri);
+            if (mimeType == null) mimeType = "application/octet-stream";
+
+            String extension = getExtensionFromMime(mimeType);
+
+            String fileName = (noteName != null ? noteName : "upload") + "_" + System.currentTimeMillis() + extension;
+
             InputStream is = getApplication().getContentResolver().openInputStream(fileUri);
             if (is == null) {
                 error.postValue("无法读取文件");
                 isLoading.postValue(false);
+                uploadStep.postValue("");
+                uploadProgress.postValue(0);
                 return;
             }
 
-            File tempFile = new File(getApplication().getCacheDir(), "upload_note");
+            File tempFile = new File(getApplication().getCacheDir(), fileName);
             FileOutputStream fos = new FileOutputStream(tempFile);
-            byte[] buffer = new byte[4096];
+            byte[] buffer = new byte[8192];
             int read;
             while ((read = is.read(buffer)) != -1) {
                 fos.write(buffer, 0, read);
@@ -112,32 +127,64 @@ public class KnowledgeListViewModel extends AndroidViewModel {
             fos.close();
             is.close();
 
-            RequestBody requestFile = RequestBody.create(tempFile, MediaType.parse("application/octet-stream"));
-            MultipartBody.Part part = MultipartBody.Part.createFormData("file", "note", requestFile);
+            uploadStep.postValue("分析中...");
+            uploadProgress.postValue(40);
 
-            repository.uploadNote(part, new KnowledgeRepository.ResultCallback<UploadResult>() {
+            MediaType mediaType = MediaType.parse(mimeType);
+            RequestBody requestFile = RequestBody.create(tempFile, mediaType);
+            MultipartBody.Part part = MultipartBody.Part.createFormData("file", fileName, requestFile);
+            RequestBody titlePart = RequestBody.create(noteName != null ? noteName : "", MediaType.parse("text/plain"));
+
+            repository.uploadNote(part, titlePart, new KnowledgeRepository.ResultCallback<UploadResult>() {
                 @Override
                 public void onSuccess(UploadResult data) {
-                    isLoading.postValue(false);
-                    uploadResult.postValue(data);
-                    listNotes("", 0, 20);
+                    uploadStep.postValue("生成中...");
+                    uploadProgress.postValue(80);
+                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                        uploadStep.postValue("完成");
+                        uploadProgress.postValue(100);
+                        isLoading.postValue(false);
+                        uploadResult.postValue(data);
+                        listNotes("", 0, 20);
+                    }, 600);
                 }
 
                 @Override
                 public void onError(int code, String message) {
                     isLoading.postValue(false);
+                    uploadStep.postValue("");
+                    uploadProgress.postValue(0);
                     error.postValue(message);
                 }
 
                 @Override
                 public void onException(Exception e) {
                     isLoading.postValue(false);
+                    uploadStep.postValue("");
+                    uploadProgress.postValue(0);
                     error.postValue(e.getMessage());
                 }
             });
         } catch (Exception e) {
             isLoading.postValue(false);
+            uploadStep.postValue("");
+            uploadProgress.postValue(0);
             error.postValue(e.getMessage());
+        }
+    }
+
+    private String getExtensionFromMime(String mimeType) {
+        if (mimeType == null) return "";
+        switch (mimeType) {
+            case "image/jpeg": return ".jpg";
+            case "image/png":  return ".png";
+            case "image/webp": return ".webp";
+            case "application/pdf": return ".pdf";
+            case "text/plain": return ".txt";
+            case "text/markdown": return ".md";
+            default:
+                if (mimeType.startsWith("image/")) return ".img";
+                return "";
         }
     }
 

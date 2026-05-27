@@ -391,11 +391,12 @@ public class StudyFragmentV3 extends Fragment {
             okhttp3.RequestBody reqFile = okhttp3.RequestBody.create(tempFile,
                     okhttp3.MediaType.parse("application/octet-stream"));
             okhttp3.MultipartBody.Part part = okhttp3.MultipartBody.Part.createFormData("file", "upload", reqFile);
+            okhttp3.RequestBody titlePart = okhttp3.RequestBody.create("", okhttp3.MediaType.parse("text/plain"));
 
             com.suiyuan.iragent_app.data.repository.v3.KnowledgeRepository repo =
                     new com.suiyuan.iragent_app.data.repository.v3.KnowledgeRepository(
                             com.suiyuan.iragent_app.data.remote.v3.NetworkClientV3.getApiService());
-            repo.uploadNote(part, new com.suiyuan.iragent_app.data.repository.v3.KnowledgeRepository.ResultCallback<com.suiyuan.iragent_app.data.model.v3.UploadResult>() {
+            repo.uploadNote(part, titlePart, new com.suiyuan.iragent_app.data.repository.v3.KnowledgeRepository.ResultCallback<com.suiyuan.iragent_app.data.model.v3.UploadResult>() {
                 @Override
                 public void onSuccess(com.suiyuan.iragent_app.data.model.v3.UploadResult data) {
                     addAiBubble("✅ 文件已上传，已解析 " + data.getChunkCount() + " 个知识点。现在你可以针对笔记内容提问了！");
