@@ -118,7 +118,22 @@ public class ExamArchiveFragment extends Fragment {
             viewModel.search(subject, year, examType, null, null, 0, 20);
         });
 
-        fabSimulate.setOnClickListener(v -> showSimulateDialog());
+        fabSimulate.setOnClickListener(v -> showArchiveMenu());
+    }
+
+    private final androidx.activity.result.ActivityResultLauncher<String> archiveUploadLauncher =
+        registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.GetContent(), uri -> {
+            if (uri != null) viewModel.uploadPaper(uri);
+        });
+
+    private void showArchiveMenu() {
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("个人题库")
+            .setItems(new String[]{"📄 上传试卷", "🤖 AI 模拟真题"}, (d, which) -> {
+                if (which == 0) archiveUploadLauncher.launch("image/*");
+                else showSimulateDialog();
+            })
+            .show();
     }
 
     private void showSimulateDialog() {

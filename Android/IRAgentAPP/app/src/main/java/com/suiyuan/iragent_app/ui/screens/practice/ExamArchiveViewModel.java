@@ -74,4 +74,23 @@ public class ExamArchiveViewModel extends AndroidViewModel {
                     @Override public void onException(Exception e) { error.postValue("反馈提交异常: " + e.getMessage()); }
                 });
     }
+
+    public void uploadPaper(android.net.Uri uri) {
+        isLoading.postValue(true);
+        try {
+            java.io.InputStream is = getApplication().getContentResolver().openInputStream(uri);
+            byte[] bytes = new byte[is.available()];
+            is.read(bytes);
+            is.close();
+            okhttp3.MediaType mt = okhttp3.MediaType.parse("image/*");
+            okhttp3.RequestBody body = okhttp3.RequestBody.create(mt, bytes);
+            okhttp3.MultipartBody.Part part = okhttp3.MultipartBody.Part.createFormData("file", "paper.jpg", body);
+            okhttp3.OkHttpClient client = new okhttp3.OkHttpClient.Builder().connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS).readTimeout(60, java.util.concurrent.TimeUnit.SECONDS).build();
+            okhttp3.Request req = new okhttp3.Request.Builder().url("http://192.168.123.44:8080/api/v3/exam-archive/upload").addHeader("token", com.suiyuan.iragent_app.data.remote.NetworkClient.getToken()).post(new okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM).addFormDataPart("file", "paper.jpg", body).addFormDataPart("subject", "数学").build()).build();
+            client.newCall(req).enqueue(new okhttp3.Callback() {
+                @Override public void onResponse(okhttp3.Call c, okhttp3.Response r) { isLoading.postValue(false); search(null, null, null, null, null, 0, 20); }
+                @Override public void onFailure(okhttp3.Call c, java.io.IOException e) { isLoading.postValue(false); error.postValue("上传失败"); }
+            });
+        } catch (Exception e) { isLoading.postValue(false); error.postValue(e.getMessage()); }
+    }
 }
