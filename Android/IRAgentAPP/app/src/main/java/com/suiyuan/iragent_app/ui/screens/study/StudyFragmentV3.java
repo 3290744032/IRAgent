@@ -85,7 +85,7 @@ public class StudyFragmentV3 extends Fragment {
     // File picker launchers
     private final ActivityResultLauncher<String> imagePickerLauncher =
             registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
-                if (uri != null) chatWithImage(uri);
+                if (uri != null) showImagePreview(uri);
             });
     private final ActivityResultLauncher<String> filePickerLauncher =
             registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
@@ -97,7 +97,7 @@ public class StudyFragmentV3 extends Fragment {
     private final ActivityResultLauncher<Uri> cameraLauncher =
             registerForActivityResult(new ActivityResultContracts.TakePicture(), success -> {
                 if (success && cameraPhotoUri != null) {
-                    chatWithImage(cameraPhotoUri);
+                    showImagePreview(cameraPhotoUri);
                 }
             });
 
@@ -461,13 +461,89 @@ public class StudyFragmentV3 extends Fragment {
         addAiBubble("你好！我是你的 AI 备考助手。\n\n我已经学习了你的笔记，可以直接向我提问，我会结合你的笔记来解答。");
     }
 
+    private Uri pendingImageUri;
+    private android.widget.ImageView imagePreview;
+
+    private void showImagePreview(Uri uri) {
+        pendingImageUri = uri;
+        // 在输入栏上方显示图片预览
+        if (imagePreview == null) {
+            imagePreview = new android.widget.ImageView(requireContext());
+            imagePreview.setAdjustViewBounds(true);
+            imagePreview.setMaxHeight((int)(200 * getResources().getDisplayMetrics().density));
+            imagePreview.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+            imagePreview.setPadding(4, 8, 4, 4);
+            imagePreview.setBackgroundColor(0xFFF3F4F6);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            ViewGroup parent = (ViewGroup) etInput.getParent().getParent(); // chat input bar
+            parent.addView(imagePreview, 0, lp);
+            // X 按钮关闭预览
+            android.widget.Button btnClose = new android.widget.Button(requireContext());
+            btnClose.setText("✕"); btnClose.setTextSize(10); btnClose.setTextColor(0xFFFFFFFF);
+            btnClose.setBackgroundColor(0x99000000);
+            btnClose.setOnClickListener(v -> { pendingImageUri = null; imagePreview.setVisibility(View.GONE); btnClose.setVisibility(View.GONE); });
+            FrameLayout wrap = new FrameLayout(requireContext());
+            wrap.addView(imagePreview);
+            FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(36, 36);
+            flp.gravity = Gravity.TOP | Gravity.END; flp.setMargins(0, 8, 8, 0);
+            wrap.addView(btnClose, flp);
+            parent.addView(wrap, 0, lp);
+        }
+        imagePreview.setImageURI(uri);
+        imagePreview.setVisibility(View.VISIBLE);
+    }
+
     private void sendMessage() {
         String message = etInput.getText().toString().trim();
-        if (message.isEmpty() || mIsStreaming) return;
+        if ((message.isEmpty() && pendingImageUri == null) || mIsStreaming) return;
         mHasCompletedStreaming = false;
-        addUserBubble(message);
+
+        if (pendingImageUri != null) {
+            // 图片 + 文字 模式：显示图片气泡 + 文字，然后发送
+            addUserImageBubble(pendingImageUri, message.isEmpty() ? "请帮我解答这道题" : message);
+            try {
+                java.io.InputStream is = requireContext().getContentResolver().openInputStream(pendingImageUri);
+                byte[] bytes = new byte[is.available()]; is.read(bytes); is.close();
+                viewModel.chatWithImage(new java.io.ByteArrayInputStream(bytes), message.isEmpty() ? "请帮我解答这道题" : message);
+            } catch (Exception e) {
+                Toast.makeText(getContext(), "图片读取失败", Toast.LENGTH_SHORT).show();
+            }
+            pendingImageUri = null;
+            if (imagePreview != null) imagePreview.setVisibility(View.GONE);
+        } else {
+            addUserBubble(message);
+            viewModel.chat(message);
+        }
         etInput.setText("");
-        viewModel.chat(message);
+    }
+
+    private void addUserImageBubble(Uri uri, String text) {
+        LinearLayout row = new LinearLayout(requireContext());
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setGravity(Gravity.END);
+        LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rp.setMargins(48, 8, 0, 8); row.setLayoutParams(rp);
+
+        android.widget.ImageView iv = new android.widget.ImageView(requireContext());
+        iv.setImageURI(uri);
+        iv.setAdjustViewBounds(true);
+        iv.setMaxHeight((int)(250 * getResources().getDisplayMetrics().density));
+        iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        iv.setBackgroundResource(R.drawable.bg_card_white);
+        iv.setPadding(4, 4, 4, 4);
+        row.addView(iv);
+
+        if (!text.isEmpty()) {
+            TextView tv = new TextView(requireContext());
+            tv.setText(text); tv.setTextSize(14); tv.setTextColor(0xFFFFFFFF);
+            tv.setBackgroundColor(0xFF6366F1); tv.setPadding(12, 8, 12, 8);
+            ((LinearLayout.LayoutParams) tv.getLayoutParams()).setMargins(0, 4, 0, 0);
+            row.addView(tv);
+        }
+        llMessages.addView(row);
+        scrollToBottom();
     }
 
     // ========== Message Bubbles ==========

@@ -117,19 +117,20 @@ public class KnowledgeDetailFragment extends Fragment {
         btnCancel.setOnClickListener(v -> exitEditMode());
         btnAI.setOnClickListener(v -> {
             if (noteId.isEmpty()) return;
-            android.widget.EditText et = new android.widget.EditText(requireContext());
-            et.setHint("例：整理成表格 / 提取所有公式 / 简化语言");
-            et.setMinLines(2);
-            new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle("AI 优化笔记")
-                .setMessage("告诉 AI 你想怎么处理这篇笔记：")
-                .setView(et)
-                .setPositiveButton("开始优化", (d, w) -> {
-                    String inst = et.getText().toString().trim();
-                    viewModel.optimizeNote(noteId, inst.isEmpty() ? "美化排版，统一格式" : inst);
-                })
-                .setNegativeButton("取消", null)
-                .show();
+            com.google.android.material.bottomsheet.BottomSheetDialog dialog =
+                    new com.google.android.material.bottomsheet.BottomSheetDialog(requireContext());
+            View sheet = getLayoutInflater().inflate(R.layout.dialog_ai_optimize, null);
+            dialog.setContentView(sheet);
+            android.widget.EditText et = sheet.findViewById(R.id.et_ai_instruction);
+            Button btnCancel = sheet.findViewById(R.id.btn_ai_cancel);
+            Button btnStart = sheet.findViewById(R.id.btn_ai_start);
+            btnCancel.setOnClickListener(v1 -> dialog.dismiss());
+            btnStart.setOnClickListener(v1 -> {
+                String inst = et.getText().toString().trim();
+                viewModel.optimizeNote(noteId, inst.isEmpty() ? "美化排版，统一格式" : inst);
+                dialog.dismiss();
+            });
+            dialog.show();
         });
     }
 
