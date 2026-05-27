@@ -146,7 +146,7 @@ public class KnowledgeListViewModel extends AndroidViewModel {
         repository.deleteNote(noteId, new KnowledgeRepository.ResultCallback<Boolean>() {
             @Override public void onSuccess(Boolean data) {
                 isLoading.postValue(false);
-                listNotes(currentSubject, 0, 20);
+                listNotes("", 0, 20);
             }
             @Override public void onError(int code, String msg) {
                 isLoading.postValue(false);

@@ -73,6 +73,7 @@ public class PracticeHubFragment extends Fragment {
         spSubject.setAdapter(adapter);
 
         view.findViewById(R.id.btn_start_grading).setOnClickListener(v -> startGrading());
+        view.findViewById(R.id.btn_pick_image).setOnClickListener(v -> pickImageForGrading());
         view.findViewById(R.id.btn_grading_back).setOnClickListener(v -> backToHub());
         view.findViewById(R.id.btn_grading).setOnClickListener(v -> enterGrading());
         NavController navController = Navigation.findNavController(view);
@@ -97,6 +98,28 @@ public class PracticeHubFragment extends Fragment {
     private void backToHub() {
         layoutGrading.setVisibility(View.GONE);
         layoutHub.setVisibility(View.VISIBLE);
+    }
+
+    private final androidx.activity.result.ActivityResultLauncher<String> imagePickerLauncher =
+        registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.GetContent(), uri -> {
+            if (uri != null) startImageGrading(uri);
+        });
+
+    private void pickImageForGrading() {
+        imagePickerLauncher.launch("image/*");
+    }
+
+    private void startImageGrading(android.net.Uri uri) {
+        try {
+            java.io.InputStream is = requireContext().getContentResolver().openInputStream(uri);
+            byte[] bytes = new byte[is.available()];
+            is.read(bytes);
+            is.close();
+            viewModel.submitImageGrading(bytes, spSubject.getSelectedItem().toString(),
+                    Integer.parseInt(etMaxScore.getText().toString()));
+        } catch (Exception e) {
+            Toast.makeText(getContext(), "图片读取失败", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void startGrading() {

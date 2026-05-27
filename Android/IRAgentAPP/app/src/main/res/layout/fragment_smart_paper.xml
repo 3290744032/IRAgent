@@ -28,58 +28,23 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="试卷标题"
+                android:text="选择科目"
                 android:textSize="13sp"
                 android:textColor="@color/gray_text"
                 android:paddingTop="20dp" />
-
-            <EditText
-                android:id="@+id/et_title"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:hint="薄弱考点专项练习"
-                android:textSize="14sp"
-                android:background="@drawable/bg_quick_chip"
-                android:padding="10dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="题目数量"
-                android:textSize="13sp"
-                android:textColor="@color/gray_text"
-                android:paddingTop="16dp" />
-
-            <Spinner
-                android:id="@+id/sp_count"
-                android:layout_width="match_parent"
-                android:layout_height="44dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="难度等级"
-                android:textSize="13sp"
-                android:textColor="@color/gray_text"
-                android:paddingTop="16dp" />
-
-            <Spinner
-                android:id="@+id/sp_difficulty"
-                android:layout_width="match_parent"
-                android:layout_height="44dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="科目"
-                android:textSize="13sp"
-                android:textColor="@color/gray_text"
-                android:paddingTop="16dp" />
 
             <Spinner
                 android:id="@+id/sp_subject"
                 android:layout_width="match_parent"
                 android:layout_height="44dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="题量、难度将由 AI 自动决定"
+                android:textSize="12sp"
+                android:textColor="@color/gray_text"
+                android:paddingTop="6dp" />
 
             <Button
                 android:id="@+id/btn_generate"

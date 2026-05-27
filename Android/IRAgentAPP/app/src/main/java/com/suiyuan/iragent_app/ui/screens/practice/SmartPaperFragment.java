@@ -8,7 +8,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -16,7 +15,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.res.ResourcesCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -27,16 +25,13 @@ import com.suiyuan.iragent_app.data.model.v3.SmartPaperRequest;
 import com.suiyuan.iragent_app.data.model.v3.SubmitAnswerResult;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 
 public class SmartPaperFragment extends Fragment {
 
     private SmartPaperViewModel viewModel;
 
     private View layoutConfig, layoutQuiz, layoutLoading, layoutResult;
-    private EditText etTitle;
-    private Spinner spCount, spDifficulty, spSubject;
+    private Spinner spSubject;
     private Button btnGenerate;
     private TextView tvProgress, tvQuestion, tvResultScore;
     private LinearLayout llOptions, llResultStats, llResultDetails;
@@ -69,9 +64,6 @@ public class SmartPaperFragment extends Fragment {
         layoutQuiz = view.findViewById(R.id.layout_quiz);
         layoutLoading = view.findViewById(R.id.layout_loading);
         layoutResult = view.findViewById(R.id.layout_result);
-        etTitle = view.findViewById(R.id.et_title);
-        spCount = view.findViewById(R.id.sp_count);
-        spDifficulty = view.findViewById(R.id.sp_difficulty);
         spSubject = view.findViewById(R.id.sp_subject);
         btnGenerate = view.findViewById(R.id.btn_generate);
         tvProgress = view.findViewById(R.id.tv_progress);
@@ -94,18 +86,6 @@ public class SmartPaperFragment extends Fragment {
     }
 
     private void setupSpinners() {
-        ArrayAdapter<String> countAdapter = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_spinner_item,
-                new String[]{"5", "10", "15", "20"});
-        countAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spCount.setAdapter(countAdapter);
-
-        ArrayAdapter<String> difficultyAdapter = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_spinner_item,
-                new String[]{"1 (最简单)", "2", "3 (中等)", "4", "5 (最难)"});
-        difficultyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spDifficulty.setAdapter(difficultyAdapter);
-
         ArrayAdapter<String> subjectAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item,
                 new String[]{"数学", "物理", "化学", "英语", "政治", "历史"});
@@ -134,24 +114,11 @@ public class SmartPaperFragment extends Fragment {
     }
 
     private void generatePaper() {
-        String title = etTitle.getText().toString().trim();
-        if (title.isEmpty()) {
-            Toast.makeText(getContext(), "请输入试卷标题", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        int count;
-        try {
-            count = Integer.parseInt(spCount.getSelectedItem().toString());
-        } catch (Exception e) {
-            count = 10;
-        }
-
-        int difficulty = spDifficulty.getSelectedItemPosition() + 1;
         String subject = spSubject.getSelectedItem().toString();
+        String title = subject + " 专项练习";
 
         SmartPaperRequest req = new SmartPaperRequest(
-                subject, "", title, count, difficulty,
+                subject, "", title, 5, 3,
                 new ArrayList<String>(), true);
 
         showPhase(layoutConfig, false);

@@ -92,6 +92,27 @@ public class ErrorsRepository {
         });
     }
 
+    public void unmarkMastered(String id, ResultCallback<Boolean> callback) {
+        apiService.unmarkMastered(id).enqueue(new Callback<ApiResponse<Map<String, Object>>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<Map<String, Object>>> call,
+                                   Response<ApiResponse<Map<String, Object>>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
+                    callback.onSuccess(true);
+                } else if (response.body() != null) {
+                    callback.onError(response.body().getCode(), response.body().getMessage());
+                } else {
+                    callback.onError(response.code(), response.message());
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<Map<String, Object>>> call, Throwable t) {
+                callback.onException(new Exception(t));
+            }
+        });
+    }
+
     public void getSimilarQuestions(String id, ResultCallback<List<SimilarQuestion>> callback) {
         apiService.getSimilarQuestions(id).enqueue(createCallback(callback, ApiResponse::getData));
     }

@@ -73,6 +73,20 @@ public class ErrorsDetailViewModel extends AndroidViewModel {
         });
     }
 
+    public void unmarkMastered(String id) {
+        repository.unmarkMastered(id, new ErrorsRepository.ResultCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean data) {
+                markMasteredResult.postValue(false);
+                loadErrorDetail(id);
+            }
+            @Override
+            public void onError(int code, String message) { error.postValue(message); }
+            @Override
+            public void onException(Exception e) { error.postValue(e.getMessage()); }
+        });
+    }
+
     public void loadSimilarQuestions(String id) {
         repository.getSimilarQuestions(id, new ErrorsRepository.ResultCallback<List<SimilarQuestion>>() {
             @Override

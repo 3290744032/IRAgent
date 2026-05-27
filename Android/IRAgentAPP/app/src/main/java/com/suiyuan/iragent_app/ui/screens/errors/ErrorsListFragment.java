@@ -26,6 +26,7 @@ import com.google.android.material.snackbar.Snackbar;
 
 import com.suiyuan.iragent_app.R;
 import com.suiyuan.iragent_app.data.model.v3.ErrorItem;
+import com.suiyuan.iragent_app.data.model.v3.ReviewItem;
 
 import java.util.List;
 
@@ -101,6 +102,17 @@ public class ErrorsListFragment extends Fragment {
 
         viewModel.listErrors("", "", 0, 20);
         viewModel.loadReviewQueue();
+    }
+
+    private void applyReviewFilter() {
+        List<ReviewItem> queue = viewModel.getReviewQueue().getValue();
+        if (queue != null && !queue.isEmpty()) {
+            Bundle args = new Bundle();
+            args.putString("error_id", queue.get(0).getErrorId());
+            Navigation.findNavController(requireView()).navigate(R.id.nav_errors_detail, args);
+        } else {
+            Snackbar.make(requireView(), "暂无待复习的错题", Snackbar.LENGTH_SHORT).show();
+        }
     }
 
     private void setupLoadingView(View view) {

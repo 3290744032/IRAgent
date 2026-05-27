@@ -432,6 +432,15 @@ public class DailyPracticeFragment extends Fragment {
             llResultStats.addView(stat);
         }
 
+        // Hint that errors are auto-recorded
+        TextView tvHint = new TextView(requireContext());
+        tvHint.setText("错题已自动收录到错题本");
+        tvHint.setTextSize(12);
+        tvHint.setTextColor(Color.parseColor("#6B7280"));
+        tvHint.setGravity(Gravity.CENTER);
+        tvHint.setPadding(0, 8, 0, 16);
+        llResultStats.addView(tvHint);
+
         llResultDetails.removeAllViews();
         if (result.getDetails() != null) {
             for (SubmitAnswerResult.AnswerDetail detail : result.getDetails()) {

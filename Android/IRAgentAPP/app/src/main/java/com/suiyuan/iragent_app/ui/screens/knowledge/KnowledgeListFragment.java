@@ -161,11 +161,13 @@ public class KnowledgeListFragment extends Fragment {
 
     private void setupRecyclerView() {
         adapter = new NoteCardAdapter(noteItem -> {
+            if (noteItem.getId() == null) return;
             Bundle args = new Bundle();
             args.putString("note_id", noteItem.getId());
             NavController navController = Navigation.findNavController(requireView());
             navController.navigate(R.id.nav_knowledge_detail, args);
         });
+        adapter.setOnNoteDeleteListener(note -> viewModel.deleteNote(note.getId()));
         rvNotes.setLayoutManager(new LinearLayoutManager(getContext()));
         rvNotes.setAdapter(adapter);
     }
@@ -353,12 +355,19 @@ public class KnowledgeListFragment extends Fragment {
     private static class NoteCardAdapter extends RecyclerView.Adapter<NoteCardAdapter.ViewHolder> {
         private List<NoteItem> notes = java.util.Collections.emptyList();
         private final OnNoteClickListener listener;
+        private OnNoteDeleteListener deleteListener;
 
         interface OnNoteClickListener {
             void onNoteClick(NoteItem note);
         }
 
+        interface OnNoteDeleteListener {
+            void onNoteDelete(NoteItem note);
+        }
+
         NoteCardAdapter(OnNoteClickListener listener) { this.listener = listener; }
+
+        void setOnNoteDeleteListener(OnNoteDeleteListener l) { this.deleteListener = l; }
 
         void setNotes(List<NoteItem> notes) {
             this.notes = notes;
@@ -416,7 +425,7 @@ public class KnowledgeListFragment extends Fragment {
                     .setTitle("删除笔记")
                     .setMessage("确定删除「" + note.getTitle() + "」吗？删除后不可恢复。")
                     .setPositiveButton("删除", (d, w) -> {
-                        viewModel.deleteNote(note.getId());
+                        if (deleteListener != null) deleteListener.onNoteDelete(note);
                     })
                     .setNegativeButton("取消", null)
                     .show();

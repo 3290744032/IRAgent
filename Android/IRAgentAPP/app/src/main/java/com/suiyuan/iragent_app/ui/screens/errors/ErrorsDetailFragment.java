@@ -20,6 +20,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.navigation.Navigation;
 
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.snackbar.Snackbar;
@@ -51,16 +52,22 @@ public class ErrorsDetailFragment extends Fragment {
 
         viewModel.getErrorDetail().observe(getViewLifecycleOwner(), this::renderErrorDetail);
         viewModel.getMarkMasteredResult().observe(getViewLifecycleOwner(), result -> {
-            if (result != null && result) {
-                btnMaster.setText("已掌握");
-                btnMaster.setEnabled(false);
-                btnMaster.setBackgroundColor(Color.parseColor("#E5E7EB"));
-                btnMaster.setTextColor(Color.parseColor("#9CA3AF"));
-                AlphaAnimation fade = new AlphaAnimation(1f, 0.6f);
-                fade.setDuration(600);
-                fade.setFillAfter(true);
-                rootLayout.startAnimation(fade);
-                Toast.makeText(getContext(), "已标记为已掌握", Toast.LENGTH_SHORT).show();
+            if (result != null) {
+                if (result) {
+                    btnMaster.setText("取消掌握");
+                    btnMaster.setEnabled(true);
+                    btnMaster.setBackgroundColor(Color.WHITE);
+                    btnMaster.setTextColor(getResources().getColor(R.color.primary_color, null));
+                    btnMaster.setAlpha(1f);
+                    Toast.makeText(getContext(), "已标记为已掌握", Toast.LENGTH_SHORT).show();
+                } else {
+                    btnMaster.setText("标记为已掌握");
+                    btnMaster.setEnabled(true);
+                    btnMaster.setBackgroundColor(Color.WHITE);
+                    btnMaster.setTextColor(getResources().getColor(R.color.primary_color, null));
+                    btnMaster.setAlpha(1f);
+                    Toast.makeText(getContext(), "已取消掌握，错题将重新进入复习队列", Toast.LENGTH_SHORT).show();
+                }
             }
         });
         viewModel.getSimilarQuestions().observe(getViewLifecycleOwner(), questions -> {
@@ -167,23 +174,18 @@ public class ErrorsDetailFragment extends Fragment {
         actions.setPadding(0, 24, 0, 0);
 
         btnMaster = new Button(requireContext());
-        boolean alreadyMastered = detail.isMastered();
-        if (alreadyMastered) {
-            btnMaster.setText("已掌握 ✓");
-            btnMaster.setEnabled(false);
-            btnMaster.setAlpha(0.5f);
+        btnMaster.setBackgroundColor(Color.WHITE);
+        btnMaster.setTextColor(getResources().getColor(R.color.primary_color, null));
+        if (detail.isMastered()) {
+            btnMaster.setText("取消掌握");
+            btnMaster.setOnClickListener(v -> viewModel.unmarkMastered(detail.getId()));
         } else {
             btnMaster.setText("标记为已掌握");
             btnMaster.setOnClickListener(v -> {
-                btnMaster.setText("已掌握 ✓");
-                btnMaster.setEnabled(false);
                 btnMaster.setAlpha(0.5f);
-                Toast.makeText(getContext(), "已标记为已掌握", Toast.LENGTH_SHORT).show();
                 viewModel.markMastered(detail.getId());
             });
         }
-        btnMaster.setBackgroundColor(Color.WHITE);
-        btnMaster.setTextColor(getResources().getColor(R.color.primary_color, null));
         LinearLayout.LayoutParams mp1 = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         mp1.setMargins(0, 0, 8, 0);
@@ -259,14 +261,32 @@ public class ErrorsDetailFragment extends Fragment {
                 card.addView(tagRow);
             }
 
-            card.setOnClickListener(vv -> {
-                // 点击同类题 → 跳转到答疑 Tab 并自动填入题目
-                android.os.Bundle args = new android.os.Bundle();
-                args.putString("question", q.getText());
-                androidx.navigation.NavController nc = androidx.navigation.Navigation.findNavController(requireActivity(), R.id.nav_host_fragment);
-                nc.navigate(R.id.nav_chat, args);
+            // Bottom row: tags + practice button
+            LinearLayout bottomRow = new LinearLayout(requireContext());
+            bottomRow.setOrientation(LinearLayout.HORIZONTAL);
+            bottomRow.setPadding(0, 8, 0, 0);
+            bottomRow.setGravity(Gravity.CENTER_VERTICAL);
+
+            Button btnPractice = new Button(requireContext());
+            btnPractice.setText("去练习");
+            btnPractice.setTextSize(12);
+            btnPractice.setTextColor(Color.WHITE);
+            btnPractice.setBackgroundColor(Color.parseColor("#6366F1"));
+            btnPractice.setPadding(16, 4, 16, 4);
+            btnPractice.setAllCaps(false);
+            btnPractice.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            btnPractice.setOnClickListener(vv -> {
                 dialog.dismiss();
+                try {
+                    Navigation.findNavController(requireView()).navigate(R.id.nav_smart_paper);
+                } catch (Exception e) {
+                    Toast.makeText(getContext(), "请先返回刷题页面", Toast.LENGTH_SHORT).show();
+                }
             });
+            bottomRow.addView(btnPractice);
+
+            card.addView(bottomRow);
             sheet.addView(card);
         }
 

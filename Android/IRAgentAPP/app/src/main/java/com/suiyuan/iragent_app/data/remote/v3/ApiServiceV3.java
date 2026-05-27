@@ -48,6 +48,9 @@ public interface ApiServiceV3 {
     @PUT("errors/{id}/mark-mastered")
     Call<ApiResponse<Map<String, Object>>> markMastered(@Path("id") String id);
 
+    @PUT("errors/{id}/unmark-mastered")
+    Call<ApiResponse<Map<String, Object>>> unmarkMastered(@Path("id") String id);
+
     @POST("errors/{id}/similar")
     Call<ApiResponse<List<SimilarQuestion>>> getSimilarQuestions(@Path("id") String id);
 
