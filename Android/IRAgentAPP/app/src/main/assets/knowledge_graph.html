@@ -8,76 +8,235 @@
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#F8F9FB;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
 #chart{width:100%;height:100%}
-#msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#9CA3AF;font-size:13px;pointer-events:none}
+
+#filter-panel{
+  position:absolute;top:10px;left:10px;z-index:20;
+  background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);
+  border-radius:12px;padding:10px 14px;box-shadow:0 2px 12px rgba(0,0,0,0.06);
+  font-size:11px;color:#4B5563;display:flex;flex-direction:column;gap:6px;
+}
+#filter-panel label{display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
+#filter-panel input[type=checkbox]{accent-color:#6366F1;width:14px;height:14px}
+#filter-panel .fp-divider{height:1px;background:#E5E7EB;margin:2px 0}
+
+#search-box{
+  position:absolute;top:10px;right:10px;z-index:20;
+  display:flex;align-items:center;gap:4px;
+  background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);
+  border-radius:20px;padding:5px 12px;box-shadow:0 2px 12px rgba(0,0,0,0.06);
+}
+#search-box input{border:none;outline:none;background:transparent;font-size:12px;color:#1F2937;width:100px}
+#search-box input::placeholder{color:#D1D5DB}
+
+#status-msg{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  color:#9CA3AF;font-size:13px;pointer-events:none;transition:opacity 0.4s;z-index:1;
+}
 </style>
 </head>
 <body>
-<div id="chart"><div id="msg">加载中...</div></div>
+<div id="chart"><div id="status-msg">加载中...</div></div>
+
+<div id="filter-panel">
+  <label><input type="checkbox" id="flt-errors"   onchange="applyFilters()"> 显示错题</label>
+  <label><input type="checkbox" id="flt-mastered" onchange="applyFilters()"> 显示已掌握考点</label>
+  <div class="fp-divider"></div>
+  <span style="color:#9CA3AF;font-size:10px">点击考点展开 · 双击空白重置</span>
+</div>
+
+<div id="search-box">
+  <span style="font-size:12px">🔍</span>
+  <input id="search-input" type="text" placeholder="搜索考点..." oninput="onSearchInput()">
+</div>
 
 <script>
 var chart = null;
 var dom = document.getElementById('chart');
-var msg = document.getElementById('msg');
+var status = document.getElementById('status-msg');
 
+var _allNodes=[], _allEdges=[], _kpOnlyNodes=[], _kpOnlyEdges=[];
+var _viewMode='skeleton', _focusId=null;
+
+var C={
+  kpHi:'#A7C7E7', kpLo:'#F4B5B5', note:'#C4B5FD',
+  qOk:'#A3D9A5', qBad:'#F4B5B5',
+  edgeBase:'#D1D5DB', edgeActive:'#818CF8'
+};
+
+function kpColor(n){ return (n.mastery||0)>=0.7?C.kpHi:C.kpLo; }
+function qColor(n){ return n.status==='correct'?C.qOk:C.qBad; }
+function nodeSize(n){
+  switch(n.type){
+    case 'knowledge_point': return 16+(n.value||1)*4;
+    case 'note': return 13;
+    case 'question': return 8+((n.wrongCount||0)>=2?5:0);
+    default: return 12;
+  }
+}
+
+// ========== 入口 ==========
 function renderFromBase64(b64) {
-    try {
-        // atob → 字节串 → 每字节%编码 → decodeURIComponent 正确还原UTF-8中文
-        var bytes = atob(b64);
-        var utf8 = decodeURIComponent(
-            bytes.split('').map(function(c) {
-                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-            }).join('')
-        );
-        var data = JSON.parse(utf8);
-    } catch(e) { return msg.textContent='数据解析失败'; }
-    if (!data || !data.nodes || !data.nodes.length) return msg.textContent='暂无笔记';
+  try {
+    var bytes = atob(b64);
+    var utf8 = decodeURIComponent(
+      bytes.split('').map(function(c){return '%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)}).join('')
+    );
+    var data = JSON.parse(utf8);
+  } catch(e) { return status.textContent='数据解析失败'; }
+  if (!data||!data.nodes||!data.nodes.length) return status.textContent='暂无图谱数据';
 
-    msg.style.display = 'none';
+  // 统计顽固错题
+  var wc={};
+  (data.edges||[]).forEach(function(e){
+    if(e.relation==='tests'){ var q=findNode(data.nodes,e.source); if(q&&q.status==='wrong') wc[q.id]=(wc[q.id]||0)+1; }
+  });
+  data.nodes.forEach(function(n){ if(n.type==='question') n.wrongCount=wc[n.id]||0; });
 
-    if (!chart) {
-        chart = echarts.init(dom);
-        chart.on('click', function(p) {
-            if (p.dataType==='node' && p.data && p.data.rawData && window.AndroidInterface) {
-                window.AndroidInterface.onNodeClick('note', p.data.rawData.actualId);
-            }
-        });
-        window.addEventListener('resize', function(){ if(chart)chart.resize(); });
-    }
+  _allNodes=data.nodes; _allEdges=data.edges||[];
+  buildSkeleton();
 
-    var count = data.nodes.length;
-    var size = count < 6 ? 26 : count < 15 ? 22 : 18;
+  if(!chart){
+    chart=echarts.init(dom);
+    chart.on('click',onClick);
+    dom.addEventListener('dblclick',resetView);
+    window.addEventListener('resize',function(){if(chart)chart.resize();});
+  }
+  _viewMode='skeleton'; _focusId=null;
+  renderView(_kpOnlyNodes,_kpOnlyEdges);
+  status.textContent=''; status.style.opacity='0';
+}
 
-    var n = data.nodes.map(function(x) {
-        return {
-            id: x.id, name: x.name, symbolSize: size,
-            itemStyle: { color: '#C4B5FD', borderColor: '#fff', borderWidth: 1.5 },
-            label: { show: true, fontSize: 11, color: '#374151',
-                formatter: function(p){ var s=p.name; return s&&s.length>8?s.slice(0,7)+'…':s; } },
-            rawData: x
-        };
+function findNode(nodes,id){ for(var i=0;i<nodes.length;i++) if(nodes[i].id===id) return nodes[i]; return null; }
+
+// ========== 骨架 ==========
+function buildSkeleton(){
+  _kpOnlyNodes=_allNodes.filter(function(n){return n.type==='knowledge_point'});
+  _kpOnlyEdges=[];
+}
+
+// ========== 聚焦 ==========
+function buildFocusView(cid){
+  var nids={}; nids[cid]=true;
+  _allEdges.forEach(function(e){
+    if(e.source===cid) nids[e.target]=true;
+    if(e.target===cid) nids[e.source]=true;
+  });
+  var fn=_allNodes.filter(function(n){return nids[n.id]});
+  var fe=_allEdges.filter(function(e){return nids[e.source]&&nids[e.target]});
+  _focusId=cid;
+  return {nodes:fn,edges:fe};
+}
+
+// ========== 渲染 ==========
+function renderView(nodes,edges){
+  var nc=nodes.length;
+  var rep=nc<15?180:Math.min(nc*18,1200);
+  var grav=nc<15?0.15:0.06;
+
+  var en=nodes.map(function(n){
+    var f=n.id===_focusId;
+    return {
+      id:n.id,name:n.name,
+      symbolSize:f?nodeSize(n)*1.4:nodeSize(n),
+      itemStyle:{
+        color:n.type==='knowledge_point'?kpColor(n):n.type==='note'?C.note:qColor(n),
+        borderColor:f?'#6366F1':'#fff',borderWidth:f?3:1.5,
+        shadowBlur:f?16:((n.wrongCount||0)>=2?8:0),
+        shadowColor:f?'rgba(99,102,241,0.35)':'rgba(239,68,68,0.25)',
+        opacity:(_viewMode==='focus'&&!f&&n.type!=='knowledge_point')?1:1
+      },
+      label:{
+        show:n.type==='knowledge_point'||(f&&n.type==='note'),
+        fontSize:n.type==='knowledge_point'?11:10,color:'#374151',
+        formatter:function(p){var s=p.name;return s&&s.length>6?s.slice(0,5)+'…':s;}
+      },
+      rawData:n
+    };
+  });
+
+  var ee=edges.map(function(e){
+    var a=_focusId&&(e.source===_focusId||e.target===_focusId);
+    return {
+      source:e.source,target:e.target,
+      lineStyle:{
+        color:a?C.edgeActive:(e.relation==='similar'?'#E5E7EB':C.edgeBase),
+        width:a?2.2:(e.relation==='similar'?0.8:1),
+        type:e.relation==='similar'?'dashed':'solid',
+        opacity:_viewMode==='focus'?(a?1:0.15):0.65
+      }
+    };
+  });
+
+  chart.setOption({
+    animationDuration:500,animationEasingUpdate:'cubicInOut',
+    tooltip:{formatter:function(p){
+      var d=p.data.rawData;if(!d)return p.name;
+      var L={knowledge_point:'考点',note:'笔记',question:'题目'};
+      var x='';
+      if(d.type==='knowledge_point') x='<br/>掌握度 '+Math.round((d.mastery||0)*100)+'% · '+(d.value||0)+' 条笔记';
+      if(d.type==='note') x='<br/>'+(d.subject||'');
+      if(d.type==='question'){ x='<br/>'+(d.status==='correct'?'✓ 已掌握':'✗ 待复习'); if((d.wrongCount||0)>=2) x+=' · 顽固错题'; }
+      return '<b>'+(L[d.type]||'')+'</b> '+d.name+x;
+    }},
+    series:[{type:'graph',layout:'force',roam:true,draggable:true,
+      force:{repulsion:rep,edgeLength:[60,160],gravity:grav},
+      scaleLimit:{min:0.4,max:4},data:en,edges:ee,
+      emphasis:{focus:'adjacency',lineStyle:{width:2.5}}
+    }]
+  },true);
+  chart.resize();
+  if(window.AndroidInterface) window.AndroidInterface.onRenderComplete();
+}
+
+// ========== 交互 ==========
+function onClick(p){
+  if(p.dataType!=='node'||!p.data||!p.data.rawData) return;
+  var d=p.data.rawData;
+  if(d.type==='knowledge_point'){
+    var fv=buildFocusView(d.id); _viewMode='focus';
+    renderView(fv.nodes,fv.edges);
+    status.textContent='已聚焦: '+d.name+' — 双击空白返回'; status.style.opacity='1';
+  }else if(d.type==='note'||d.type==='question'){
+    if(window.AndroidInterface&&d.actualId) window.AndroidInterface.onNodeClick(d.type,d.actualId);
+  }
+}
+
+function resetView(){
+  _viewMode='skeleton'; _focusId=null;
+  applyFilters();
+  status.textContent=''; status.style.opacity='0';
+}
+
+// ========== 过滤器 ==========
+function applyFilters(){
+  var se=document.getElementById('flt-errors').checked;
+  var sm=document.getElementById('flt-mastered').checked;
+  var nodes=_kpOnlyNodes.slice(),edges=[],inc={};
+  nodes.forEach(function(n){inc[n.id]=true});
+  if(!sm) nodes=nodes.filter(function(n){return (n.mastery||0)<0.7});
+  if(se){
+    _allNodes.forEach(function(n){
+      if((n.type==='question'&&n.status==='wrong')||n.type==='note'){nodes.push(n);inc[n.id]=true;}
     });
-
-    var e = (data.edges||[]).map(function(x) {
-        return {
-            source: x.source, target: x.target,
-            lineStyle: { color: '#D1D5DB', width: 1, curveness: 0.3, opacity: 0.7 }
-        };
+    _allEdges.forEach(function(e){
+      if(inc[e.source]&&inc[e.target]){var dup=edges.some(function(x){return x.source===e.source&&x.target===e.target});if(!dup)edges.push(e);}
     });
+  }
+  _viewMode='skeleton';_focusId=null;
+  renderView(nodes,edges);
+}
 
-    chart.setOption({
-        animationDuration: 400,
-        tooltip: { formatter: function(p){ return p.name; } },
-        series: [{
-            type: 'graph', layout: 'force', roam: true, draggable: true,
-            force: { repulsion: count<8?200:count*25, edgeLength: [80,200], gravity: 0.12 },
-            scaleLimit: { min: 0.5, max: 3 },
-            data: n, edges: e,
-            emphasis: { focus: 'adjacency', lineStyle: { width: 2, color:'#818CF8' } }
-        }]
-    }, true);
-
-    chart.resize();
-    if (window.AndroidInterface) window.AndroidInterface.onRenderComplete();
+// ========== 搜索 ==========
+var _st;
+function onSearchInput(){clearTimeout(_st);_st=setTimeout(doSearch,300);}
+function doSearch(){
+  var q=(document.getElementById('search-input').value||'').trim().toLowerCase();
+  if(!q||q.length<1) return;
+  var m=null;
+  for(var i=0;i<_allNodes.length;i++){if((_allNodes[i].name||'').toLowerCase().indexOf(q)>=0){m=_allNodes[i];break;}}
+  if(!m){status.textContent='未找到: '+q;status.style.opacity='1';return;}
+  var fv=buildFocusView(m.id);_viewMode='focus';renderView(fv.nodes,fv.edges);
+  status.textContent='定位到: '+m.name;status.style.opacity='1';
 }
 </script>
 </body>
