@@ -13,7 +13,7 @@
 
 <p align="center">
   <strong>以个人知识库为中心的 AI 备考平台</strong><br>
-  50+ API · 18 Controller · 26 Service · 14 张表 · 15+ Fragment · 5 SSE 流 · 自研 DAG 引擎 · 多模态拍照解题 · ECharts 知识图谱 · 智能组卷
+  50+ API · 18 Controller · 26+ Service · 15 张表 · 15+ Fragment · 9 SSE 流 · 自研 DAG 引擎 · 多模态拍照解题 · ECharts 知识图谱 · 智能组卷
 </p>
 
 <p align="center">
@@ -45,7 +45,7 @@
 graph TB
     subgraph Client["📱 客户端"]
         Android["Android App<br/>Java 11 · MVVM · 5 Tab<br/>ECharts 知识图谱 · KaTeX 渲染"]
-        Prototype["Web Prototype<br/>12 Screen"]
+        Prototype["Web Prototype"]
     end
 
     subgraph Server["Spring Boot 3.4.6 · Java 21 虚拟线程"]
@@ -55,7 +55,7 @@ graph TB
         subgraph Engine["🔧 核心引擎"]
             DAG["⚙️ 自研 DAG 工作流引擎<br/>Kahn 拓扑排序<br/>虚拟线程按层并发<br/>CompletableFuture 编排"]
             RAG["🔍 RAG Pipeline<br/>三路检索 · RRF 融合<br/>三级语义缓存"]
-            AIQ["🤖 AI 出题引擎<br/>LLM 生成 · LaTeX 清洗<br/>SymPy 符号验证 · 自动入库"]
+            AIQ["🤖 AI 出题引擎<br/>LLM 生成 · LaTeX 清洗<br/>Redis 缓存 · 自动入库"]
             Graph["🕸️ 知识图谱<br/>GraphDataService SQL聚合<br/>ECharts 力导向图<br/>考点/笔记/错题三元拓扑"]
         end
 
@@ -195,24 +195,22 @@ graph TB
 用户请求出题（每日一练/组卷/真题模拟）
         │
         ▼
-┌──────────────────────────────────────────────────────────┐
-│  Step 1: Redis 精确缓存（< 1ms）                          │
-│    命中 → 从缓存池随机抽取 n 道 → 前端随机打乱 → 返回      │
-│    未命中 ↓                                               │
-├──────────────────────────────────────────────────────────┤
-│  Step 2: Milvus 语义缓存改写                               │
-│    相似度 > 0.90 → 复用原题骨架 → LLM 仅改写数值/情境      │
-│    未命中 ↓                                               │
-├──────────────────────────────────────────────────────────┤
-│  Step 3: LLM 完整生成                                      │
-│    System Prompt: 考点 + 难度 + 题型 + 笔记原文             │
-│    → LLM 生成题目 + 解析                                   │
-│    → LaTeX 规范化（正则清洗噪声）                           │
-│    → SymPy 符号验证（匹配? 等价?→随机点数值代入<10⁻⁶）      │
-│    → 合理性检查（唯一性/值域/条件自洽）                      │
-│    → 通过 → 标注验证级别 → 存入 question 表 → 写入缓存池    │
-│    → 失败 → 丢弃 + 重试（连续3次→降级 SQL + 告警）          │
-└──────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│  Step 1: Redis 精确缓存（< 1ms）                      │
+│    命中 → 从缓存池随机抽取 n 道 → 前端随机打乱 → 返回  │
+│    未命中 ↓                                           │
+├──────────────────────────────────────────────────────┤
+│  Step 2: PG 语义缓存改写（< 5ms）                       │
+│    同考点+题型+难度±1 → 从 question 表复用已有题目      │
+│    命中 → 返回，减少重复 LLM 调用                       │
+│    未命中 ↓                                             │
+├──────────────────────────────────────────────────────┤
+│  Step 3: LLM 完整生成                                  │
+│    System Prompt: 考点 + 难度 + 题型 + 笔记原文         │
+│    → LLM 生成题目 + 解析                               │
+│    → JSON 提取 + 结构化校验                             │
+│    → 存入 question 表 → 写入 Redis 缓存池               │
+└──────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -243,10 +241,10 @@ GET /v3/kb/graph-data → GraphDataService
 | **DAG 引擎** | 自研 Kahn + 虚拟线程 | 不调 Temporal/Argo——教育领域节点类型固定（LLM_CALL/AGGREGATE）、超时策略定制（180s）、需要 SSE 流式回调强耦合 |
 | **向量库** | Milvus per-user Collection | 个人笔记语义空间独立，混合检索精度下降 15-20%。千级用户 per-user，万级改 Partition Key |
 | **RAG 策略** | RRF 三路融合 | 单路向量有语义漂移——"求极限"可能召回"求极值"。加 PG 全文检索做关键词锚定，RRF(k=60)融合消除漂移 |
-| **缓存策略** | Redis 精确 + Milvus 语义改写 + LLM 完整生成 | 单纯改阈值（0.96/0.90）是偷懒——三级策略：精确匹配直接复用、语义相似改数值/情境（远比完整生成便宜）、完全不匹配才完整生成 |
+| **缓存策略** | Redis 精确 + PG 近似匹配 + LLM 完整生成 | 三级递进：Redis 精确命中直接返回 → PG 同考点+题型+难度±1 复用已有题目 → LLM 完整生成。越靠前越便宜 |
 | **多租户** | JVM Semaphore | 限的是最贵资源（LLM Token 算力），不是 HTTP 请求。网关限流无法区分 10ms 的 Redis 请求和 10s 的 LLM 请求 |
 | **单体架构** | Spring Boot 单体 | 1 人项目拆微服务是负优化，需额外处理服务发现、分布式事务、数据一致性 |
-| **出题验证** | SymPy 符号求解 + 数值代入 | LLM 生成的数学题必须验证——题干和答案可能不匹配。SymPy 覆盖 60-70% 计算题，无法求解走合理性检查降级 |
+| **出题引擎** | Redis + PG 近似匹配 + LLM 生成 | 先查 Redis 精确缓存，再查 PG 同考点近似题复用，都未命中才调 LLM。逐步降低 Token 消耗 |
 | **图谱渲染** | ECharts + WebView 本地库 | 1MB 本地化，零网络依赖。`atob()`+`decodeURIComponent` 解决中文 UTF-8 乱码。onPageFinished 后注入数据消除 JS 未就绪竞态 |
 | **公式渲染** | KaTeX + marked 本地库 | ~350KB assets/libs/，`file:///android_asset/` 加载，无 CDN 延迟/不可用风险 |
 
@@ -256,10 +254,10 @@ GET /v3/kb/graph-data → GraphDataService
 
 | 维度 | 数据 |
 |------|------|
-| **后端 API** | 50+ 端点（含 8 个 SSE 流式：答疑/批改/组卷/诊断/深度学习） |
+| **后端 API** | 50+ 端点（含 9 个 SSE 流式：答疑/批改/组卷/诊断/深度学习） |
 | **Controller** | 18 个 |
 | **Service** | 26 个（含自研 DAG 引擎 12 类、RAG Pipeline 10 组件、AI 出题引擎、GraphDataService） |
-| **数据库** | PostgreSQL 16，14 张表，GIN 全文索引 + JSONB 行为日志 |
+| **数据库** | PostgreSQL 16，15 张表，GIN 全文索引 + JSONB 行为日志 |
 | **中间件** | Redis 7.2 · Milvus 2.4 · RocketMQ 5.x · SkyWalking 9.x |
 | **Android** | 5 Tab · 15+ Fragment · 8 ViewModel · 8 Repository · 25 数据模型 |
 | **Android 本地库** | KaTeX (~350KB) · ECharts (~1MB) · marked (~50KB) — 全部零网络依赖 |
@@ -285,7 +283,7 @@ LLM API 调用是系统里最贵的资源（一次诊断可能消耗上万 Token
 
 如果用纯人工录入题库，题目数量受限于录入人力，而且所有学生看到的题都一样。AI 生成可以做两件事：根据学生的错题记录定向出专攻题，以及根据笔记内容生成变式题。
 
-但 LLM 生成的题目可能存在幻觉（题干与答案不匹配、条件矛盾）。用 SymPy 符号验证 + 合理性检查做双重校验，验证失败的题丢弃不展示。同时用 Redis 缓存 + Milvus 语义缓存减少重复调用。
+但 LLM 生成的题目可能存在幻觉（题干与答案不匹配、条件矛盾）。用 Redis 精确缓存（相同考点+题型+难度）避免高频重复调用，Milvus 语义缓存作为改写降级。
 
 ### 技术选型：自研 vs LangChain / Spring AI
 
@@ -457,8 +455,7 @@ IRAgent/
 │   ├── backend-architecture.md       #   后端架构文档
 │   └── images/                       #   截图资源
 │
-└── ai/                               # 📋 产品设计
-    └── product-design/PRD-v3-exam-preparation-platform.md
+└── ai/                               # 📋 产品设计（空，预留）
 ```
 
 ---
@@ -471,7 +468,7 @@ IRAgent/
 | 自研 DAG 引擎 + 虚拟线程并发调度 | ✅ |
 | 多模态拍照批改（图片OCR + DAG 错题诊断） | ✅ |
 | RAG Pipeline + RRF 三路融合 + 三级缓存 | ✅ |
-| AI 出题引擎 + SymPy 符号验证管线 | ✅ |
+| AI 出题引擎 + Redis 缓存管线 | ✅ |
 | 知识库全格式（图片OCR/PDF/DOCX/MD）+ AI 自动分类 + 编辑优化 | ✅ |
 | ECharts 知识图谱（考点/笔记/错题三元拓扑 + Obsidian 级交互） | ✅ |
 | 错题本（三维诊断 + 同类题推荐 + 艾宾浩斯复习） | ✅ |
@@ -481,7 +478,7 @@ IRAgent/
 | 多租户 Semaphore 隔离 + API Key 热刷新 | ✅ |
 | RocketMQ 异步上报 + TraceContext 传播 | ✅ |
 | SkyWalking 深度定制（FTT/MQ/Profile） | ✅ |
-| 14 张表 Schema | ✅ |
+| 15 张表 Schema | ✅ |
 | Android 5 Tab + 15+ Fragment | ✅ |
 | Docker 全量一键部署 | ✅ |
 
