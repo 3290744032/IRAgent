@@ -6,366 +6,72 @@
 <script src="file:///android_asset/libs/echarts.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;background:#F8F9FB;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}
+html,body{width:100%;height:100%;overflow:hidden;background:#F8F9FB;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
 #chart{width:100%;height:100%}
-
-/* ---- 浮动过滤器（左上） ---- */
-#filter-panel {
-  position:absolute;top:10px;left:10px;z-index:20;
-  background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);
-  border-radius:12px;padding:10px 14px;box-shadow:0 2px 12px rgba(0,0,0,0.06);
-  display:flex;flex-direction:column;gap:6px;font-size:11px;color:#4B5563;
-  transition:opacity 0.3s;
-}
-#filter-panel label{display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
-#filter-panel input[type=checkbox]{accent-color:#6366F1;width:14px;height:14px}
-#filter-panel .fp-divider{height:1px;background:#E5E7EB;margin:2px 0}
-
-/* ---- 搜索框（右上） ---- */
-#search-box {
-  position:absolute;top:10px;right:10px;z-index:20;
-  display:flex;align-items:center;gap:4px;
-  background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);
-  border-radius:20px;padding:5px 12px;box-shadow:0 2px 12px rgba(0,0,0,0.06);
-}
-#search-box input{
-  border:none;outline:none;background:transparent;font-size:12px;color:#1F2937;width:100px;
-}
-#search-box input::placeholder{color:#D1D5DB}
-#search-btn{color:#9CA3AF;font-size:14px;cursor:pointer}
-
-/* ---- 状态提示（居中） ---- */
-#status-msg{
-  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1;
-  color:#9CA3AF;font-size:13px;pointer-events:none;transition:opacity 0.4s;
-}
-
-/* ---- 脉冲动画（顽固错题） ---- */
-@keyframes pulse-ring {
-  0%,100%{r:6;opacity:0.4}
-  50%{r:12;opacity:0}
-}
+#msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#9CA3AF;font-size:13px;pointer-events:none}
 </style>
 </head>
 <body>
-<div id="chart"><div id="status-msg"></div></div>
-
-<!-- 过滤器 -->
-<div id="filter-panel">
-  <label><input type="checkbox" id="flt-errors"   onchange="applyFilters()"> 显示错题</label>
-  <label><input type="checkbox" id="flt-mastered" onchange="applyFilters()"> 显示已掌握考点</label>
-  <div class="fp-divider"></div>
-  <label style="color:#9CA3AF;font-size:10px">点击考点展开关联</label>
-  <label style="color:#9CA3AF;font-size:10px">双击空白重置视角</label>
-</div>
-
-<!-- 搜索 -->
-<div id="search-box">
-  <span style="font-size:12px">🔍</span>
-  <input id="search-input" type="text" placeholder="搜索考点/笔记..." oninput="onSearchInput()">
-</div>
+<div id="chart"><div id="msg">加载中...</div></div>
 
 <script>
 var chart = null;
-var chartDom = document.getElementById('chart');
-var statusMsg = document.getElementById('status-msg');
+var dom = document.getElementById('chart');
+var msg = document.getElementById('msg');
 
-// 全局存储原始数据（含所有节点+边）
-var _allNodes = [];
-var _allEdges = [];
-var _kpOnlyNodes = [];      // 仅考点骨架
-var _kpOnlyEdges = [];      // 考点间相似边
-var _viewMode = 'skeleton'; // 'skeleton' | 'focus'
-var _focusNodeId = null;
-
-// ========== 颜色系统（莫兰迪低饱和） ==========
-var COLORS = {
-  kpMastered:  '#A7C7E7',  // 柔蓝
-  kpWeak:      '#F4B5B5',  // 柔红
-  note:        '#C4B5FD',  // 柔紫
-  qCorrect:    '#A3D9A5',  // 柔绿
-  qWrong:      '#F4B5B5',  // 柔红
-  edgeBelongs: '#D1D5DB',  // 灰白实线
-  edgeSimilar: '#E5E7EB',  // 更淡虚线
-  edgeActive:  '#818CF8',  // 选中高亮
-  bg:          '#F8F9FB'
-};
-
-function kpColor(n) {
-  return (n.mastery||0) >= 0.7 ? COLORS.kpMastered : COLORS.kpWeak;
-}
-function qColor(n) {
-  return n.status === 'correct' ? COLORS.qCorrect : COLORS.qWrong;
-}
-function nodeSize(n) {
-  switch (n.type) {
-    case 'knowledge_point': return 16 + (n.value||1)*4;
-    case 'note': return 13;
-    case 'question': return 8 + (n.wrongCount > 2 ? 5 : 0); // 顽固错题更大
-    default: return 12;
-  }
-}
-
-// 顽固错题呼吸灯
-function isStubborn(n) {
-  return n.type === 'question' && n.status === 'wrong' && (n.wrongCount||0) >= 2;
-}
-
-// ========== Android 调用入口 ==========
 function renderFromBase64(b64) {
-  var json;
-  try { json = atob(b64); } catch(e) { return showStatus('数据解码失败'); }
-  var data;
-  try { data = JSON.parse(json); } catch(e) { return showStatus('JSON 解析失败'); }
-  if (!data || !data.nodes || !data.nodes.length) return showStatus('暂无图谱数据');
+    var json;
+    try { json = atob(b64); } catch(e) { return msg.textContent='解码失败'; }
+    var data;
+    try { data = JSON.parse(json); } catch(e) { return msg.textContent='JSON错误'; }
+    if (!data || !data.nodes || !data.nodes.length) return msg.textContent='暂无笔记';
 
-  // 统计顽固错题
-  var wrongCounts = {};
-  (data.edges||[]).forEach(function(e) {
-    if (e.relation === 'tests') {
-      var q = findNode(data.nodes, e.source);
-      if (q && q.status === 'wrong') {
-        wrongCounts[q.id] = (wrongCounts[q.id]||0) + 1;
-      }
+    msg.style.display = 'none';
+
+    if (!chart) {
+        chart = echarts.init(dom);
+        chart.on('click', function(p) {
+            if (p.dataType==='node' && p.data && p.data.rawData && window.AndroidInterface) {
+                window.AndroidInterface.onNodeClick('note', p.data.rawData.actualId);
+            }
+        });
+        window.addEventListener('resize', function(){ if(chart)chart.resize(); });
     }
-  });
-  data.nodes.forEach(function(n) {
-    if (n.type === 'question') n.wrongCount = wrongCounts[n.id]||0;
-  });
 
-  _allNodes = data.nodes;
-  _allEdges = data.edges || [];
-  buildSkeleton();
+    var count = data.nodes.length;
+    var size = count < 6 ? 26 : count < 15 ? 22 : 18;
 
-  if (!chart) {
-    chart = echarts.init(chartDom);
-    chart.on('click', onChartClick);
-    chartDom.addEventListener('dblclick', resetView);
-    window.addEventListener('resize', function(){ if(chart)chart.resize(); });
-  }
-
-  _viewMode = 'skeleton';
-  renderView(_kpOnlyNodes, _kpOnlyEdges);
-  showStatus(null);
-}
-
-function findNode(nodes, id) {
-  for (var i=0;i<nodes.length;i++) if (nodes[i].id===id) return nodes[i];
-  return null;
-}
-
-// ========== 骨架构建：仅考点 + 考点间相似边 ==========
-function buildSkeleton() {
-  _kpOnlyNodes = _allNodes.filter(function(n){ return n.type==='knowledge_point'; });
-  // 骨架模式无连线—点击考点展开后边自然出现
-  _kpOnlyEdges = [];
-}
-
-// ========== 聚焦视图：指定节点 + 2-hop 邻居 ==========
-function buildFocusView(centerId) {
-  var neighborIds = {};
-  neighborIds[centerId] = true;
-  // 1-hop: 直接相连的节点
-  _allEdges.forEach(function(e){
-    if (e.source === centerId) neighborIds[e.target] = true;
-    if (e.target === centerId) neighborIds[e.source] = true;
-  });
-  // 2-hop: 邻居的邻居（仅限考点类型）
-  var hop1 = Object.keys(neighborIds);
-  _allEdges.forEach(function(e){
-    if (neighborIds[e.source] && _allNodes.find(function(n){return n.id===e.target&&n.type==='knowledge_point'}))
-      neighborIds[e.target] = true;
-    if (neighborIds[e.target] && _allNodes.find(function(n){return n.id===e.source&&n.type==='knowledge_point'}))
-      neighborIds[e.source] = true;
-  });
-
-  var focusNodes = _allNodes.filter(function(n){ return neighborIds[n.id]; });
-  var focusEdges = _allEdges.filter(function(e){
-    return neighborIds[e.source] && neighborIds[e.target];
-  });
-
-  // 为焦点节点加标记
-  _focusNodeId = centerId;
-  return { nodes: focusNodes, edges: focusEdges };
-}
-
-// ========== 渲染 ==========
-function renderView(nodes, edges) {
-  var nodeCount = nodes.length;
-  var dynRepulsion = nodeCount < 15 ? 180 : Math.min(nodeCount * 18, 1200);
-  var dynGravity = nodeCount < 15 ? 0.15 : 0.06;
-
-  var eNodes = nodes.map(function(n) {
-    var isFocused = n.id === _focusNodeId;
-    return {
-      id: n.id, name: n.name,
-      symbolSize: isFocused ? nodeSize(n) * 1.4 : nodeSize(n),
-      itemStyle: {
-        color: n.type==='knowledge_point' ? kpColor(n) :
-               n.type==='note' ? COLORS.note : qColor(n),
-        borderColor: isFocused ? '#6366F1' : '#fff',
-        borderWidth: isFocused ? 3 : 1.5,
-        shadowBlur: isFocused ? 16 : (isStubborn(n) ? 8 : 0),
-        shadowColor: isFocused ? 'rgba(99,102,241,0.35)' : 'rgba(239,68,68,0.25)',
-        opacity: (_viewMode==='focus' && !isFocused && n.type!=='knowledge_point') ? 1 : 1
-      },
-      label: {
-        show: n.type==='knowledge_point' || (isFocused && n.type==='note'),
-        fontSize: n.type==='knowledge_point' ? 11 : 10,
-        color: '#374151',
-        formatter: function(p){ var s=p.name; return s&&s.length>6?s.slice(0,5)+'…':s; }
-      },
-      rawData: n
-    };
-  });
-
-  var eEdges = edges.map(function(e) {
-    var isActive = _focusNodeId && (e.source===_focusNodeId||e.target===_focusNodeId);
-    return {
-      source: e.source, target: e.target,
-      lineStyle: {
-        color: isActive ? COLORS.edgeActive : (e.relation==='similar' ? COLORS.edgeSimilar : COLORS.edgeBelongs),
-        width: isActive ? 2.2 : (e.relation==='similar' ? 0.8 : 1),
-        type: e.relation==='similar' ? 'dashed' : 'solid',
-        opacity: _viewMode==='focus' ? (isActive ? 1 : 0.15) : 0.65
-      }
-    };
-  });
-
-  chart.setOption({
-    animationDuration: 500,
-    animationEasingUpdate: 'cubicInOut',
-    tooltip: {
-      formatter: function(p) {
-        var d = p.data.rawData; if(!d) return p.name;
-        var labels = {knowledge_point:'考点',note:'笔记',question:'题目'};
-        var extra = '';
-        if (d.type==='knowledge_point') extra = '<br/>掌握度 '+Math.round((d.mastery||0)*100)+'% · '+(d.value||0)+' 条笔记';
-        if (d.type==='note') extra = '<br/>'+(d.subject||'');
-        if (d.type==='question') {
-          extra = '<br/>'+(d.status==='correct'?'✓ 已掌握':'✗ 待复习');
-          if ((d.wrongCount||0)>=2) extra += ' · 顽固错题';
-        }
-        return '<b>'+(labels[d.type]||'')+'</b> '+d.name+extra;
-      }
-    },
-    series: [{
-      type: 'graph', layout: 'force', roam: true, draggable: true,
-      force: { repulsion: dynRepulsion, edgeLength: [60,160], gravity: dynGravity },
-      scaleLimit: { min: 0.4, max: 4 },
-      data: eNodes, edges: eEdges,
-      emphasis: { focus: 'adjacency', lineStyle: { width: 2.5 } }
-    }]
-  }, true);
-
-  chart.resize();
-  notifyAndroid();
-}
-
-// ========== 交互 ==========
-function onChartClick(params) {
-  if (params.dataType !== 'node' || !params.data || !params.data.rawData) return;
-  var d = params.data.rawData;
-
-  if (d.type === 'knowledge_point') {
-    // 点击考点 → 切换到聚焦视图
-    var fv = buildFocusView(d.id);
-    _viewMode = 'focus';
-    renderView(fv.nodes, fv.edges);
-    showStatus('已聚焦: ' + d.name + ' — 双击空白返回全局');
-  } else if (d.type === 'note' || d.type === 'question') {
-    // 点击笔记/题目 → 通知 Android 导航
-    if (window.AndroidInterface && d.actualId) {
-      window.AndroidInterface.onNodeClick(d.type, d.actualId);
-    }
-  }
-}
-
-function resetView() {
-  _viewMode = 'skeleton';
-  _focusNodeId = null;
-  applyFilters();
-  showStatus(null);
-}
-
-// ========== 过滤器 ==========
-function applyFilters() {
-  var showErrors = document.getElementById('flt-errors').checked;
-  var showMastered = document.getElementById('flt-mastered').checked;
-
-  // 始终以骨架为基准
-  var nodes = _kpOnlyNodes.slice();
-  var edges = _kpOnlyEdges.slice();
-  var includedIds = {};
-  nodes.forEach(function(n){ includedIds[n.id]=true; });
-
-  // 过滤考点
-  if (!showMastered) {
-    nodes = nodes.filter(function(n){ return (n.mastery||0) < 0.7; });
-  }
-
-  // 是否追加错题+笔记
-  if (showErrors) {
-    _allNodes.forEach(function(n) {
-      if ((n.type==='question' && n.status==='wrong') || n.type==='note') {
-        nodes.push(n);
-        includedIds[n.id] = true;
-      }
+    var n = data.nodes.map(function(x) {
+        return {
+            id: x.id, name: x.name, symbolSize: size,
+            itemStyle: { color: '#C4B5FD', borderColor: '#fff', borderWidth: 1.5 },
+            label: { show: true, fontSize: 11, color: '#374151',
+                formatter: function(p){ var s=p.name; return s&&s.length>8?s.slice(0,7)+'…':s; } },
+            rawData: x
+        };
     });
-    _allEdges.forEach(function(e){
-      if (includedIds[e.source] && includedIds[e.target]) {
-        var dup = edges.some(function(x){ return x.source===e.source&&x.target===e.target; });
-        if (!dup) edges.push(e);
-      }
+
+    var e = (data.edges||[]).map(function(x) {
+        return {
+            source: x.source, target: x.target,
+            lineStyle: { color: '#D1D5DB', width: 1, curveness: 0.3, opacity: 0.7 }
+        };
     });
-  }
 
-  _viewMode = 'skeleton';
-  _focusNodeId = null;
-  renderView(nodes, edges);
-}
+    chart.setOption({
+        animationDuration: 400,
+        tooltip: { formatter: function(p){ return p.name; } },
+        series: [{
+            type: 'graph', layout: 'force', roam: true, draggable: true,
+            force: { repulsion: count<8?200:count*25, edgeLength: [80,200], gravity: 0.12 },
+            scaleLimit: { min: 0.5, max: 3 },
+            data: n, edges: e,
+            emphasis: { focus: 'adjacency', lineStyle: { width: 2, color:'#818CF8' } }
+        }]
+    }, true);
 
-// ========== 搜索定位 ==========
-var _searchTimer;
-function onSearchInput() {
-  clearTimeout(_searchTimer);
-  _searchTimer = setTimeout(doSearch, 300);
-}
-function doSearch() {
-  var q = (document.getElementById('search-input').value||'').trim().toLowerCase();
-  if (!q || q.length < 1) return;
-
-  var match = null;
-  for (var i=0;i<_allNodes.length;i++) {
-    if ((_allNodes[i].name||'').toLowerCase().indexOf(q) >= 0) {
-      match = _allNodes[i]; break;
-    }
-  }
-  if (!match) { showStatus('未找到: ' + q); return; }
-
-  // 切换到聚焦视图
-  var fv = buildFocusView(match.id);
-  _viewMode = 'focus';
-  renderView(fv.nodes, fv.edges);
-  showStatus('定位到: ' + match.name);
-
-  // 闪烁高亮
-  setTimeout(function(){
-    chart.dispatchAction({ type: 'highlight', seriesIndex: 0, dataIndex: 0 });
-    setTimeout(function(){ chart.dispatchAction({type:'downplay',seriesIndex:0}); }, 1200);
-  }, 600);
-}
-
-// ========== 辅助 ==========
-function showStatus(msg) {
-  statusMsg.textContent = msg || '';
-  statusMsg.style.opacity = msg ? '1' : '0';
-}
-
-function notifyAndroid() {
-  if (window.AndroidInterface) {
-    try { window.AndroidInterface.onRenderComplete(); } catch(e) {}
-  }
+    chart.resize();
+    if (window.AndroidInterface) window.AndroidInterface.onRenderComplete();
 }
 </script>
 </body>

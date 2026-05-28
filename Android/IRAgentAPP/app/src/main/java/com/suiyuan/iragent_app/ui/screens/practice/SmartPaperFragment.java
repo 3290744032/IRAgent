@@ -11,6 +11,8 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -39,7 +41,9 @@ public class SmartPaperFragment extends Fragment {
     private View layoutConfig, layoutQuiz, layoutLoading, layoutResult;
     private TextView tvStreamLabel, tvProgress, tvQuestion, tvResultScore;
     private EditText etChatInput;
-    private Button btnSend, btnPdf, btnStartQuiz, btnAnswerKey;
+    private ImageButton btnSend;
+    private ImageView ivBack;
+    private Button btnPdf, btnStartQuiz, btnAnswerKey;
     private LinearLayout llOptions, llResultStats, llResultDetails;
     private Button btnNext, btnBackHub;
     private WebView wvStreamContent;
@@ -82,6 +86,7 @@ public class SmartPaperFragment extends Fragment {
         tvStreamLabel = view.findViewById(R.id.tv_stream_label);
         etChatInput = view.findViewById(R.id.et_chat_input);
         btnSend = view.findViewById(R.id.btn_send);
+        ivBack = view.findViewById(R.id.iv_back);
         btnPdf = view.findViewById(R.id.btn_pdf);
         btnStartQuiz = view.findViewById(R.id.btn_start_quiz);
         btnAnswerKey = view.findViewById(R.id.btn_answer_key);
@@ -154,6 +159,11 @@ public class SmartPaperFragment extends Fragment {
 
     private void setupClickListeners() {
         btnSend.setOnClickListener(v -> sendPrompt());
+        ivBack.setOnClickListener(v -> {
+            if (getActivity() != null) {
+                getActivity().getSupportFragmentManager().popBackStack();
+            }
+        });
         btnPdf.setOnClickListener(v -> {
             Toast.makeText(getContext(), "PDF 导出功能待实现", Toast.LENGTH_SHORT).show();
         });
