@@ -74,6 +74,10 @@ public class SmartPaperViewModel extends AndroidViewModel {
         if (paperBodyContent == null) return null;
         return JSON_BLOCK.matcher(paperBodyContent).replaceAll("").trim();
     }
+    public String getAnswerKeyContent() {
+        if (answerKeyContent == null) return null;
+        return JSON_BLOCK.matcher(answerKeyContent).replaceAll("").trim();
+    }
 
     public void toggleAnswerKey() {
         boolean cur = Boolean.TRUE.equals(answerKeyVisible.getValue());

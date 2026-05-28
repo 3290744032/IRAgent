@@ -1,11 +1,8 @@
 package com.suiyuan.iragent_app.ui.screens.practice;
 
-import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
-import android.net.Uri;
 import android.os.Bundle;
-import android.os.ParcelFileDescriptor;
 import android.print.PrintAttributes;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -23,7 +20,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -33,7 +29,6 @@ import com.suiyuan.iragent_app.data.model.v3.SmartPaper;
 import com.suiyuan.iragent_app.data.model.v3.SubmitAnswerResult;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -193,168 +188,136 @@ public class SmartPaperFragment extends Fragment {
     }
 
     private void generatePdf() {
-        boolean hasAnswerKey = viewModel.hasAnswerKey();
-        String content = hasAnswerKey ? viewModel.getFullContent() : viewModel.getPaperBodyContent();
-        if (content == null || content.isEmpty()) {
+        String body = viewModel.getPaperBodyContent();
+        if (body == null || body.isEmpty()) {
             Toast.makeText(getContext(), "没有可导出的内容", Toast.LENGTH_LONG).show();
             return;
         }
+        String answerKey = viewModel.hasAnswerKey() ? viewModel.getAnswerKeyContent() : null;
 
         Toast.makeText(getContext(), "正在生成 PDF...", Toast.LENGTH_SHORT).show();
-        String html = buildExamHtml(content, hasAnswerKey);
+        String html = buildExamHtml(body, answerKey);
 
-        // WebView 需要有足够尺寸才能正确渲染和分页
-        int screenW = getResources().getDisplayMetrics().widthPixels;
-        WebView printView = new WebView(requireContext());
-        WebSettings ws = printView.getSettings();
-        ws.setJavaScriptEnabled(true);
-        ws.setDomStorageEnabled(true);
-        ws.setLoadWithOverviewMode(true);
-        ws.setUseWideViewPort(true);
-        printView.setInitialScale(1);
+        int sw = getResources().getDisplayMetrics().widthPixels;
+        WebView wv = new WebView(requireContext());
+        wv.getSettings().setJavaScriptEnabled(true);
+        wv.getSettings().setDomStorageEnabled(true);
+        wv.getSettings().setLoadWithOverviewMode(true);
+        wv.getSettings().setUseWideViewPort(true);
 
         ViewGroup root = (ViewGroup) requireView().getRootView();
-        root.addView(printView, new ViewGroup.LayoutParams(screenW, ViewGroup.LayoutParams.WRAP_CONTENT));
+        root.addView(wv, new ViewGroup.LayoutParams(sw, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        final boolean[] pageFinished = {false};
-        printView.setWebViewClient(new WebViewClient() {
+        wv.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
-                if (pageFinished[0]) return;
-                pageFinished[0] = true;
-
-                // 等待 JS（KaTeX + Marked）渲染完成后再导出
                 view.postDelayed(() -> {
                     try {
-                        File pdfFile = new File(requireContext().getCacheDir(),
-                                "IRAgent_组卷_" + System.currentTimeMillis() + ".pdf");
-                        android.os.ParcelFileDescriptor pfd =
-                                android.os.ParcelFileDescriptor.open(pdfFile,
-                                        android.os.ParcelFileDescriptor.MODE_CREATE
-                                                | android.os.ParcelFileDescriptor.MODE_READ_WRITE);
+                        java.io.File f = new java.io.File(requireContext().getCacheDir(),
+                                "IRAgent_" + System.currentTimeMillis() + ".pdf");
+                        android.os.ParcelFileDescriptor pfd = android.os.ParcelFileDescriptor
+                                .open(f, android.os.ParcelFileDescriptor.MODE_CREATE
+                                        | android.os.ParcelFileDescriptor.MODE_READ_WRITE);
 
                         PrintAttributes attrs = new PrintAttributes.Builder()
                                 .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
                                 .setColorMode(PrintAttributes.COLOR_MODE_COLOR)
-                                .setMinMargins(new PrintAttributes.Margins(40, 40, 40, 40))
+                                .setMinMargins(new PrintAttributes.Margins(60, 60, 60, 60))
                                 .build();
 
-                        android.print.PrintDocumentAdapter adapter =
+                        android.print.PrintDocumentAdapter ada =
                                 view.createPrintDocumentAdapter("IRAgent_SmartPaper");
-
-                        adapter.onLayout(null, attrs, null,
-                                new android.print.PrintDocumentAdapter.LayoutResultCallback() {
-                                    @Override
-                                    public void onLayoutFinished(
-                                            android.print.PrintDocumentInfo info, boolean changed) {
-                                        adapter.onWrite(
-                                                new android.print.PageRange[]{
-                                                        android.print.PageRange.ALL_PAGES},
-                                                pfd, null,
-                                                new android.print.PrintDocumentAdapter.WriteResultCallback() {
-                                                    @Override
-                                                    public void onWriteFinished(
-                                                            android.print.PageRange[] pages) {
-                                                        try { pfd.close(); } catch (Exception ignored) {}
-                                                        requireActivity().runOnUiThread(() -> {
-                                                            sharePdfFile(pdfFile);
-                                                            ((ViewGroup) printView.getParent())
-                                                                    .removeView(printView);
-                                                            printView.destroy();
-                                                        });
-                                                    }
-
-                                                    @Override
-                                                    public void onWriteFailed(CharSequence error) {
-                                                        try { pfd.close(); } catch (Exception ignored) {}
-                                                        requireActivity().runOnUiThread(() -> {
-                                                            Toast.makeText(getContext(),
-                                                                    "PDF 生成失败", Toast.LENGTH_SHORT).show();
-                                                            ((ViewGroup) printView.getParent())
-                                                                    .removeView(printView);
-                                                            printView.destroy();
-                                                        });
-                                                    }
-                                                }, null);
-                                    }
-
-                                    @Override
-                                    public void onLayoutFailed(CharSequence error) {
-                                        requireActivity().runOnUiThread(() ->
-                                                Toast.makeText(getContext(),
-                                                        "PDF 排版失败", Toast.LENGTH_SHORT).show());
-                                    }
-                                }, null);
+                        ada.onLayout(null, attrs, null,
+                            new android.print.PrintDocumentAdapter.LayoutResultCallback() {
+                                @Override
+                                public void onLayoutFinished(
+                                        android.print.PrintDocumentInfo info, boolean changed) {
+                                    ada.onWrite(
+                                        new android.print.PageRange[]{
+                                            android.print.PageRange.ALL_PAGES},
+                                        pfd, null,
+                                        new android.print.PrintDocumentAdapter.WriteResultCallback() {
+                                            @Override
+                                            public void onWriteFinished(android.print.PageRange[] pages) {
+                                                try { pfd.close(); } catch (Exception ignored) {}
+                                                requireActivity().runOnUiThread(() -> {
+                                                    shareFile(f);
+                                                    ((ViewGroup) wv.getParent()).removeView(wv);
+                                                    wv.destroy();
+                                                });
+                                            }
+                                            @Override
+                                            public void onWriteFailed(CharSequence error) {
+                                                try { pfd.close(); } catch (Exception ignored) {}
+                                                requireActivity().runOnUiThread(() -> {
+                                                    Toast.makeText(getContext(), "PDF 生成失败", Toast.LENGTH_SHORT).show();
+                                                    ((ViewGroup) wv.getParent()).removeView(wv);
+                                                    wv.destroy();
+                                                });
+                                            }
+                                        }, null);
+                                }
+                            }, null);
                     } catch (Exception e) {
                         requireActivity().runOnUiThread(() ->
-                                Toast.makeText(getContext(),
-                                        "PDF 生成失败: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                            Toast.makeText(getContext(), "PDF 错误: " + e.getMessage(), Toast.LENGTH_LONG).show());
                     }
-                }, 1500); // 给 KaTeX 渲染留时间
+                }, 1500);
             }
         });
 
-        printView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
+        wv.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
     }
 
-    private void sharePdfFile(File pdfFile) {
-        Uri uri = FileProvider.getUriForFile(requireContext(),
-                requireContext().getPackageName() + ".fileprovider", pdfFile);
-        Intent intent = new Intent(Intent.ACTION_SEND);
+    private void shareFile(java.io.File file) {
+        android.net.Uri uri = androidx.core.content.FileProvider.getUriForFile(
+                requireContext(), requireContext().getPackageName() + ".fileprovider", file);
+        android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_SEND);
         intent.setType("application/pdf");
-        intent.putExtra(Intent.EXTRA_STREAM, uri);
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        startActivity(Intent.createChooser(intent, "分享试卷 PDF"));
+        intent.putExtra(android.content.Intent.EXTRA_STREAM, uri);
+        intent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivity(android.content.Intent.createChooser(intent, "分享试卷 PDF"));
     }
 
-    private String buildExamHtml(String content, boolean includeAnswerKey) {
-        String escaped = escapeJsString(content);
-        return "<!DOCTYPE html><html><head><meta charset='utf-8'>" +
-                "<script src='https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js'>" +
-                "</script>" +
-                "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css'>" +
-                "<script src='https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.js'>" +
-                "</script>" +
-                "<script src='https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/contrib/auto-render.min.js'>" +
-                "</script>" +
-                "<style>" +
-                "@page { size: A4; margin: 2cm; @bottom-center { content: counter(page); font-size: 9pt; font-family: 'Times New Roman',serif; } }" +
-                "body { font-family: 'SimSun','Times New Roman',serif; font-size: 12pt; line-height: 1.8; color: #000; margin: 0; padding: 0; }" +
-                ".sheet-header { font-family: 'SimHei','Arial Black',sans-serif; font-size: 22pt; text-align: center; margin: 0 0 6px; font-weight: bold; letter-spacing: 3px; }" +
-                ".sheet-sub { text-align: center; font-size: 10.5pt; color: #444; margin-bottom: 24px; border-bottom: 2px solid #222; padding-bottom: 12px; }" +
-                "h2 { font-family: 'SimHei','Arial Black',sans-serif; font-size: 14pt; margin: 20px 0 10px; padding-bottom: 4px; border-bottom: 1px solid #ccc; page-break-after: avoid; }" +
-                "h3 { font-family: 'SimHei','Arial Black',sans-serif; font-size: 12pt; margin: 14px 0 6px; page-break-after: avoid; }" +
-                "p { margin: 4px 0; text-align: justify; }" +
-                ".q { page-break-inside: avoid; margin-bottom: 18px; }" +
-                ".q-body { margin-bottom: 4px; }" +
-                ".opts { padding-left: 28px; }" +
-                ".opt { margin: 1px 0; }" +
-                "pre { background: #f5f5f5; padding: 10px; border: 1px solid #ddd; font-size: 10pt; white-space: pre-wrap; }" +
-                "code { font-size: 10pt; font-family: 'Courier New',monospace; }" +
-                "table { border-collapse: collapse; width: 100%; margin: 10px 0; }" +
-                "th,td { border: 1px solid #222; padding: 5px 8px; text-align: left; font-size: 11pt; }" +
-                "th { background: #ececec; font-family: 'SimHei',sans-serif; }" +
-                "blockquote { border-left: 3px solid #888; padding-left: 12px; margin: 8px 0; color: #444; }" +
-                "ul,ol { margin: 4px 0; padding-left: 28px; }" +
-                "li { margin: 2px 0; }" +
-                "hr { border: none; border-top: 1px solid #ccc; margin: 16px 0; }" +
-                ".katex { font-size: 1.1em; }" +
-                ".katex-display { margin: 6px 0; }" +
-                (includeAnswerKey ?
-                ".ak { page-break-before: always; }" +
-                ".ak-t { font-family: 'SimHei','Arial Black',sans-serif; font-size: 16pt; text-align: center; margin: 0 0 20px; letter-spacing: 2px; }" +
-                ".ak .q { border-bottom: 1px dashed #ccc; padding-bottom: 10px; }" : "") +
-                "</style></head><body>" +
-                "<div class='sheet-header'>智能组卷</div>" +
-                "<div class='sheet-sub'>AI 生成试卷 &nbsp;·&nbsp; 共若干题 &nbsp;·&nbsp; 满分 100 分</div>" +
-                "<div id='content'></div>" +
-                "<script>marked.setOptions({breaks:true,gfm:true,headerIds:false,mangle:false});" +
-                "function r(){var c=document.getElementById('content');" +
-                "c.innerHTML=marked.parse(contentStr);" +
-                "renderMathInElement(c,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\\\(',right:'\\\\)',display:false},{left:'\\\\[',right:'\\\\]',display:true}],throwOnError:false,trust:true});}" +
-                "var contentStr='" + escaped + "';" +
-                "if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',r);else r();" +
-                "</script></body></html>";
+    private String buildExamHtml(String body, String answerKey) {
+        String bodyEsc = escapeJsString(body);
+        boolean hasAk = answerKey != null && !answerKey.isEmpty();
+        String akEsc = hasAk ? escapeJsString(answerKey) : "";
+
+        return "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+                + "<script src='file:///android_asset/libs/marked.min.js'></script>"
+                + "<link rel='stylesheet' href='file:///android_asset/libs/katex.min.css'>"
+                + "<script src='file:///android_asset/libs/katex.min.js'></script>"
+                + "<script src='file:///android_asset/libs/auto-render.min.js'></script>"
+                + "<style>"
+                + "@page{size:A4;margin:2cm}"
+                + "body{font-family:'SimSun','Times New Roman',serif;font-size:12pt;line-height:1.8;color:#000;background:#fff;margin:0;padding:0}"
+                + ".header{font-family:'SimHei',sans-serif;font-size:22pt;text-align:center;font-weight:bold;letter-spacing:3px;margin:0 0 6px}"
+                + ".sub{text-align:center;font-size:10pt;color:#444;margin-bottom:24px;border-bottom:2px solid #222;padding-bottom:12px}"
+                + "h2{font-family:'SimHei',sans-serif;font-size:14pt;margin:20px 0 10px;page-break-after:avoid}"
+                + "h3{font-family:'SimHei',sans-serif;font-size:12pt;margin:14px 0 6px;page-break-after:avoid}"
+                + "p{margin:4px 0;text-align:justify}"
+                + ".qb{margin-bottom:18px;page-break-inside:avoid}"
+                + "pre{background:#f5f5f5;padding:10px;border:1px solid #ddd;font-size:10pt;white-space:pre-wrap}"
+                + "table{border-collapse:collapse;width:100%;margin:10px 0}"
+                + "th,td{border:1px solid #222;padding:5px 8px;font-size:11pt}"
+                + "th{background:#ececec;font-family:'SimHei',sans-serif}"
+                + "blockquote{border-left:3px solid #888;padding-left:12px;margin:8px 0;color:#444}"
+                + "ul,ol{margin:4px 0;padding-left:28px}li{margin:2px 0}"
+                + "hr{border:none;border-top:1px solid #ccc;margin:16px 0}"
+                + ".katex{font-size:1.1em}.katex-display{margin:6px 0}"
+                + (hasAk ? ".ak-section{page-break-before:always}" : "")
+                + "</style></head><body>"
+                + "<div class='header'>智能组卷</div>"
+                + "<div class='sub'>AI 生成试卷 · 满分 100 分</div>"
+                + "<div id='body-content'></div>"
+                + (hasAk ? "<div id='ak-content' class='ak-section'></div>" : "")
+                + "<script>marked.setOptions({breaks:true,gfm:true,headerIds:false,mangle:false});"
+                + "function renderDiv(id,txt){var d=document.getElementById(id);d.innerHTML=marked.parse(txt);"
+                + "renderMathInElement(d,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false,trust:true});}"
+                + "renderDiv('body-content','" + bodyEsc + "');"
+                + (hasAk ? "renderDiv('ak-content','" + akEsc + "');" : "")
+                + "</script></body></html>";
     }
 
     private void sendPrompt() {
