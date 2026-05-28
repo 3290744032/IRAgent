@@ -2,7 +2,7 @@
 
 > **项目**：以个人知识库为中心的 AI 备考平台
 > **技术栈**：Java 11, MVVM, Navigation Components, Retrofit 2, OkHttp 4, Material 1.13, Coil, MPAndroidChart
-> **最后更新**：2026-05-28
+> **最后更新**：2026-05-28（V3 最终版）
 
 ---
 

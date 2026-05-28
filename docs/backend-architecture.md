@@ -2,7 +2,7 @@
 
 > **项目**：以个人知识库为中心的 AI 备考平台
 > **技术栈**：Java 21 + Spring Boot 3.4.6 + MyBatis-Plus + PostgreSQL 16 + Redis 7.2 + Milvus 2.4 + RocketMQ 5.x
-> **最后更新**：2026-05-28
+> **最后更新**：2026-05-28（V3 最终版）
 
 ---
 
