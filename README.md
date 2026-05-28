@@ -308,6 +308,77 @@ WebView 加载 CDN 资源有两个致命问题：国内网络访问 jsdelivr/cdn
 
 ---
 
+## 🖼️ 系统截图
+
+### 首页 & 注册
+<p align="center">
+  <img src="docs/images/screenshots/1.1.首页.jpg" width="30%" alt="首页">
+  &nbsp;
+  <img src="docs/images/screenshots/1.2.注册.jpg" width="30%" alt="注册">
+  &nbsp;
+  <img src="docs/images/screenshots/2.引导界面.jpg" width="30%" alt="引导界面">
+</p>
+
+### 知识库 — 笔记上传 & 详情
+<p align="center">
+  <img src="docs/images/screenshots/3.1.知识库.jpg" width="30%" alt="知识库">
+  &nbsp;
+  <img src="docs/images/screenshots/3.2.知识库上传.jpg" width="30%" alt="上传">
+  &nbsp;
+  <img src="docs/images/screenshots/3.3.笔记.jpg" width="30%" alt="笔记详情">
+</p>
+
+### 答疑 — 流式对话 · 函数图像 · RAG 笔记锚定
+<p align="center">
+  <img src="docs/images/screenshots/4.1.1.答疑.jpg" width="30%" alt="答疑">
+  &nbsp;
+  <img src="docs/images/screenshots/4.1.2.答疑解答.jpg" width="30%" alt="解答">
+  &nbsp;
+  <img src="docs/images/screenshots/4.1.3.函数图像+RAG.jpg" width="30%" alt="函数图像+RAG">
+</p>
+
+### 深度学习 & 视频讲解
+<p align="center">
+  <img src="docs/images/screenshots/4.2.深度解答界面.jpg" width="45%" alt="深度学习">
+  &nbsp;
+  <img src="docs/images/screenshots/4.3.1视频解答.jpg" width="45%" alt="视频讲解">
+</p>
+
+### 刷题 — 每日一练 & 真题库
+<p align="center">
+  <img src="docs/images/screenshots/5.1.刷题界面.jpg" width="45%" alt="刷题">
+  &nbsp;
+  <img src="docs/images/screenshots/5.4刷题界面.jpg" width="45%" alt="每日一练">
+</p>
+
+### 试卷批改 — 拍照上传 → 4 步 SSE → 批改报告
+<p align="center">
+  <img src="docs/images/screenshots/5.2.1.试卷批改界面.jpg" width="23%" alt="批改界面">
+  <img src="docs/images/screenshots/5.2.2.上传图片界面.jpg" width="23%" alt="上传图片">
+  <img src="docs/images/screenshots/5.2.3.批改过程界面.jpg" width="23%" alt="批改进度">
+  <img src="docs/images/screenshots/5.2.4.批改结果界面.jpg" width="23%" alt="批改结果">
+</p>
+
+### 智能组卷 — AI 流式生成 → 在线答题 → PDF 导出
+<p align="center">
+  <img src="docs/images/screenshots/5.3.1.智能组卷界面.jpg" width="23%" alt="组卷界面">
+  <img src="docs/images/screenshots/5.3.2.智能组卷演示1.jpg" width="23%" alt="演示1">
+  <img src="docs/images/screenshots/5.3.3.智能组卷演示2.jpg" width="23%" alt="演示2">
+  <img src="docs/images/screenshots/5.3.4.智能组卷演示3.jpg" width="23%" alt="演示3">
+  <img src="docs/images/screenshots/5.3.5.智能组卷导出PDF.jpg" width="23%" alt="导出PDF">
+  <img src="docs/images/screenshots/5.3.6.智能组卷PDF保存界面.jpg" width="23%" alt="PDF保存">
+  <img src="docs/images/screenshots/5.3.7.智能组卷PDF成果.jpg" width="23%" alt="PDF成果">
+</p>
+
+### 错题本 — 列表 & AI 三维诊断
+<p align="center">
+  <img src="docs/images/screenshots/6.1.错题本.jpg" width="45%" alt="错题本">
+  &nbsp;
+  <img src="docs/images/screenshots/6.2.错题本诊断界面.jpg" width="45%" alt="错题诊断">
+</p>
+
+---
+
 ## ⚡ 快速开始
 
 ```bash
