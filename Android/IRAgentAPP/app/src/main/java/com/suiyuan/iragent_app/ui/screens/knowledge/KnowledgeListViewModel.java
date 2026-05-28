@@ -6,6 +6,8 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.MutableLiveData;
 
+import java.util.Map;
+
 import com.suiyuan.iragent_app.data.model.v3.NoteFragment;
 import com.suiyuan.iragent_app.data.model.v3.NoteItem;
 import com.suiyuan.iragent_app.data.model.v3.UploadResult;

@@ -241,16 +241,19 @@ public class KnowledgeListFragment extends Fragment {
         // 加载 HTML 模板
         kgWebView.loadUrl("file:///android_asset/knowledge_graph.html");
 
-        // 监听图谱数据并注入 WebView
+        // 监听图谱数据并注入 WebView（Base64 中转，杜绝 JSON 转义问题）
         viewModel.getGraphData().observe(getViewLifecycleOwner(), data -> {
             if (data != null) {
                 try {
                     String json = new com.google.gson.Gson().toJson(data);
-                    String escaped = json.replace("\\", "\\\\").replace("'", "\\'")
-                            .replace("\n", "\\n").replace("\r", "\\r");
+                    String b64 = android.util.Base64.encodeToString(
+                            json.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                            android.util.Base64.NO_WRAP);
                     kgWebView.evaluateJavascript(
-                            "if(typeof renderGraph==='function')renderGraph('" + escaped + "')", null);
-                } catch (Exception ignored) {}
+                            "renderFromBase64('" + b64 + "')", null);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         });
 

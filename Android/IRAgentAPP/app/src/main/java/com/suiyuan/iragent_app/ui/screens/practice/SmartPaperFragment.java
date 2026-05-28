@@ -22,6 +22,7 @@ import com.suiyuan.iragent_app.R;
 
 import io.noties.markwon.Markwon;
 import io.noties.markwon.ext.latex.JLatexMathPlugin;
+import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin;
 import com.suiyuan.iragent_app.data.model.v3.PracticeQuestion;
 import com.suiyuan.iragent_app.data.model.v3.SmartPaper;
 import com.suiyuan.iragent_app.data.model.v3.SubmitAnswerResult;
@@ -64,6 +65,7 @@ public class SmartPaperFragment extends Fragment {
 
         float mathTextSize = getResources().getDisplayMetrics().scaledDensity * 15f;
         markwon = Markwon.builder(requireContext())
+                .usePlugin(MarkwonInlineParserPlugin.create())
                 .usePlugin(JLatexMathPlugin.create(mathTextSize, config -> {
                     config.inlinesEnabled(true);
                 }))
