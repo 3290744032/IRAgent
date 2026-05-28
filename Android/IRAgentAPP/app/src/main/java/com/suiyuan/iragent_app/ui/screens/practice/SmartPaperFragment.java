@@ -22,6 +22,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -54,6 +55,9 @@ public class SmartPaperFragment extends Fragment {
     private String mMathTemplate;
     private boolean mWebViewReady;
     private String mLastRenderedText = "";
+    private boolean isPdfPreviewMode;
+    private int savedStartQuizVisibility = View.GONE;
+    private int savedAnswerKeyVisibility = View.GONE;
 
     private static final String ARG_SUBJECT = "subject";
 
@@ -167,7 +171,13 @@ public class SmartPaperFragment extends Fragment {
                 getActivity().getSupportFragmentManager().popBackStack();
             }
         });
-        btnPdf.setOnClickListener(v -> generatePdf());
+        btnPdf.setOnClickListener(v -> {
+            if (!isPdfPreviewMode) {
+                previewPdf();
+            } else {
+                sharePdf();
+            }
+        });
         btnStartQuiz.setOnClickListener(v -> {
             SmartPaper paper = viewModel.getStreamedPaper();
             if (paper != null && paper.getQuestions() != null && !paper.getQuestions().isEmpty()) {
@@ -189,86 +199,144 @@ public class SmartPaperFragment extends Fragment {
         });
     }
 
-    private void generatePdf() {
-        String body = viewModel.getPaperBodyContent();
-        if (body == null || body.isEmpty()) {
-            Toast.makeText(getContext(), "没有可导出的内容", Toast.LENGTH_LONG).show();
+    private String buildPdfContent() {
+        if (viewModel.hasAnswerKey() && viewModel.getAnswerKeyContent() != null) {
+            return viewModel.getPaperBodyContent()
+                    + "\n\n<div class='page-break'>&nbsp;</div>\n\n# 参考答案\n\n"
+                    + viewModel.getAnswerKeyContent();
+        }
+        return viewModel.getPaperBodyContent();
+    }
+
+    private void previewPdf() {
+        String content = buildPdfContent();
+        if (content == null || content.isEmpty()) {
+            Toast.makeText(getContext(), "没有可导出的内容", Toast.LENGTH_SHORT).show();
             return;
         }
-        String answerKey = viewModel.hasAnswerKey() ? viewModel.getAnswerKeyContent() : null;
-        String html = buildExamHtml(body, answerKey);
+        String html = buildExamHtml(content);
+        wvStreamContent.loadDataWithBaseURL("https://cdn.jsdelivr.net", html,
+                "text/html", "UTF-8", null);
+        wvStreamContent.setVisibility(View.VISIBLE);
+        tvStreamLabel.setText("预览模式 — 点击下方「分享 PDF」导出");
 
-        Toast.makeText(getContext(), "请在打印对话框中选择\"保存为 PDF\"", Toast.LENGTH_LONG).show();
+        isPdfPreviewMode = true;
+        btnPdf.setText("分享 PDF");
+        savedStartQuizVisibility = btnStartQuiz.getVisibility();
+        savedAnswerKeyVisibility = btnAnswerKey.getVisibility();
+        btnStartQuiz.setVisibility(View.GONE);
+        btnAnswerKey.setVisibility(View.GONE);
+        View bottomBar = getView().findViewById(R.id.bottom_input_container);
+        if (bottomBar != null) bottomBar.setVisibility(View.GONE);
+    }
 
-        int sw = getResources().getDisplayMetrics().widthPixels;
-        WebView wv = new WebView(requireContext());
-        wv.getSettings().setJavaScriptEnabled(true);
-        wv.getSettings().setDomStorageEnabled(true);
-        wv.getSettings().setLoadWithOverviewMode(true);
-        wv.getSettings().setUseWideViewPort(true);
+    private void sharePdf() {
+        String content = buildPdfContent();
+        if (content == null || content.isEmpty()) return;
+
+        String html = buildExamHtml(content);
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("导出 PDF")
+                .setMessage("系统将打开打印界面，请选择「保存为 PDF」即可导出印刷级试卷文件。")
+                .setPositiveButton("确定", (dialog, which) -> startPdfPrint(html))
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void startPdfPrint(String html) {
+        Toast.makeText(getContext(), "正在生成 PDF...", Toast.LENGTH_SHORT).show();
+
+        WebView printView = new WebView(requireContext());
+        printView.setBackgroundColor(Color.WHITE);
+        WebSettings ws = printView.getSettings();
+        ws.setJavaScriptEnabled(true);
+        ws.setDomStorageEnabled(true);
+        ws.setAllowFileAccess(false);
+        ws.setAllowContentAccess(false);
+        printView.setVisibility(View.GONE);
 
         ViewGroup root = (ViewGroup) requireView().getRootView();
-        root.addView(wv, new ViewGroup.LayoutParams(sw, ViewGroup.LayoutParams.WRAP_CONTENT));
+        root.addView(printView, new ViewGroup.LayoutParams(1, 1));
 
-        wv.setWebViewClient(new WebViewClient() {
+        printView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
-                view.postDelayed(() -> {
-                    PrintAttributes attrs = new PrintAttributes.Builder()
-                            .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
-                            .setColorMode(PrintAttributes.COLOR_MODE_COLOR)
-                            .setMinMargins(new PrintAttributes.Margins(300, 300, 300, 300))
-                            .build();
-                    PrintManager pm = (PrintManager) requireContext()
-                            .getSystemService(android.content.Context.PRINT_SERVICE);
-                    pm.print("IRAgent 智能组卷",
-                            view.createPrintDocumentAdapter("IRAgent_SmartPaper"), attrs);
-                }, 1500);
+                PrintManager pm = (PrintManager) requireContext()
+                        .getSystemService(Context.PRINT_SERVICE);
+                PrintAttributes attrs = new PrintAttributes.Builder()
+                        .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                        .setColorMode(PrintAttributes.COLOR_MODE_COLOR)
+                        .build();
+                pm.print("智能组卷",
+                        printView.createPrintDocumentAdapter("SmartPaper"),
+                        attrs);
+
+                isPdfPreviewMode = false;
+                btnPdf.setText("预览 PDF");
+                btnStartQuiz.setVisibility(savedStartQuizVisibility);
+                btnAnswerKey.setVisibility(savedAnswerKeyVisibility);
+                tvStreamLabel.setText("生成完成");
+                View bottomBar = getView().findViewById(R.id.bottom_input_container);
+                if (bottomBar != null) bottomBar.setVisibility(View.VISIBLE);
+
+                String orig = Boolean.TRUE.equals(viewModel.getAnswerKeyVisible().getValue())
+                        ? viewModel.getFullContent()
+                        : viewModel.getPaperBodyContent();
+                if (orig != null) renderInWebView(orig);
             }
         });
 
-        wv.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
+        printView.loadDataWithBaseURL("https://cdn.jsdelivr.net", html,
+                "text/html", "UTF-8", null);
     }
 
-    private String buildExamHtml(String body, String answerKey) {
-        String bodyEsc = escapeJsString(body);
-        boolean hasAk = answerKey != null && !answerKey.isEmpty();
-        String akEsc = hasAk ? escapeJsString(answerKey) : "";
-
-        return "<!DOCTYPE html><html><head><meta charset='utf-8'>"
-                + "<script src='file:///android_asset/libs/marked.min.js'></script>"
-                + "<link rel='stylesheet' href='file:///android_asset/libs/katex.min.css'>"
-                + "<script src='file:///android_asset/libs/katex.min.js'></script>"
-                + "<script src='file:///android_asset/libs/auto-render.min.js'></script>"
-                + "<style>"
-                + "@page{size:A4;margin:2cm}"
-                + "body{font-family:'SimSun','Times New Roman',serif;font-size:12pt;line-height:1.8;color:#000;background:#fff;margin:0;padding:0}"
-                + ".header{font-family:'SimHei',sans-serif;font-size:22pt;text-align:center;font-weight:bold;letter-spacing:3px;margin:0 0 6px}"
-                + ".sub{text-align:center;font-size:10pt;color:#444;margin-bottom:24px;border-bottom:2px solid #222;padding-bottom:12px}"
-                + "h2{font-family:'SimHei',sans-serif;font-size:14pt;margin:20px 0 10px;page-break-after:avoid}"
-                + "h3{font-family:'SimHei',sans-serif;font-size:12pt;margin:14px 0 6px;page-break-after:avoid}"
-                + "p{margin:4px 0;text-align:justify}"
-                + ".qb{margin-bottom:18px;page-break-inside:avoid}"
-                + "pre{background:#f5f5f5;padding:10px;border:1px solid #ddd;font-size:10pt;white-space:pre-wrap}"
-                + "table{border-collapse:collapse;width:100%;margin:10px 0}"
-                + "th,td{border:1px solid #222;padding:5px 8px;font-size:11pt}"
-                + "th{background:#ececec;font-family:'SimHei',sans-serif}"
-                + "blockquote{border-left:3px solid #888;padding-left:12px;margin:8px 0;color:#444}"
-                + "ul,ol{margin:4px 0;padding-left:28px}li{margin:2px 0}"
-                + "hr{border:none;border-top:1px solid #ccc;margin:16px 0}"
-                + ".katex{font-size:1.1em}.katex-display{margin:6px 0}"
-                + (hasAk ? ".ak-section{page-break-before:always}" : "")
-                + "</style></head><body>"
-                + "<div class='header'>智能组卷</div>"
-                + "<div class='sub'>AI 生成试卷 · 满分 100 分</div>"
-                + "<div id='body-content'></div>"
-                + (hasAk ? "<div id='ak-content' class='ak-section'></div>" : "")
-                + "<script>marked.setOptions({breaks:true,gfm:true,headerIds:false,mangle:false});"
-                + "function renderDiv(id,txt){var d=document.getElementById(id);d.innerHTML=marked.parse(txt);"
-                + "renderMathInElement(d,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false,trust:true});}"
-                + "renderDiv('body-content','" + bodyEsc + "');"
-                + (hasAk ? "renderDiv('ak-content','" + akEsc + "');" : "")
-                + "</script></body></html>";
+    private String buildExamHtml(String content) {
+        String escaped = escapeJsString(content);
+        return "<!DOCTYPE html><html><head><meta charset='utf-8'>" +
+                "<script src='https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js'>" +
+                "</script>" +
+                "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css'>" +
+                "<script src='https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.js'>" +
+                "</script>" +
+                "<script src='https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/contrib/auto-render.min.js'>" +
+                "</script>" +
+                "<style>" +
+                "@media print { @page { size: A4; margin: 2.5cm 2cm 2.5cm 2cm; } body { font-family: 'SimSun','STSong',serif; color: #000; background: #fff; } }" +
+                "body { font-family: 'SimSun','STSong',serif; font-size: 12pt; line-height: 1.6; color: #000; background: #fff; padding: 10px; margin: 0; }" +
+                ".sheet-header { font-family: 'SimHei','STHeiti',sans-serif; font-size: 24pt; text-align: center; margin: 0 0 10px; font-weight: bold; letter-spacing: 4px; }" +
+                ".sheet-sub { text-align: center; font-size: 11pt; color: #333; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 8px; }" +
+                "h1 { font-family: 'SimHei','STHeiti',sans-serif; font-size: 16pt; text-align: center; margin: 0 0 20px; letter-spacing: 2px; }" +
+                "h2 { font-family: 'SimHei','STHeiti',sans-serif; font-size: 14pt; margin: 25px 0 12px; padding-bottom: 4px; border-bottom: 1px solid #ccc; page-break-after: avoid; }" +
+                "h3 { font-family: 'SimHei','STHeiti',sans-serif; font-size: 12pt; margin: 14px 0 6px; page-break-after: avoid; }" +
+                "p { margin: 4px 0; text-align: justify; }" +
+                ".q { page-break-inside: avoid !important; margin-bottom: 20px; }" +
+                ".q-body { margin-bottom: 4px; }" +
+                ".opts { padding-left: 20px; display: block; }" +
+                ".opt { margin: 4px 0; display: block; }" +
+                "pre { background: #f5f5f5; padding: 10px; border: 1px solid #ddd; font-size: 10pt; white-space: pre-wrap; }" +
+                "code { font-size: 10pt; font-family: 'Courier New',monospace; }" +
+                "table { border-collapse: collapse; width: 100%; margin: 10px 0; }" +
+                "th,td { border: 1px solid #222; padding: 5px 8px; text-align: left; font-size: 11pt; }" +
+                "th { background: #ececec; font-family: 'SimHei','STHeiti',sans-serif; }" +
+                "blockquote { border-left: 3px solid #888; padding-left: 12px; margin: 8px 0; color: #444; }" +
+                "ul,ol { margin: 4px 0; padding-left: 28px; }" +
+                "li { margin: 2px 0; }" +
+                "hr { border: none; border-top: 1px solid #ccc; margin: 16px 0; }" +
+                ".katex { font-size: 1.1em; }" +
+                ".katex-display { margin: 6px 0; }" +
+                ".page-break { page-break-before: always; height: 0; margin: 0; padding: 0; border: none; }" +
+                "</style></head><body>" +
+                "<div class='sheet-header'>智能组卷</div>" +
+                "<div class='sheet-sub'>AI 生成试卷 &nbsp;·&nbsp; 共若干题 &nbsp;·&nbsp; 满分 100 分</div>" +
+                "<div id='content'></div>" +
+                "<script>marked.setOptions({breaks:true,gfm:true,headerIds:false,mangle:false});" +
+                "function r(){var c=document.getElementById('content');" +
+                "c.innerHTML=marked.parse(contentStr);" +
+                "renderMathInElement(c,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\\\(',right:'\\\\)',display:false},{left:'\\\\[',right:'\\\\]',display:true}],throwOnError:false,trust:true});}" +
+                "var contentStr='" + escaped + "';" +
+                "if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',r);else r();" +
+                "</script></body></html>";
     }
 
     private void sendPrompt() {
@@ -313,15 +381,22 @@ public class SmartPaperFragment extends Fragment {
 
         viewModel.getPdfVisible().observe(getViewLifecycleOwner(), visible -> {
             if (visible != null) {
+                if (visible) {
+                    isPdfPreviewMode = false;
+                    btnPdf.setText("预览 PDF");
+                    View bottomBar = getView().findViewById(R.id.bottom_input_container);
+                    if (bottomBar != null) bottomBar.setVisibility(View.VISIBLE);
+                }
                 btnPdf.setVisibility(visible ? View.VISIBLE : View.GONE);
                 btnStartQuiz.setVisibility(visible && viewModel.getStreamedPaper() != null
-                        ? View.VISIBLE : View.GONE);
+                        && !isPdfPreviewMode ? View.VISIBLE : View.GONE);
                 btnAnswerKey.setVisibility(visible && viewModel.hasAnswerKey()
-                        ? View.VISIBLE : View.GONE);
+                        && !isPdfPreviewMode ? View.VISIBLE : View.GONE);
             }
         });
 
         viewModel.getAnswerKeyVisible().observe(getViewLifecycleOwner(), visible -> {
+            if (isPdfPreviewMode) return;
             if (visible != null && visible) {
                 String full = viewModel.getFullContent();
                 if (full != null) {

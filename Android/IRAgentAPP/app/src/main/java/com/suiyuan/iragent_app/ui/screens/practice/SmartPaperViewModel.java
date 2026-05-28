@@ -70,13 +70,13 @@ public class SmartPaperViewModel extends AndroidViewModel {
         if (fullContent == null) return null;
         return JSON_BLOCK.matcher(fullContent).replaceAll("").trim();
     }
+    public String getAnswerKeyContent() {
+        return answerKeyContent;
+    }
+
     public String getPaperBodyContent() {
         if (paperBodyContent == null) return null;
         return JSON_BLOCK.matcher(paperBodyContent).replaceAll("").trim();
-    }
-    public String getAnswerKeyContent() {
-        if (answerKeyContent == null) return null;
-        return JSON_BLOCK.matcher(answerKeyContent).replaceAll("").trim();
     }
 
     public void toggleAnswerKey() {
