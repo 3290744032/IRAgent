@@ -38,6 +38,7 @@ import com.suiyuan.iragent_app.R;
 import com.suiyuan.iragent_app.data.model.v3.NoteFragment;
 import com.suiyuan.iragent_app.data.model.v3.NoteItem;
 import com.suiyuan.iragent_app.data.model.v3.UploadResult;
+import com.suiyuan.iragent_app.config.SubjectConfig;
 
 import java.io.File;
 import java.io.IOException;
@@ -65,7 +66,7 @@ public class KnowledgeListFragment extends Fragment {
     private TextView tvUploadStep, tvUploadProgress;
     private ProgressBar pbUpload;
 
-    private static final List<String> SUBJECTS = Arrays.asList("全部", "数学", "物理", "化学", "英语", "政治", "历史");
+    private static final List<String> SUBJECTS = SubjectConfig.SUBJECTS_WITH_ALL;
 
     private String pendingNoteName;
     private Uri cameraPhotoUri;

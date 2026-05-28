@@ -28,6 +28,7 @@ import androidx.navigation.Navigation;
 
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.suiyuan.iragent_app.R;
+import com.suiyuan.iragent_app.config.SubjectConfig;
 import com.suiyuan.iragent_app.data.model.v3.DiagnosisJson;
 import com.suiyuan.iragent_app.data.model.v3.GradedQuestion;
 import com.suiyuan.iragent_app.data.model.v3.GradingReport;
@@ -215,7 +216,7 @@ public class PracticeHubFragment extends Fragment {
             iv.setVisibility(View.VISIBLE);
 
             tvGradingStatus.setText("豆包视觉批改中...");
-            viewModel.submitImageGrading(bytes, "数学", 100);
+            viewModel.submitImageGrading(bytes, SubjectConfig.DEFAULT_SUBJECT, 100);
         } catch (Exception e) {
             Toast.makeText(getContext(), "图片读取失败", Toast.LENGTH_SHORT).show();
         }

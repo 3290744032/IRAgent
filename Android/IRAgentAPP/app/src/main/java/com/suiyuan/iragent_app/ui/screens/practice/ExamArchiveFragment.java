@@ -25,6 +25,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.suiyuan.iragent_app.R;
+import com.suiyuan.iragent_app.config.SubjectConfig;
 import com.suiyuan.iragent_app.data.model.v3.ExamFilterData;
 import com.suiyuan.iragent_app.data.model.v3.ExamQuestion;
 
@@ -148,9 +149,7 @@ public class ExamArchiveFragment extends Fragment {
         layout.addView(tvHint);
 
         Spinner spSubj = new Spinner(requireContext());
-        List<String> subjList = new ArrayList<>();
-        subjList.add("数学"); subjList.add("物理"); subjList.add("化学");
-        subjList.add("英语"); subjList.add("政治"); subjList.add("历史");
+        List<String> subjList = new ArrayList<>(SubjectConfig.ALL_SUBJECTS);
         ArrayAdapter<String> subjAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item, subjList);
         subjAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);

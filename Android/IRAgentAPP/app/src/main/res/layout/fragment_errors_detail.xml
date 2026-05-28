@@ -1,14 +1,186 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8F9FA">
+    android:background="@color/background"
+    android:fillViewport="true">
 
     <LinearLayout
         android:id="@+id/root_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp" />
+        android:padding="16dp">
 
+        <!-- ===== 题目头部卡片 ===== -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="@color/error_light"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- 学科 · 知识点 -->
+                <TextView
+                    android:id="@+id/tv_subject_kp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary" />
+
+                <!-- 题目文本 -->
+                <TextView
+                    android:id="@+id/tv_question"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="16sp"
+                    android:textColor="@color/on_surface"
+                    android:textStyle="bold"
+                    android:lineSpacingExtra="6dp"
+                    android:paddingVertical="8dp" />
+
+                <!-- 答案区域 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="4dp">
+
+                    <!-- 你的答案 (错误) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="你的答案  "
+                            android:textSize="12sp"
+                            android:textColor="@color/text_tertiary" />
+
+                        <TextView
+                            android:id="@+id/tv_wrong_answer"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="14sp"
+                            android:textColor="@color/error"
+                            android:paddingEnd="4dp" />
+                    </LinearLayout>
+
+                    <!-- 正确答案 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingTop="4dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="正确答案  "
+                            android:textSize="12sp"
+                            android:textColor="@color/text_tertiary" />
+
+                        <TextView
+                            android:id="@+id/tv_correct_answer"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="14sp"
+                            android:textColor="@color/success"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ===== AI 诊断区域 (由Java动态填充) ===== -->
+        <TextView
+            android:id="@+id/tv_diagnosis_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="AI 三维诊断"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/on_surface"
+            android:paddingTop="20dp"
+            android:paddingBottom="8dp" />
+
+        <LinearLayout
+            android:id="@+id/ll_diagnosis_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <!-- ===== 同类题推荐区域 (由Java动态填充) ===== -->
+        <LinearLayout
+            android:id="@+id/ll_similar_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingTop="24dp"
+            android:paddingBottom="4dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="同类题推荐"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/on_surface" />
+
+            <!-- 加载动画 -->
+            <ProgressBar
+                android:id="@+id/pb_similar_loading"
+                style="?android:attr/progressBarStyleSmall"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:visibility="gone"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/tv_similar_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textColor="@color/text_tertiary" />
+        </LinearLayout>
+
+        <!-- 空状态 -->
+        <TextView
+            android:id="@+id/tv_similar_empty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="暂无同类题推荐"
+            android:textSize="13sp"
+            android:textColor="@color/text_tertiary"
+            android:gravity="center"
+            android:paddingVertical="24dp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/ll_similar_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="8dp" />
+
+        <!-- 底部占位 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="24dp" />
+    </LinearLayout>
 </ScrollView>

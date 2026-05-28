@@ -1,18 +1,14 @@
 package com.suiyuan.iragent_app.ui.screens.errors;
 
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.os.Bundle;
-import android.view.Gravity;
-
-import java.util.List;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.AlphaAnimation;
-import android.view.animation.Animation;
-import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,19 +18,27 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.Navigation;
 
-import com.google.android.material.bottomsheet.BottomSheetDialog;
-import com.google.android.material.snackbar.Snackbar;
+import com.google.android.material.button.MaterialButton;
 import com.suiyuan.iragent_app.R;
 import com.suiyuan.iragent_app.data.model.v3.DiagnosisItem;
 import com.suiyuan.iragent_app.data.model.v3.DiagnosisJson;
 import com.suiyuan.iragent_app.data.model.v3.ErrorDetail;
 import com.suiyuan.iragent_app.data.model.v3.SimilarQuestion;
 
+import java.util.List;
+
 public class ErrorsDetailFragment extends Fragment {
 
     private ErrorsDetailViewModel viewModel;
-    private LinearLayout rootLayout;
-    private Button btnMaster;
+    private LinearLayout rootContainer;
+    private LinearLayout llDiagnosis;
+    private LinearLayout llSimilarContainer;
+    private LinearLayout llSimilarHeader;
+    private ProgressBar pbSimilarLoading;
+    private TextView tvSimilarCount;
+    private TextView tvSimilarEmpty;
+    private MaterialButton btnMaster;
+    private MaterialButton btnSimilar;
 
     @Nullable
     @Override
@@ -47,42 +51,48 @@ public class ErrorsDetailFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        rootLayout = view.findViewById(R.id.root_container);
+        rootContainer = view.findViewById(R.id.root_container);
+        llDiagnosis = view.findViewById(R.id.ll_diagnosis_container);
+        llSimilarContainer = view.findViewById(R.id.ll_similar_container);
+        llSimilarHeader = view.findViewById(R.id.ll_similar_header);
+        pbSimilarLoading = view.findViewById(R.id.pb_similar_loading);
+        tvSimilarCount = view.findViewById(R.id.tv_similar_count);
+        tvSimilarEmpty = view.findViewById(R.id.tv_similar_empty);
+
         viewModel = new ViewModelProvider(this).get(ErrorsDetailViewModel.class);
 
-        viewModel.getErrorDetail().observe(getViewLifecycleOwner(), this::renderErrorDetail);
+        viewModel.getErrorDetail().observe(getViewLifecycleOwner(), detail -> {
+            if (detail != null) {
+                renderContent(detail);
+                // 自动加载同类题
+                viewModel.loadSimilarQuestions(detail.getId());
+            }
+        });
+
         viewModel.getMarkMasteredResult().observe(getViewLifecycleOwner(), result -> {
-            if (result != null) {
-                if (result) {
-                    btnMaster.setText("取消掌握");
-                    btnMaster.setEnabled(true);
-                    btnMaster.setBackgroundColor(Color.WHITE);
-                    btnMaster.setTextColor(getResources().getColor(R.color.primary_color, null));
-                    btnMaster.setAlpha(1f);
-                    Toast.makeText(getContext(), "已标记为已掌握", Toast.LENGTH_SHORT).show();
-                } else {
-                    btnMaster.setText("标记为已掌握");
-                    btnMaster.setEnabled(true);
-                    btnMaster.setBackgroundColor(Color.WHITE);
-                    btnMaster.setTextColor(getResources().getColor(R.color.primary_color, null));
-                    btnMaster.setAlpha(1f);
-                    Toast.makeText(getContext(), "已取消掌握，错题将重新进入复习队列", Toast.LENGTH_SHORT).show();
-                }
+            if (btnMaster == null) return;
+            if (result != null && result) {
+                updateMasteredButton(true);
+                Toast.makeText(getContext(), "已标记为已掌握", Toast.LENGTH_SHORT).show();
+            } else if (result != null) {
+                updateMasteredButton(false);
+                Toast.makeText(getContext(), "已取消掌握", Toast.LENGTH_SHORT).show();
             }
         });
+
         viewModel.getSimilarQuestions().observe(getViewLifecycleOwner(), questions -> {
+            pbSimilarLoading.setVisibility(View.GONE);
             if (questions != null && !questions.isEmpty()) {
-                showSimilarQuestionsSheet(questions);
+                renderSimilarQuestions(questions);
+            } else {
+                tvSimilarEmpty.setVisibility(View.VISIBLE);
+                tvSimilarCount.setVisibility(View.GONE);
             }
         });
+
         viewModel.getError().observe(getViewLifecycleOwner(), error -> {
             if (error != null) {
-                Snackbar.make(view, error, Snackbar.LENGTH_LONG)
-                        .setAction("重试", v -> {
-                            String eid = getArguments() != null ? getArguments().getString("error_id", "") : "";
-                            if (!eid.isEmpty()) viewModel.loadErrorDetail(eid);
-                        })
-                        .show();
+                Toast.makeText(getContext(), error, Toast.LENGTH_LONG).show();
             }
         });
 
@@ -92,97 +102,143 @@ public class ErrorsDetailFragment extends Fragment {
         }
     }
 
-    private void renderErrorDetail(ErrorDetail detail) {
-        rootLayout.removeAllViews();
+    // ==================== 渲染内容 ====================
+
+    private void renderContent(ErrorDetail detail) {
         if (detail == null) return;
 
-        // Question header
-        LinearLayout header = new LinearLayout(requireContext());
-        header.setOrientation(LinearLayout.VERTICAL);
-        header.setBackgroundColor(Color.parseColor("#FEF2F2"));
-        header.setPadding(16, 16, 16, 16);
-        int margin = (int)(8 * getResources().getDisplayMetrics().density);
+        // 题目头部
+        TextView tvSubjectKp = requireView().findViewById(R.id.tv_subject_kp);
+        tvSubjectKp.setText(detail.getSubject() + " · " + detail.getKnowledgePoint());
 
-        TextView tvSubject = new TextView(requireContext());
-        tvSubject.setText(detail.getSubject() + " · " + detail.getKnowledgePoint());
-        tvSubject.setTextSize(12);
-        tvSubject.setTextColor(getResources().getColor(R.color.gray_text, null));
-        header.addView(tvSubject);
-
-        TextView tvQuestion = new TextView(requireContext());
+        TextView tvQuestion = requireView().findViewById(R.id.tv_question);
         tvQuestion.setText(detail.getQuestionText());
-        tvQuestion.setTextSize(16);
-        tvQuestion.setTextColor(getResources().getColor(R.color.on_surface, null));
-        tvQuestion.setTypeface(Typeface.DEFAULT_BOLD);
-        tvQuestion.setPadding(0, 8, 0, 12);
-        tvQuestion.setLineSpacing(4, 1f);
-        header.addView(tvQuestion);
 
-        LinearLayout answers = new LinearLayout(requireContext());
-        answers.setOrientation(LinearLayout.VERTICAL);
+        TextView tvWrong = requireView().findViewById(R.id.tv_wrong_answer);
+        tvWrong.setText(detail.getStudentAnswer());
+        tvWrong.setPaintFlags(tvWrong.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
 
-        LinearLayout wrongRow = new LinearLayout(requireContext());
-        wrongRow.setOrientation(LinearLayout.HORIZONTAL);
-        TextView wrongLabel = new TextView(requireContext());
-        wrongLabel.setText("你的答案  ");
-        wrongLabel.setTextSize(12);
-        wrongLabel.setTextColor(getResources().getColor(R.color.text_tertiary, null));
-        wrongRow.addView(wrongLabel);
-        TextView wrongVal = new TextView(requireContext());
-        wrongVal.setText(detail.getStudentAnswer());
-        wrongVal.setTextSize(14);
-        wrongVal.setTextColor(Color.parseColor("#EF4444"));
-        wrongVal.setPaintFlags(wrongVal.getPaintFlags() | android.graphics.Paint.STRIKE_THRU_TEXT_FLAG);
-        wrongRow.addView(wrongVal);
-        answers.addView(wrongRow);
+        TextView tvCorrect = requireView().findViewById(R.id.tv_correct_answer);
+        tvCorrect.setText(detail.getCorrectAnswer());
 
-        LinearLayout correctRow = new LinearLayout(requireContext());
-        correctRow.setOrientation(LinearLayout.HORIZONTAL);
-        correctRow.setPadding(0, 4, 0, 0);
-        TextView correctLabel = new TextView(requireContext());
-        correctLabel.setText("正确答案  ");
-        correctLabel.setTextSize(12);
-        correctLabel.setTextColor(getResources().getColor(R.color.text_tertiary, null));
-        correctRow.addView(correctLabel);
-        TextView correctVal = new TextView(requireContext());
-        correctVal.setText(detail.getCorrectAnswer());
-        correctVal.setTextSize(14);
-        correctVal.setTextColor(Color.parseColor("#10B981"));
-        correctVal.setTypeface(Typeface.DEFAULT_BOLD);
-        correctRow.addView(correctVal);
-        answers.addView(correctRow);
-
-        header.addView(answers);
-        rootLayout.addView(header);
-
-        // Three-way diagnosis
+        // 诊断卡片
+        llDiagnosis.removeAllViews();
         if (detail.getDiagnosis() != null) {
-            addSectionTitle("AI 三维诊断");
-
             DiagnosisJson d = detail.getDiagnosis();
-            addDiagnosisCard("考点漏缺", d.getPrerequisiteCheck(),
-                    Color.parseColor("#3B82F6"), "📚", detail.getId());
-            addDiagnosisCard("公式混淆", d.getFormulaConfusion(),
-                    Color.parseColor("#8B5CF6"), "📐", detail.getId());
-            addDiagnosisCard("计算失误", d.getCalculationError(),
-                    Color.parseColor("#F59E0B"), "🔢", detail.getId());
+            addDiagnosisCard("📚 考点漏缺", d.getPrerequisiteCheck(),
+                    Color.parseColor("#3B82F6"), detail.getId());
+            addDiagnosisCard("📐 公式混淆", d.getFormulaConfusion(),
+                    Color.parseColor("#8B5CF6"), detail.getId());
+            addDiagnosisCard("🔢 计算失误", d.getCalculationError(),
+                    Color.parseColor("#F59E0B"), detail.getId());
         }
 
-        // Action buttons
-        LinearLayout actions = new LinearLayout(requireContext());
-        actions.setOrientation(LinearLayout.HORIZONTAL);
-        actions.setPadding(0, 24, 0, 0);
+        // 操作按钮（在 XML 布局末尾动态添加）
+        addActionButtons(detail);
+    }
 
-        btnMaster = new Button(requireContext());
-        btnMaster.setBackgroundColor(Color.WHITE);
-        btnMaster.setTextColor(getResources().getColor(R.color.primary_color, null));
-        if (detail.isMastered()) {
-            btnMaster.setText("取消掌握");
-            btnMaster.setOnClickListener(v -> viewModel.unmarkMastered(detail.getId()));
+    private void updateMasteredButton(boolean mastered) {
+        if (mastered) {
+            btnMaster.setText("✓ 已掌握");
+            btnMaster.setStrokeColorResource(R.color.success);
+            btnMaster.setTextColor(getResources().getColor(R.color.success, null));
         } else {
             btnMaster.setText("标记为已掌握");
+            btnMaster.setStrokeColorResource(R.color.primary_color);
+            btnMaster.setTextColor(getResources().getColor(R.color.primary_color, null));
+        }
+    }
+
+    private void addDiagnosisCard(String title, DiagnosisItem item, int accentColor, String questionId) {
+        if (item == null || item.getAnalysis() == null || item.getAnalysis().isEmpty()) return;
+
+        LinearLayout card = new LinearLayout(requireContext());
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setBackgroundColor(Color.WHITE);
+        int pd = dp(14);
+        card.setPadding(pd, pd, pd, pd);
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cp.setMargins(dp(4), 0, dp(4), dp(8));
+        card.setLayoutParams(cp);
+
+        // 左侧色条
+        View accent = new View(requireContext());
+        accent.setLayoutParams(new LinearLayout.LayoutParams(dp(4),
+                ViewGroup.LayoutParams.MATCH_PARENT));
+        accent.setBackgroundColor(accentColor);
+        card.addView(accent);
+
+        // 内容
+        LinearLayout content = new LinearLayout(requireContext());
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(12), 0, 0, 0);
+        content.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView tvTitle = new TextView(requireContext());
+        tvTitle.setText(title);
+        tvTitle.setTextSize(14);
+        tvTitle.setTextColor(getResources().getColor(R.color.on_surface, null));
+        tvTitle.setTypeface(Typeface.DEFAULT_BOLD);
+        content.addView(tvTitle);
+
+        TextView tvBody = new TextView(requireContext());
+        tvBody.setText(item.getAnalysis());
+        tvBody.setTextSize(13);
+        tvBody.setTextColor(getResources().getColor(R.color.gray_text, null));
+        tvBody.setPadding(0, dp(6), 0, 0);
+        tvBody.setLineSpacing(dp(2), 1f);
+        content.addView(tvBody);
+
+        // 反馈按钮
+        MaterialButton btnFb = new MaterialButton(requireContext(), null,
+                com.google.android.material.R.attr.materialButtonTextStyle);
+        btnFb.setText("题目有误？");
+        btnFb.setTextSize(11);
+        btnFb.setTextColor(getResources().getColor(R.color.text_tertiary, null));
+        btnFb.setPadding(0, 0, 0, 0);
+        btnFb.setMinimumHeight(0);
+        LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        flp.setMargins(0, dp(6), 0, 0);
+        btnFb.setLayoutParams(flp);
+        btnFb.setOnClickListener(v -> {
+            btnFb.setVisibility(View.GONE);
+            viewModel.submitFeedback(questionId, "wrong_diagnosis", title);
+        });
+        content.addView(btnFb);
+
+        card.addView(content);
+        llDiagnosis.addView(card);
+    }
+
+    private void addActionButtons(ErrorDetail detail) {
+        // 移除旧按钮（重新渲染时避免重复）
+        int childCount = rootContainer.getChildCount();
+        for (int i = childCount - 1; i >= 0; i--) {
+            View child = rootContainer.getChildAt(i);
+            if (child.getTag() != null && "action_buttons".equals(child.getTag().toString())) {
+                rootContainer.removeView(child);
+            }
+        }
+
+        LinearLayout actions = new LinearLayout(requireContext());
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setPadding(0, 24, 0, 8);
+        actions.setTag("action_buttons");
+
+        btnMaster = new MaterialButton(requireContext(), null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        btnMaster.setCornerRadius(dp(24));
+        btnMaster.setStrokeWidth(dp(2));
+        if (detail.isMastered()) {
+            updateMasteredButton(true);
+            btnMaster.setOnClickListener(v -> viewModel.unmarkMastered(detail.getId()));
+        } else {
+            updateMasteredButton(false);
             btnMaster.setOnClickListener(v -> {
-                btnMaster.setAlpha(0.5f);
+                btnMaster.setEnabled(false);
                 viewModel.markMastered(detail.getId());
             });
         }
@@ -192,191 +248,116 @@ public class ErrorsDetailFragment extends Fragment {
         btnMaster.setLayoutParams(mp1);
         actions.addView(btnMaster);
 
-        Button btnSimilar = new Button(requireContext());
+        btnSimilar = new MaterialButton(requireContext());
         btnSimilar.setText("练同类题");
+        btnSimilar.setCornerRadius(24);
         btnSimilar.setBackgroundColor(getResources().getColor(R.color.primary_color, null));
         btnSimilar.setTextColor(Color.WHITE);
+        btnSimilar.setStrokeWidth(0);
         LinearLayout.LayoutParams mp2 = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         mp2.setMargins(8, 0, 0, 0);
         btnSimilar.setLayoutParams(mp2);
         btnSimilar.setOnClickListener(v -> {
+            // 滚动到同类题区域 + 刷新加载
+            llSimilarHeader.setVisibility(View.VISIBLE);
+            pbSimilarLoading.setVisibility(View.VISIBLE);
+            tvSimilarEmpty.setVisibility(View.GONE);
             viewModel.loadSimilarQuestions(detail.getId());
+            // 滚动到底部
+            requireView().findViewById(R.id.ll_similar_container)
+                    .getParent().requestChildFocus(
+                            requireView().findViewById(R.id.ll_similar_container),
+                            requireView().findViewById(R.id.ll_similar_container));
         });
         actions.addView(btnSimilar);
 
-        rootLayout.addView(actions);
+        rootContainer.addView(actions);
     }
 
-    private void showSimilarQuestionsSheet(List<SimilarQuestion> questions) {
-        BottomSheetDialog dialog = new BottomSheetDialog(requireContext());
-        LinearLayout sheet = new LinearLayout(requireContext());
-        sheet.setOrientation(LinearLayout.VERTICAL);
-        sheet.setPadding(16, 24, 16, 32);
+    // ==================== 同类题渲染 ====================
 
-        TextView title = new TextView(requireContext());
-        title.setText("同类题推荐 (" + questions.size() + ")");
-        title.setTextSize(16);
-        title.setTextColor(Color.parseColor("#1F2937"));
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, 16);
-        sheet.addView(title);
+    private void renderSimilarQuestions(List<SimilarQuestion> questions) {
+        llSimilarHeader.setVisibility(View.VISIBLE);
+        tvSimilarCount.setVisibility(View.VISIBLE);
+        tvSimilarEmpty.setVisibility(View.GONE);
+        tvSimilarCount.setText(questions.size() + " 题");
+        llSimilarContainer.removeAllViews();
 
         for (SimilarQuestion q : questions) {
-            LinearLayout card = new LinearLayout(requireContext());
-            card.setOrientation(LinearLayout.VERTICAL);
-            card.setBackgroundResource(R.drawable.bg_card_white);
-            card.setPadding(16, 12, 16, 12);
-            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            cp.setMargins(0, 0, 0, 8);
-            card.setLayoutParams(cp);
+            View card = LayoutInflater.from(requireContext())
+                    .inflate(R.layout.item_similar_question, llSimilarContainer, false);
 
-            TextView tvText = new TextView(requireContext());
+            TextView tvSimilarity = card.findViewById(R.id.tv_similarity);
+            Double sim = q.getSimilarity();
+            if (sim != null) {
+                int pct = (int)(sim * 100);
+                tvSimilarity.setText("相似 " + pct + "%");
+            } else {
+                tvSimilarity.setText("推荐");
+            }
+
+            if (q.getDifficulty() != null) {
+                TextView tvDiff = card.findViewById(R.id.tv_difficulty);
+                tvDiff.setText(q.getDifficulty());
+                switch (q.getDifficulty()) {
+                    case "简单": tvDiff.setTextColor(Color.parseColor("#10B981")); break;
+                    case "中等": tvDiff.setTextColor(Color.parseColor("#F59E0B")); break;
+                    case "困难": tvDiff.setTextColor(Color.parseColor("#EF4444")); break;
+                }
+            }
+
+            TextView tvText = card.findViewById(R.id.tv_question_text);
             tvText.setText(q.getText());
-            tvText.setTextSize(13);
-            tvText.setTextColor(Color.parseColor("#1F2937"));
-            tvText.setMaxLines(3);
-            card.addView(tvText);
 
+            // 知识点标签
+            LinearLayout llTags = card.findViewById(R.id.ll_tags);
             if (q.getTags() != null && !q.getTags().isEmpty()) {
-                LinearLayout tagRow = new LinearLayout(requireContext());
-                tagRow.setOrientation(LinearLayout.HORIZONTAL);
-                tagRow.setPadding(0, 6, 0, 0);
                 for (String tag : q.getTags()) {
                     TextView tvTag = new TextView(requireContext());
                     tvTag.setText(tag);
-                    tvTag.setTextSize(10);
-                    tvTag.setTextColor(Color.parseColor("#6366F1"));
+                    tvTag.setTextSize(11);
+                    tvTag.setTextColor(getResources().getColor(R.color.primary_color, null));
                     tvTag.setBackgroundResource(R.drawable.btn_quick_reply);
-                    tvTag.setPadding(8, 2, 8, 2);
-                    tvTag.setLayoutParams(new LinearLayout.LayoutParams(
-                            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-                    tagRow.addView(tvTag);
-                    if (q.getTags().indexOf(tag) < q.getTags().size() - 1) {
-                        ((LinearLayout.LayoutParams) tvTag.getLayoutParams()).setMargins(0, 0, 6, 0);
-                    }
+                    tvTag.setPadding(dp(8), dp(2), dp(8), dp(2));
+                    LinearLayout.LayoutParams tagLp = new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                    tagLp.setMargins(0, 0, dp(6), 0);
+                    tvTag.setLayoutParams(tagLp);
+                    llTags.addView(tvTag);
                 }
-                card.addView(tagRow);
             }
 
-            // Bottom row: tags + practice button
-            LinearLayout bottomRow = new LinearLayout(requireContext());
-            bottomRow.setOrientation(LinearLayout.HORIZONTAL);
-            bottomRow.setPadding(0, 8, 0, 0);
-            bottomRow.setGravity(Gravity.CENTER_VERTICAL);
+            // 题型
+            if (q.getQuestionType() != null) {
+                TextView tvType = card.findViewById(R.id.tv_question_type);
+                tvType.setText(q.getQuestionType());
+            }
 
-            Button btnPractice = new Button(requireContext());
-            btnPractice.setText("去练习");
-            btnPractice.setTextSize(12);
-            btnPractice.setTextColor(Color.WHITE);
-            btnPractice.setBackgroundColor(Color.parseColor("#6366F1"));
-            btnPractice.setPadding(16, 4, 16, 4);
-            btnPractice.setAllCaps(false);
-            btnPractice.setLayoutParams(new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            btnPractice.setOnClickListener(vv -> {
-                dialog.dismiss();
+            // 开始练习按钮
+            MaterialButton btnStart = card.findViewById(R.id.btn_start_practice);
+            btnStart.setOnClickListener(v -> {
                 Bundle args = new Bundle();
-                if (q.getText() != null) {
-                    args.putString("subject", "");
-                }
+                args.putString("subject", "");
                 if (q.getTags() != null && !q.getTags().isEmpty()) {
                     args.putString("knowledge_points", String.join(",", q.getTags()));
                 }
+                if (q.getText() != null) {
+                    args.putString("question_text", q.getText());
+                }
                 try {
-                    Navigation.findNavController(requireView()).navigate(R.id.nav_daily_practice, args);
+                    Navigation.findNavController(requireView())
+                            .navigate(R.id.nav_daily_practice, args);
                 } catch (Exception e) {
                     Toast.makeText(getContext(), "请先返回刷题页面", Toast.LENGTH_SHORT).show();
                 }
             });
-            bottomRow.addView(btnPractice);
 
-            card.addView(bottomRow);
-            sheet.addView(card);
+            llSimilarContainer.addView(card);
         }
-
-        dialog.setContentView(sheet);
-        dialog.show();
     }
 
-    private void addSectionTitle(String title) {
-        TextView tv = new TextView(requireContext());
-        tv.setText(title);
-        tv.setTextSize(16);
-        tv.setTextColor(getResources().getColor(R.color.on_surface, null));
-        tv.setTypeface(Typeface.DEFAULT_BOLD);
-        tv.setPadding(0, 24, 0, 12);
-        rootLayout.addView(tv);
-    }
-
-    private void addDiagnosisCard(String title, DiagnosisItem item, int borderColor, String icon, String questionId) {
-        if (item == null) return;
-
-        LinearLayout card = new LinearLayout(requireContext());
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackgroundColor(Color.WHITE);
-        card.setPadding(16, 16, 16, 16);
-        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        cp.setMargins((int)(4 * getResources().getDisplayMetrics().density), 0,
-                (int)(4 * getResources().getDisplayMetrics().density),
-                (int)(8 * getResources().getDisplayMetrics().density));
-        card.setLayoutParams(cp);
-
-        // Left border via a 4dp view
-        View border = new View(requireContext());
-        border.setLayoutParams(new LinearLayout.LayoutParams(
-                (int)(4 * getResources().getDisplayMetrics().density),
-                ViewGroup.LayoutParams.MATCH_PARENT));
-        border.setBackgroundColor(borderColor);
-
-        LinearLayout content = new LinearLayout(requireContext());
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(12, 0, 0, 0);
-        content.setLayoutParams(new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        TextView header = new TextView(requireContext());
-        header.setText(icon + " " + title);
-        header.setTextSize(14);
-        header.setTextColor(getResources().getColor(R.color.on_surface, null));
-        header.setTypeface(Typeface.DEFAULT_BOLD);
-        content.addView(header);
-
-        TextView body = new TextView(requireContext());
-        body.setText(item.getAnalysis() != null ? item.getAnalysis() : "");
-        body.setTextSize(13);
-        body.setTextColor(getResources().getColor(R.color.gray_text, null));
-        body.setPadding(0, 8, 0, 0);
-        body.setLineSpacing(4, 1f);
-        content.addView(body);
-
-        // Feedback button at bottom of diagnosis card
-        Button btnFeedback = new Button(requireContext());
-        btnFeedback.setText("题目有误？");
-        btnFeedback.setTextSize(11);
-        btnFeedback.setTextColor(Color.parseColor("#8B5CF6"));
-        btnFeedback.setBackgroundResource(R.drawable.bg_option_unselected);
-        btnFeedback.setPadding(8, 4, 8, 4);
-        btnFeedback.setAllCaps(false);
-        LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        flp.setMargins(0, 8, 0, 0);
-        btnFeedback.setLayoutParams(flp);
-        btnFeedback.setOnClickListener(v -> {
-            btnFeedback.setVisibility(View.GONE);
-            viewModel.submitFeedback(questionId, "wrong_diagnosis", title);
-        });
-        content.addView(btnFeedback);
-
-        LinearLayout wrapper = new LinearLayout(requireContext());
-        wrapper.setOrientation(LinearLayout.HORIZONTAL);
-        wrapper.addView(border);
-        wrapper.addView(content);
-        card.addView(wrapper);
-
-        rootLayout.addView(card);
+    private int dp(int dp) {
+        return (int)(dp * getResources().getDisplayMetrics().density);
     }
 }

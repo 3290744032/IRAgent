@@ -382,14 +382,21 @@ public class KnowledgeDetailFragment extends Fragment {
 
     private static String stripLatex(String s) {
         if (s == null) return "";
-        return s.replaceAll("\\$\\$.*?\\$\\$", "")
-                .replaceAll("\\$.*?\\$", "")
-                .replaceAll("\\\\boldsymbol\\{.*?\\}", "")
-                .replaceAll("\\\\underline\\{.*?\\}", "")
-                .replaceAll("\\\\lim\\\\limits_.*?\\}", "")
-                .replaceAll("\\\\[a-zA-Z]+\\{.*?\\}", "")
-                .replaceAll("\\\\[a-zA-Z]+", "")
-                .replaceAll("\\{+|\\}+", "")
-                .trim();
+        String result = s;
+        // 1. Remove $$...$$ blocks (handle missing closing $$)
+        result = result.replaceAll("\\$\\$[\\s\\S]*?(?:\\$\\$|$)", "");
+        // 2. Remove $...$ inline blocks (non-greedy, handle missing closing $)
+        result = result.replaceAll("\\$[^$\\n]{1,300}?(?:\\$|$)", "");
+        // 3. Remove \begin{...}...\end{...} environments
+        result = result.replaceAll("\\\\begin\\{[^}]+\\}[\\s\\S]*?\\\\end\\{[^}]+\\}", "");
+        // 4. Remove remaining LaTeX commands with brace arguments
+        result = result.replaceAll("\\\\[a-zA-Z]+\\{[^}]*\\}", "");
+        // 5. Remove remaining bare LaTeX commands
+        result = result.replaceAll("\\\\[a-zA-Z]+", "");
+        // 6. Remove orphaned braces
+        result = result.replaceAll("[{}]", "");
+        // 7. Replace \n with space for single-line display
+        result = result.replace('\n', ' ');
+        return result.trim();
     }
 }
