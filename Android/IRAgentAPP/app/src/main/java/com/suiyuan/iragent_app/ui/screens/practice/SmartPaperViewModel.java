@@ -31,12 +31,15 @@ public class SmartPaperViewModel extends AndroidViewModel {
     private final MutableLiveData<String> streamError = new MutableLiveData<>();
     private final MutableLiveData<Boolean> answerKeyVisible = new MutableLiveData<>(false);
     private boolean separatorReached = false;
+    private boolean completed = false;
     private String answerKeyContent;
     private String fullContent;
     private String paperBodyContent;
     private String paperId;
     private SmartPaper streamedPaper;
     private static final String ANSWER_SEPARATOR = "---ANSWER_BREAK---";
+    private static final java.util.regex.Pattern JSON_BLOCK =
+            java.util.regex.Pattern.compile("```json[\\s\\S]*?```", java.util.regex.Pattern.DOTALL);
 
     private final List<SubmitAnswerRequest.AnswerEntry> answers = new ArrayList<>();
 
@@ -63,8 +66,14 @@ public class SmartPaperViewModel extends AndroidViewModel {
     public String getPaperId() { return paperId; }
     public SmartPaper getStreamedPaper() { return streamedPaper; }
     public boolean hasAnswerKey() { return answerKeyContent != null && !answerKeyContent.isEmpty(); }
-    public String getFullContent() { return fullContent; }
-    public String getPaperBodyContent() { return paperBodyContent; }
+    public String getFullContent() {
+        if (fullContent == null) return null;
+        return JSON_BLOCK.matcher(fullContent).replaceAll("").trim();
+    }
+    public String getPaperBodyContent() {
+        if (paperBodyContent == null) return null;
+        return JSON_BLOCK.matcher(paperBodyContent).replaceAll("").trim();
+    }
 
     public void toggleAnswerKey() {
         boolean cur = Boolean.TRUE.equals(answerKeyVisible.getValue());
@@ -86,12 +95,14 @@ public class SmartPaperViewModel extends AndroidViewModel {
         fullContent = null;
         paperBodyContent = null;
         separatorReached = false;
+        completed = false;
         answers.clear();
         questionIndex.postValue(0);
 
         streamRepository.streamGeneratePaper(prompt, new SmartPaperStreamRepository.StreamCallback() {
             @Override
             public void onChunk(String content) {
+                if (completed) return;
                 streamBuffer.append(content);
 
                 if (!separatorReached) {
@@ -119,11 +130,13 @@ public class SmartPaperViewModel extends AndroidViewModel {
 
             @Override
             public void onComplete(String pid, SmartPaper sp) {
-                fullContent = streamBuffer.toString();
+                completed = true;
                 if (!separatorReached) {
-                    paperBodyContent = fullContent;
+                    paperBodyContent = streamBuffer.toString();
+                    fullContent = paperBodyContent;
                 } else {
                     paperBodyContent = paperBodyBuffer.toString();
+                    fullContent = paperBodyContent + "\n\n" + (answerKeyContent != null ? answerKeyContent : "");
                 }
 
                 paperId = pid;
@@ -137,12 +150,14 @@ public class SmartPaperViewModel extends AndroidViewModel {
 
             @Override
             public void onError(int code, String message) {
+                completed = true;
                 isStreaming.postValue(false);
                 streamError.postValue("请求失败(" + code + "): " + message);
             }
 
             @Override
             public void onException(Exception e) {
+                completed = true;
                 isStreaming.postValue(false);
                 streamError.postValue("网络异常: " + e.getMessage());
             }

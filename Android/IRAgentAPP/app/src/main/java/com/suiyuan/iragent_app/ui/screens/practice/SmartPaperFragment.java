@@ -9,6 +9,9 @@ import android.view.ViewGroup;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.content.Context;
+import android.print.PrintAttributes;
+import android.print.PrintManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -43,7 +46,7 @@ public class SmartPaperFragment extends Fragment {
     private EditText etChatInput;
     private ImageButton btnSend;
     private ImageView ivBack;
-    private Button btnPdf, btnStartQuiz, btnAnswerKey;
+    private TextView btnPdf, btnStartQuiz, btnAnswerKey;
     private LinearLayout llOptions, llResultStats, llResultDetails;
     private Button btnNext, btnBackHub;
     private WebView wvStreamContent;
@@ -164,9 +167,7 @@ public class SmartPaperFragment extends Fragment {
                 getActivity().getSupportFragmentManager().popBackStack();
             }
         });
-        btnPdf.setOnClickListener(v -> {
-            Toast.makeText(getContext(), "PDF 导出功能待实现", Toast.LENGTH_SHORT).show();
-        });
+        btnPdf.setOnClickListener(v -> generatePdf());
         btnStartQuiz.setOnClickListener(v -> {
             SmartPaper paper = viewModel.getStreamedPaper();
             if (paper != null && paper.getQuestions() != null && !paper.getQuestions().isEmpty()) {
@@ -186,6 +187,96 @@ public class SmartPaperFragment extends Fragment {
                 getActivity().getSupportFragmentManager().popBackStack();
             }
         });
+    }
+
+    private void generatePdf() {
+        boolean hasAnswerKey = viewModel.hasAnswerKey();
+        String content = hasAnswerKey ? viewModel.getFullContent() : viewModel.getPaperBodyContent();
+        if (content == null || content.isEmpty()) {
+            Toast.makeText(getContext(), "没有可导出的内容", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String html = buildExamHtml(content, hasAnswerKey);
+
+        WebView printView = new WebView(requireContext());
+        WebSettings ws = printView.getSettings();
+        ws.setJavaScriptEnabled(true);
+        ws.setDomStorageEnabled(true);
+        ws.setAllowFileAccess(false);
+        ws.setAllowContentAccess(false);
+        printView.setVisibility(View.GONE);
+
+        ViewGroup root = (ViewGroup) requireView().getRootView();
+        root.addView(printView, new ViewGroup.LayoutParams(1, 1));
+
+        printView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                PrintManager pm = (PrintManager) requireContext()
+                        .getSystemService(Context.PRINT_SERVICE);
+                PrintAttributes attrs = new PrintAttributes.Builder()
+                        .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                        .setColorMode(PrintAttributes.COLOR_MODE_COLOR)
+                        .build();
+                pm.print("智能组卷",
+                        printView.createPrintDocumentAdapter("SmartPaper"),
+                        attrs);
+            }
+        });
+
+        printView.loadDataWithBaseURL("https://cdn.jsdelivr.net", html,
+                "text/html", "UTF-8", null);
+    }
+
+    private String buildExamHtml(String content, boolean includeAnswerKey) {
+        String escaped = escapeJsString(content);
+        return "<!DOCTYPE html><html><head><meta charset='utf-8'>" +
+                "<script src='https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js'>" +
+                "</script>" +
+                "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css'>" +
+                "<script src='https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.js'>" +
+                "</script>" +
+                "<script src='https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/contrib/auto-render.min.js'>" +
+                "</script>" +
+                "<style>" +
+                "@page { size: A4; margin: 2cm; @bottom-center { content: counter(page); font-size: 9pt; font-family: 'Times New Roman',serif; } }" +
+                "body { font-family: 'SimSun','Times New Roman',serif; font-size: 12pt; line-height: 1.8; color: #000; margin: 0; padding: 0; }" +
+                ".sheet-header { font-family: 'SimHei','Arial Black',sans-serif; font-size: 22pt; text-align: center; margin: 0 0 6px; font-weight: bold; letter-spacing: 3px; }" +
+                ".sheet-sub { text-align: center; font-size: 10.5pt; color: #444; margin-bottom: 24px; border-bottom: 2px solid #222; padding-bottom: 12px; }" +
+                "h2 { font-family: 'SimHei','Arial Black',sans-serif; font-size: 14pt; margin: 20px 0 10px; padding-bottom: 4px; border-bottom: 1px solid #ccc; page-break-after: avoid; }" +
+                "h3 { font-family: 'SimHei','Arial Black',sans-serif; font-size: 12pt; margin: 14px 0 6px; page-break-after: avoid; }" +
+                "p { margin: 4px 0; text-align: justify; }" +
+                ".q { page-break-inside: avoid; margin-bottom: 18px; }" +
+                ".q-body { margin-bottom: 4px; }" +
+                ".opts { padding-left: 28px; }" +
+                ".opt { margin: 1px 0; }" +
+                "pre { background: #f5f5f5; padding: 10px; border: 1px solid #ddd; font-size: 10pt; white-space: pre-wrap; }" +
+                "code { font-size: 10pt; font-family: 'Courier New',monospace; }" +
+                "table { border-collapse: collapse; width: 100%; margin: 10px 0; }" +
+                "th,td { border: 1px solid #222; padding: 5px 8px; text-align: left; font-size: 11pt; }" +
+                "th { background: #ececec; font-family: 'SimHei',sans-serif; }" +
+                "blockquote { border-left: 3px solid #888; padding-left: 12px; margin: 8px 0; color: #444; }" +
+                "ul,ol { margin: 4px 0; padding-left: 28px; }" +
+                "li { margin: 2px 0; }" +
+                "hr { border: none; border-top: 1px solid #ccc; margin: 16px 0; }" +
+                ".katex { font-size: 1.1em; }" +
+                ".katex-display { margin: 6px 0; }" +
+                (includeAnswerKey ?
+                ".ak { page-break-before: always; }" +
+                ".ak-t { font-family: 'SimHei','Arial Black',sans-serif; font-size: 16pt; text-align: center; margin: 0 0 20px; letter-spacing: 2px; }" +
+                ".ak .q { border-bottom: 1px dashed #ccc; padding-bottom: 10px; }" : "") +
+                "</style></head><body>" +
+                "<div class='sheet-header'>智能组卷</div>" +
+                "<div class='sheet-sub'>AI 生成试卷 &nbsp;·&nbsp; 共若干题 &nbsp;·&nbsp; 满分 100 分</div>" +
+                "<div id='content'></div>" +
+                "<script>marked.setOptions({breaks:true,gfm:true,headerIds:false,mangle:false});" +
+                "function r(){var c=document.getElementById('content');" +
+                "c.innerHTML=marked.parse(contentStr);" +
+                "renderMathInElement(c,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\\\(',right:'\\\\)',display:false},{left:'\\\\[',right:'\\\\]',display:true}],throwOnError:false,trust:true});}" +
+                "var contentStr='" + escaped + "';" +
+                "if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',r);else r();" +
+                "</script></body></html>";
     }
 
     private void sendPrompt() {

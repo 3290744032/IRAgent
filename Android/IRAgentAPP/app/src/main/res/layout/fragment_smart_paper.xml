@@ -98,39 +98,48 @@
                 android:paddingHorizontal="12dp"
                 android:paddingBottom="12dp">
 
-                <Button
+                <TextView
                     android:id="@+id/btn_pdf"
                     android:layout_width="0dp"
                     android:layout_height="42dp"
                     android:layout_weight="1"
-                    android:text="生成 PDF 试卷"
+                    android:gravity="center"
+                    android:text="生成PDF"
                     android:textSize="13sp"
                     android:textColor="#FFFFFF"
                     android:background="@drawable/bg_btn_primary"
+                    android:clickable="true"
+                    android:focusable="true"
                     android:visibility="gone" />
 
-                <Button
+                <TextView
                     android:id="@+id/btn_start_quiz"
                     android:layout_width="0dp"
                     android:layout_height="42dp"
                     android:layout_weight="1"
                     android:layout_marginStart="8dp"
+                    android:gravity="center"
                     android:text="开始答题"
                     android:textSize="13sp"
                     android:textColor="#FFFFFF"
                     android:background="@drawable/bg_btn_primary"
+                    android:clickable="true"
+                    android:focusable="true"
                     android:visibility="gone" />
 
-                <Button
+                <TextView
                     android:id="@+id/btn_answer_key"
                     android:layout_width="0dp"
                     android:layout_height="42dp"
                     android:layout_weight="1"
                     android:layout_marginStart="8dp"
+                    android:gravity="center"
                     android:text="查看解析"
                     android:textSize="13sp"
                     android:textColor="@color/primary_color"
                     android:background="@drawable/bg_btn_outline_primary"
+                    android:clickable="true"
+                    android:focusable="true"
                     android:visibility="gone" />
             </LinearLayout>
         </LinearLayout>
