@@ -1,8 +1,8 @@
 # IRAgent Pro v3 — Android 架构文档
 
 > **项目**：以个人知识库为中心的 AI 备考平台
-> **技术栈**：Java 11, MVVM, Navigation Components, Retrofit 2, OkHttp 4, Room, MPAndroidChart, Markwon
-> **最后更新**：2026-05-25
+> **技术栈**：Java 11, MVVM, Navigation Components, Retrofit 2, OkHttp 4, Material 1.13, Coil, MPAndroidChart
+> **最后更新**：2026-05-28
 
 ---
 
@@ -21,30 +21,13 @@
 
 ### 1.2 核心依赖
 
-```kotlin
-// AndroidX
-implementation("androidx.core:core-ktx")
-implementation("androidx.appcompat:appcompat")
-implementation("com.google.android.material:material")
-implementation("androidx.navigation:navigation-fragment")
-implementation("androidx.navigation:navigation-ui")
-implementation("androidx.lifecycle:lifecycle-viewmodel")
-implementation("androidx.lifecycle:lifecycle-livedata")
-
-// 网络
-implementation("com.squareup.retrofit2:retrofit")
-implementation("com.squareup.retrofit2:converter-gson")
-implementation("com.squareup.okhttp3:okhttp")
-implementation("com.squareup.okhttp3:logging-interceptor")
-
-// 数据库
-implementation("androidx.room:room-runtime")
-
-// UI
-implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")  // 雷达图
-implementation("io.noties.markwon:core:4.6.2")              // Markdown
-implementation("io.coil-kt:coil")                           // 图片加载
-```
+| 类别 | 依赖 | 用途 |
+|------|------|------|
+| AndroidX | `core-ktx`, `appcompat`, `navigation-*`, `lifecycle-*` | 基础框架 |
+| Material | `com.google.android.material:material:1.13.0` | Material3 UI 组件 |
+| 网络 | `retrofit2` + `converter-gson` + `okhttp3` + `logging-interceptor` | HTTP + SSE |
+| UI | `MPAndroidChart:v3.1.0` | 掌握度雷达图 |
+| 图片 | `coil-kt:coil` | 图片加载 |
 
 ### 1.3 声明组件
 
@@ -82,75 +65,73 @@ implementation("io.coil-kt:coil")                           // 图片加载
 ```
 com.suiyuan.iragent_app/
 ├── IRAgentApplication.java            # Application（全局状态 + 未授权回调）
+├── config/
+│   └── SubjectConfig.java             # 学科配置（统一管理，动态生成 UI 气泡）
 ├── ui/screens/
 │   ├── auth/                          # AuthActivity + AuthViewModel
 │   ├── main/                          # MainActivity（5 Tab 壳）
 │   ├── onboarding/                    # OnboardingActivity（3 步引导）
 │   ├── knowledge/                     # 知识库 Tab
-│   │   ├── KnowledgeListFragment      # 笔记列表 + 知识图谱 + 上传
+│   │   ├── KnowledgeListFragment      # 笔记列表 + 搜索 + 上传 + 删除
 │   │   ├── KnowledgeListViewModel
-│   │   ├── KnowledgeDetailFragment    # 笔记详情（内容 + 考点 + 题目）
-│   │   └── KnowledgeDetailViewModel
+│   │   ├── KnowledgeDetailFragment    # 笔记详情（KaTeX 本地渲染 + 编辑 + AI 优化）
+│   │   ├── KnowledgeDetailViewModel
+│   │   └── NoteCardAdapter           # RecyclerView Adapter
 │   ├── study/                         # 答疑 Tab
-│   │   ├── StudyFragmentV3            # 流式对话 + 笔记引用卡片
+│   │   ├── StudyFragmentV3            # 流式对话 + 图片答疑 + 笔记引用卡片
 │   │   ├── StudyViewModelV3
 │   │   ├── StudyFragment              # V2 旧版（保留兼容）
 │   │   └── StudyViewModel
 │   ├── practice/                      # 刷题 Tab
-│   │   ├── PracticeHubFragment        # 入口 + 批改流程
-│   │   └── PracticeHubViewModel
+│   │   ├── PracticeHubFragment        # 入口 Hub + 批改流程
+│   │   ├── PracticeHubViewModel
+│   │   ├── DailyPracticeFragment      # 每日一练 / 同类题巩固
+│   │   ├── DailyPracticeViewModel
+│   │   ├── SmartPaperFragment         # AI 智能组卷
+│   │   ├── SmartPaperViewModel
+│   │   ├── ExamArchiveFragment        # 真题库 + 试卷上传
+│   │   └── ExamArchiveViewModel
 │   ├── errors/                        # 错题本 Tab
 │   │   ├── ErrorsListFragment         # 错题列表 + 筛选 + 复习提醒
 │   │   ├── ErrorsListViewModel
-│   │   ├── ErrorsDetailFragment       # 三路诊断 + 笔记溯源 + 同类题
+│   │   ├── ErrorsDetailFragment       # AI 三路诊断 + 同类题内联展示
 │   │   └── ErrorsDetailViewModel
 │   ├── profile/                       # 我的 Tab
 │   │   ├── DashboardFragment          # 备考仪表盘
 │   │   ├── DashboardViewModel
-│   │   ├── CoverageRingView           # 自定义覆盖率环形图
-│   │   ├── ProfileFragment            # V2 旧版
-│   │   └── ProfileViewModel
+│   │   └── CoverageRingView           # 自定义覆盖率环形图
 │   ├── deeplearn/                     # 深度学习（苏格拉底式）
-│   │   ├── DeepLearnFragment
-│   │   └── DeepLearnViewModel
 │   ├── video/                         # 视频讲解（Timeline 黑板演算）
-│   │   └── VideoLessonFragment
 │   ├── conversation/                  # 历史对话列表
-│   │   ├── ConversationListFragment
-│   │   └── ConversationListViewModel
 │   └── home/                          # V2 旧首页
-│       └── HomeFragment
 ├── data/
-│   ├── remote/
-│   │   ├── ApiService.java            # V1 Retrofit 接口
-│   │   ├── NetworkClient.java         # V1 网络配置
-│   │   ├── v2/ApiServiceV2.java       # V2 接口
-│   │   ├── v2/NetworkClientV2.java    # V2 网络配置
-│   │   └── v3/
-│   │       ├── ApiServiceV3.java      # V3 Retrofit 接口（13 端点）
-│   │       └── NetworkClientV3.java   # V3 网络配置
-│   ├── repository/
-│   │   ├── AuthRepository.java
-│   │   ├── ChatRepository.java        # V1
-│   │   ├── ConversationRepository.java # V1
-│   │   ├── v2/DeepLearnRepository.java
-│   │   └── v3/
-│   │       ├── KnowledgeRepository.java
-│   │       ├── PracticeRepository.java  # OkHttp SSE 流式
-│   │       ├── ErrorsRepository.java
-│   │       ├── DashboardRepository.java
-│   │       ├── ChatRepositoryV3.java    # OkHttp SSE 流式
-│   │       └── ConversationRepositoryV3.java
-│   ├── model/
-│   │   ├── v2/                         # V2 模型（Session, KnowledgeGraph 等）
-│   │   └── v3/                         # 22 个 V3 模型类
-│   └── local/                          # Room 数据库 + DAO
+│   ├── remote/v3/
+│   │   ├── ApiServiceV3.java          # V3 Retrofit 接口（20+ 端点）
+│   │   └── NetworkClientV3.java       # V3 网络配置
+│   ├── repository/v3/
+│   │   ├── KnowledgeRepository.java   # 知识库（list/detail/upload/update/delete/optimize/search）
+│   │   ├── PracticeV2Repository.java  # 每日一练 + 智能组卷
+│   │   ├── ErrorsRepository.java      # 错题本
+│   │   ├── DashboardRepository.java   # 仪表盘
+│   │   ├── ChatRepositoryV3.java      # SSE 流式答疑
+│   │   └── ConversationRepositoryV3.java
+│   ├── model/v3/                      # 25 个 V3 模型类
+│   └── local/                         # Room 数据库 + DAO
 ├── util/
-│   ├── SseParser.java                  # SSE 流解析器（V2 + V3 双模式）
-│   ├── TtsManager.java                 # TTS 语音合成
-│   └── ...
+│   ├── SseParser.java                 # SSE 流解析器（V2 + V3 双模式）
+│   └── TtsHttpClient.java             # TTS HTTP 客户端
 └── res/
-    ├── layout/                         # 布局文件（8 个 v3 layout）
+    ├── assets/
+    │   ├── libs/                       # KaTeX + marked 本地库（零网络依赖）
+    │   │   ├── katex.min.js           # 273KB KaTeX 核心
+    │   │   ├── katex.min.css          # 23KB KaTeX 样式
+    │   │   ├── auto-render.min.js     # 3KB 自动渲染
+    │   │   └── marked.min.js          # 50KB Markdown 解析
+    │   ├── math_template.html          # Markdown + LaTeX 渲染模板（本地库）
+    │   ├── engine/renderer.html        # Timeline 黑板演算引擎
+    │   ├── geogebra/                   # GeoGebra 2D/3D 渲染
+    │   └── knowledge_graph.html        # 知识图谱 SVG
+    ├── layout/                         # 布局文件（15+ 个 v3 layout）
     ├── menu/bottom_nav_menu.xml        # 5 Tab 定义
     ├── navigation/nav_graph_v3.xml     # 导航图
     └── drawable/                       # 图标资源
@@ -160,36 +141,15 @@ com.suiyuan.iragent_app/
 
 ## 三、5 Tab 导航架构
 
-### 3.1 Tab 定义（bottom_nav_menu.xml）
+| 序号 | Tab ID | 标签 | 默认 Fragment | 子页面 |
+|------|--------|------|--------------|--------|
+| 1 | `nav_knowledge` | 知识库 | `KnowledgeListFragment` | → KnowledgeDetailFragment |
+| 2 | `nav_chat` | 答疑 | `StudyFragmentV3` | → ConversationList / DeepLearn / Video |
+| 3 | `nav_practice` | 刷题 | `PracticeHubFragment` | → DailyPractice / SmartPaper / ExamArchive |
+| 4 | `nav_errors` | 错题本 | `ErrorsListFragment` | → ErrorsDetailFragment |
+| 5 | `nav_profile` | 我的 | `DashboardFragment` | → Onboarding（重设目标） |
 
-| 序号 | Tab ID | 标签 | 默认 Fragment |
-|------|--------|------|--------------|
-| 1 | `nav_knowledge` | 知识库 | `KnowledgeListFragment` |
-| 2 | `nav_chat` | 答疑 | `StudyFragmentV3` |
-| 3 | `nav_practice` | 刷题 | `PracticeHubFragment` |
-| 4 | `nav_errors` | 错题本 | `ErrorsListFragment` |
-| 5 | `nav_profile` | 我的 | `DashboardFragment` |
-
-### 3.2 导航图（nav_graph_v3.xml）
-
-```
-nav_knowledge ──→ nav_knowledge_detail (笔记详情)
-nav_chat ──→ nav_conversation_list (历史对话)
-         ──→ nav_deeplearn (深度学习)
-         ──→ nav_video (视频讲解)
-nav_practice (批改流程内嵌 Fragment 状态机)
-nav_errors ──→ nav_errors_detail (错题详情)
-nav_profile (设置项 → 重走 Onboarding / 退出登录)
-```
-
-### 3.3 MainActivity
-
-```java
-BottomNavigationView bottomNav = findViewById(R.id.bottom_nav);
-NavigationUI.setupWithNavController(bottomNav, navController);
-```
-
-使用 Android Navigation Components 绑定，Fragment 切换自动保持状态。
+MainActivity 使用自定义 `setOnItemSelectedListener`，点击已选中 Tab 自动 `popBackStack` 回到根页面，解决跨 Tab 跳转后无法返回的问题。
 
 ---
 
@@ -197,277 +157,264 @@ NavigationUI.setupWithNavController(bottomNav, navController);
 
 ### 4.1 KnowledgeListFragment（知识库）
 
-**Layout**：`fragment_knowledge_list.xml`
-**ViewModel**：`KnowledgeListViewModel`
-**Repository**：`KnowledgeRepository`
+**Layout**：`fragment_knowledge_list.xml` | **ViewModel**：`KnowledgeListViewModel`
 
 | UI 组件 | 说明 |
 |---------|------|
 | 统计行 | 笔记数、科目数、考点数、覆盖率（4 个 TextView） |
-| 搜索栏 | EditText + 300ms 防抖 |
-| 学科筛选 | 横向滚动 Chips（全部/数学/物理/化学/英语/政治/历史），点击筛选 |
+| 搜索栏 | EditText + 300ms 防抖 → `KnowledgeRepository.searchNotes()` |
+| 学科筛选 | 横向滚动 Chips，由 `SubjectConfig.SUBJECTS_WITH_ALL` 动态生成 |
 | 知识图谱 | WebView 加载 `knowledge_graph.html`（考点↔笔记↔题目 SVG） |
-| 笔记列表 | RecyclerView + NoteCardAdapter（item_note_card.xml） |
-| 上传按钮 | FAB → `ActivityResultContracts.GetContent("*/*")` → 调 `KnowledgeRepository.uploadNote()` |
+| 笔记列表 | RecyclerView + NoteCardAdapter |
+| 长按删除 | AlertDialog 确认 → `KnowledgeRepository.deleteNote()` |
+| 上传卡片 | 点击 → 文件/相机选择器 → 预览 + 命名 → `uploadNote()`（支持 AI 分类结果预览） |
+| 空状态 | 无笔记时显示引导文案 |
 
-### 4.2 StudyFragmentV3（答疑）
+### 4.2 KnowledgeDetailFragment（笔记详情）
 
-**Layout**：`fragment_study_v3.xml`
-**ViewModel**：`StudyViewModelV3`
-**Repository**：`ChatRepositoryV3`（SSE 流式）+ `ConversationRepositoryV3`
+**Layout**：`fragment_knowledge_detail.xml` | **ViewModel**：`KnowledgeDetailViewModel`
+
+| UI 组件 | 说明 |
+|---------|------|
+| 题头 | 学科 · 章节 + 日期 + 标题 |
+| 内容区 | WebView 加载 `math_template.html`，KaTeX 本地库渲染 Markdown+LaTeX |
+| 标签区 | 动态 Tag Chips（`bg_tag_chip` 背景 + 白色文字） |
+| 关联考点 | 知识点列表（本笔记 chunk + 相似知识点），`stripLatex()` 清洗 LaTeX |
+| 关联题目 | 题目卡片列表，左侧紫色竖线 + 题目文本 |
+| 编辑模式 | 切换显示 EditText（标题/学科/章节/标签/内容） |
+| AI 优化 | BottomSheet 输入指令 → `optimizeNote()` → 重新渲染 |
+| 操作栏 | 编辑 / AI 优化（正常模式） → 保存 / 取消（编辑模式） |
+
+**KaTeX 渲染架构**（解决 CDN 网络问题）：
+```
+renderNoteDetail()
+  → escapeJsString(content) + 注入 <script>var _rawContent='...'
+  → loadDataWithBaseURL(fullHtml)
+  → math_template.html 内联脚本即时渲染
+  → 本地 file:///android_asset/libs/* 加载（零延迟、零网络依赖）
+```
+
+**stripLatex 增强**：按顺序清洗 — `$$...$$` 块 → `$...$` 行内 → `\begin...\end` 环境 → LaTeX 命令 → 花括号 → `\n`→空格
+
+### 4.3 StudyFragmentV3（答疑）
+
+**Layout**：`fragment_study_v3.xml` | **ViewModel**：`StudyViewModelV3`
 
 | UI 组件 | 说明 |
 |---------|------|
 | 消息列表 | ScrollView + LinearLayout 动态添加消息 View |
-| 消息渲染 | Markwon Markdown + WebView LaTeX 数学公式（200ms 节流渲染） |
-| 笔记引用卡片 | SSE `note_refs` 事件 → 底部显示 NoteRefCard（item_note_ref_card.xml） |
-| 函数图像 | `【PLOT】...【END】` → GeoGebraView 2D 渲染 |
-| 3D 图像 | `【PLOT3D】...【END】` → WebView 3D renderer |
-| 附件 | 相机/相册/文件 选择器 |
-| 顶栏按钮 | 新建对话、深度学习入口、视频讲解入口、历史对话 BottomSheet |
-| 输入栏 | EditText + 发送按钮（↑） |
+| 图片答疑 | 相机/相册选图 → 预览（可关闭重选）→ 气泡内显示图片 → 发送到多模态 API |
+| 笔记引用卡片 | SSE `note_refs` 事件 → 底部 NoteRefCard |
+| 函数图像 | `【PLOT】` → GeoGebraView 2D / `【PLOT3D】` → WebView 3D |
+| 输入栏 | EditText + 相机按钮 + 发送按钮 |
 
-**SSE 流式流程**：
+**SSE 流式流程**：发送 → `ChatRepositoryV3.chatStream()` → `SseParser` 解析 → `onChunk` 节流更新 / `onNoteRefs` 注入引用 / `onPlot/Plot3d` 渲染图像 / `onDone` 保存
 
+### 4.4 PracticeHubFragment（刷题入口）
+
+**Layout**：`fragment_practice_hub.xml` | **ViewModel**：`PracticeHubViewModel`
+
+**四宫格入口**：
 ```
-发送问题 → ChatRepositoryV3.chatStream()
-  → SseParser 解析 SSE 事件
-    ├─ onChunk: 追加文本 → 节流渲染 WebView
-    ├─ onNoteRefs: 注入 NoteRefCard 到消息底部
-    ├─ onPlot/onPlot3d: 提取 GeoGebra/3D 参数 → 渲染图像
-    └─ onDone: 标记流结束，保存对话
-```
-
-### 4.3 PracticeHubFragment（刷题）
-
-**Layout**：`fragment_practice_hub.xml`
-**ViewModel**：`PracticeHubViewModel`
-**Repository**：`PracticeRepository`（OkHttp + SSE）
-
-**双视图设计**：
-
-```
-Hub 视图（默认）              批改流程视图
-┌──────────────────┐        ┌──────────────────┐
-│  ✏️ 刷题练习       │        │  1. 输入内容       │
-│  ┌─────┬─────┐   │   →   │  2. 选择科目/满分   │
-│  │📸批改│🎯组卷│   │        │  3. 提交           │
-│  ├─────┼─────┤   │        │  4. 进度条（SSE）   │
-│  │📅每日│📚真题│   │        │  5. 批改报告        │
-│  └─────┴─────┘   │        │  6. 逐题详情        │
-└──────────────────┘        └──────────────────┘
+┌──────────────┬──────────────┐
+│ 📸 拍照批改    │ 🎯 智能组卷    │
+├──────────────┼──────────────┤
+│ 📅 每日一练    │ 📚 真题题库    │
+└──────────────┴──────────────┘
 ```
 
-**SSE 进度事件**：
+- **拍照批改**：选图 → `submitImageGrading()` → SSE 进度（OCR→提取→批改→诊断）→ 批改报告
+- **智能组卷** → `SmartPaperFragment`（AI 生成试卷）
+- **每日一练** → `DailyPracticeFragment`
+- **真题题库** → `ExamArchiveFragment`
 
-| 事件 | UI 表现 |
-|------|---------|
-| `step: ocr` | 进度 25% + "📷 正在识别文字..." |
-| `step: extract` | 进度 50% + "📋 提取题目与答案..." |
-| `step: grade` | 进度 75% + "✅ 正在批改比对..." |
-| `step: diagnose` | 进度 90% + "🔬 诊断错因中..." |
-| `complete` | 显示完整批改报告（总分、正确/错误数、正确率、逐题详情） |
+### 4.5 DailyPracticeFragment（每日一练 / 同类题巩固）
 
-### 4.4 ErrorsListFragment（错题本）
+**Layout**：`fragment_daily_practice.xml` | **ViewModel**：`DailyPracticeViewModel`
+
+| UI 组件 | 说明 |
+|---------|------|
+| 模式横幅 | 从错题本跳转时显示"🎯 同类题巩固练习" + 目标知识点 |
+| 题目卡片 | MaterialCardView 白卡：题号 + 题型 + 来源标签（真题/AI生成/用户上传）+ 题目文本 |
+| 答案输入 | EditText + 拍照按钮（相机/相册） |
+| 反馈按钮 | AI 生成题目显示"题目有误？" TextButton |
+| 提交按钮 | MaterialButton 填充样式 + TextButton"跳过，部分提交" |
+| 结果面板 | 分数（绿/黄/红色）+ 正确/错误/正确率统计 + 逐题详情 + 解析 |
+
+**同类题流程**：ErrorsDetailFragment → 点击"开始练习" → `nav_daily_practice`（传入 `knowledge_points`） → 知识点筛选题目
+
+### 4.6 SmartPaperFragment（AI 智能组卷）
+
+**Layout**：`fragment_smart_paper.xml` | **ViewModel**：`SmartPaperViewModel`
+
+AI 根据科目、题型、难度自动生成试卷。支持 SSE 流式逐题生成（`SseParser` 解析 `question_start/question_end/complete/error` 事件），每道题生成后立即显示。
+
+### 4.7 ExamArchiveFragment（真题题库）
+
+**Layout**：`fragment_exam_archive.xml` | **ViewModel**：`ExamArchiveViewModel`
+
+| 功能 | 说明 |
+|------|------|
+| 5 维筛选 | 学科/年份/考试类型/知识点/难度 Spinner + RecyclerView 题目列表 |
+| 上传试卷 | FAB → 文件选择器 → Multipart 上传 → OCR 识别入库 |
+| AI 模拟 | FAB → 学科/数量选择 → `POST /v3/exam-archive/simulate` |
+
+### 4.8 ErrorsListFragment（错题本）
 
 **Layout**：`fragment_errors_list.xml`
-**ViewModel**：`ErrorsListViewModel`
-**Repository**：`ErrorsRepository`
 
 | UI 组件 | 说明 |
 |---------|------|
-| 筛选栏 | 横向 Chips（全部/数学/物理/待复习/考点漏缺/公式混淆） |
-| 复习提醒 | 黄色 Banner："今天有 N 道错题需要复习" → 点击筛选待复习 |
-| 错题列表 | RecyclerView + ErrorCardAdapter |
-| 错题卡片 | 来源、题目摘要、错误答案（红线删除）→ 正确答案（绿色）、错误类型标签 |
+| 筛选栏 | 横向 Chips（全部/按学科/待复习/按错误类型） |
+| 复习提醒 | 黄色 Banner："今天有 N 道错题需要复习" |
+| 错题卡片 | 题目摘要 + 错误答案（红线删除）→ 正确答案（绿色）+ 错误类型标签 |
 
-### 4.5 ErrorsDetailFragment（错题详情）
+### 4.9 ErrorsDetailFragment（错题详情）
 
-**Layout**：`fragment_errors_detail.xml`
-**ViewModel**：`ErrorsDetailViewModel`
-**Repository**：`ErrorsRepository`
+**Layout**：`fragment_errors_detail.xml` | **ViewModel**：`ErrorsDetailViewModel`
 
 | UI 组件 | 说明 |
 |---------|------|
-| 题目标头 | 红色背景卡片：来源 + 题目 + 你的答案（删除线）+ 正确答案（绿色） |
-| 三路诊断卡片 | 左侧彩色竖线区分：蓝色=考点漏缺、紫色=公式混淆、琥珀色=计算失误 |
-| 笔记溯源 | 每路诊断下方挂 note_ref_card，点击跳转笔记详情 |
-| 同类题推荐 | 3 道变式题（中等/较难标签），点击加入练习队列 |
-| 操作按钮 | "标记掌握"（调 `markMastered` API）、"练同类题" |
+| 题目标头 | `error_light` 背景卡片：学科·知识点 + 题目（粗体）+ 你的答案（删除线红）+ 正确答案（粗体绿） |
+| AI 三维诊断 | 3 张诊断卡片（蓝色=考点漏缺/紫色=公式混淆/琥珀色=计算失误），每张含分析文本 + "题目有误？"反馈按钮 |
+| 同类题推荐 | **内联展示**（非 BottomSheet），自动加载；每张卡片含相似度标签、题目预览、知识点 Tag、难度、"开始练习"按钮 |
+| 操作按钮 | MaterialButton 轮廓样式"标记为已掌握" + 填充样式"练同类题"（滚动到同类题区 + 刷新） |
 
-### 4.6 DashboardFragment（我的）
+**设计演进**：BottomSheet 弹窗 → 页面内联展示，减少交互层级，进入即加载。
 
-**Layout**：`fragment_dashboard.xml`
-**ViewModel**：`DashboardViewModel`
-**Repository**：`DashboardRepository`
+### 4.10 DashboardFragment（我的）
+
+**Layout**：`fragment_dashboard.xml` | **ViewModel**：`DashboardViewModel`
 
 | UI 组件 | 说明 |
 |---------|------|
-| 渐变 Header | "下午好 ☀️" + 用户名 + 考试目标 |
+| 渐变 Header | "下午好 ☀️" + 用户名（`PreferencesManager.getAccount()`） |
 | 覆盖率环形图 | 自定义 `CoverageRingView`（Canvas 绘制 conic-gradient） |
 | 统计行 | 已掌握考点、笔记数、累计刷题、本周学习时长 |
-| 今日任务 | 3 个 task item（复习错题/每日一练/专项突破），点击跳转对应 Tab |
-| 学习周报 | 4 格数据（学习时长、做题数、正确率、新掌握数） |
-| 掌握度雷达图 | MPAndroidChart `RadarChart`（5 维掌握度） |
-| 设置项 | 考试目标、知识库管理、数据导出、重设考试目标（→Onboarding）、退出登录 |
-
-**数据加载**：`loadAllDashboard()` 一次发起 4 个并发请求（overview/radar/tasks/report），`AtomicInteger` 计数完成。
+| 今日任务 | 3 个 task item，点击跳转对应 Tab |
+| 学习周报 | 4 格数据 |
+| 掌握度雷达图 | MPAndroidChart `RadarChart`（5 维） |
 
 ---
 
 ## 五、V3 API 层
 
-### 5.1 ApiServiceV3（Retrofit 接口）
+### 5.1 ApiServiceV3（Retrofit 接口，20+ 端点）
 
 Base URL：`BuildConfig.API_HOST + "/api/v3/"`
 
 **知识库**：
 
-| 注解 | 路径 | 返回类型 |
-|------|------|---------|
-| `@GET` | `kb/notes` | `ApiResponse<List<NoteItem>>` |
-| `@GET` | `kb/notes/{id}` | `ApiResponse<NoteDetail>` |
-| `@Multipart @POST` | `kb/upload` | `ApiResponse<UploadResult>` |
-| `@POST` | `kb/search` | `ApiResponse<List<NoteFragment>>` |
+| 注解 | 路径 | 说明 |
+|------|------|------|
+| `@GET` | `kb/notes` | 笔记列表（subject/page/size） |
+| `@GET` | `kb/notes/{id}` | 笔记详情（含 chunk、关联考点/题目） |
+| `@Multipart @POST` | `kb/upload` | 上传文件（PDF/DOCX/图片 OCR） |
+| `@PUT` | `kb/notes/{id}` | 编辑笔记元数据 |
+| `@DELETE` | `kb/notes/{id}` | 删除笔记 |
+| `@POST` | `kb/notes/{id}/optimize` | AI 优化内容 |
+| `@POST` | `kb/search` | 语义搜索 |
+
+**答疑 V3**：
+
+| 注解 | 路径 | 说明 |
+|------|------|------|
+| `@Streaming @POST` | `chat/stream` | SSE 流式答疑 |
+| `@Streaming @POST` | `chat/stream-image` | SSE 多模态答疑 |
+
+**刷题**：
+
+| 注解 | 路径 | 说明 |
+|------|------|------|
+| `@GET` | `daily-practice` | 每日一练（subject/count/knowledgePoints） |
+| `@POST` | `daily-practice/{id}/submit` | 提交答案 |
+| `@POST` | `daily-practice/{id}/feedback` | 题目报错 |
+| `@Streaming @POST` | `smart-paper/generate` | SSE 智能组卷 |
+| `@GET` | `exam-archive` | 真题列表 |
+| `@GET` | `exam-archive/filters` | 筛选选项 |
+| `@Multipart @POST` | `exam-archive/upload` | 上传试卷 |
+| `@POST` | `exam-archive/simulate` | AI 模拟题 |
+| `@Streaming @POST` | `grading/submit-image` | SSE 拍照批改 |
 
 **错题本**：
 
-| 注解 | 路径 | 返回类型 |
-|------|------|---------|
-| `@GET` | `errors/list` | `ApiResponse<List<ErrorItem>>` |
-| `@GET` | `errors/{id}` | `ApiResponse<ErrorDetail>` |
-| `@GET` | `errors/review-queue` | `ApiResponse<List<ReviewItem>>` |
-| `@PUT` | `errors/{id}/mark-mastered` | `ApiResponse<Map>` |
-| `@POST` | `errors/{id}/similar` | `ApiResponse<List<SimilarQuestion>>` |
+| 注解 | 路径 | 说明 |
+|------|------|------|
+| `@GET` | `errors/list` | 错题列表 |
+| `@GET` | `errors/{id}` | 错题详情（含诊断 JSON） |
+| `@PUT` | `errors/{id}/mark-mastered` | 标记掌握/取消 |
+| `@POST` | `errors/{id}/similar` | 同类题推荐 |
+| `@POST` | `errors/{id}/feedback` | 诊断反馈 |
 
 **仪表盘**：
 
-| 注解 | 路径 | 返回类型 |
-|------|------|---------|
-| `@GET` | `dashboard/overview` | `ApiResponse<DashboardOverview>` |
-| `@GET` | `dashboard/mastery-radar` | `ApiResponse<MasteryRadarData>` |
-| `@GET` | `dashboard/today-tasks` | `ApiResponse<List<TaskItem>>` |
-| `@GET` | `dashboard/weekly-report` | `ApiResponse<WeeklyReport>` |
+| 注解 | 路径 | 说明 |
+|------|------|------|
+| `@GET` | `dashboard/overview` | 备考概览 |
+| `@GET` | `dashboard/mastery-radar` | 雷达图数据 |
+| `@GET` | `dashboard/today-tasks` | 今日任务 |
+| `@GET` | `dashboard/weekly-report` | 学习周报 |
 
-### 5.2 NetworkClientV3（网络配置）
+### 5.2 NetworkClientV3
 
 | 配置项 | 值 |
 |--------|-----|
-| Base URL | `BuildConfig.API_HOST + "/api/v3/"` |
-| 标准超时 | 180 秒（connect/read/write） |
-| 流式超时 | 300 秒（read），180 秒（connect/write） |
+| 标准超时 | 180s（connect/read/write） |
+| 流式超时 | 300s（read），180s（connect/write） |
 
-**拦截器链**（按顺序）：
-
-1. **Auth 拦截器** → 注入 `token` 请求头
-2. **Logging 拦截器** → `BODY`（标准）/ `HEADERS`（流式）
-3. **401 拦截器** → 触发 `IRAgentApplication.onUnauthorized()` 跳转登录页
-4. **网络拦截器**（仅流式）→ `Accept-Encoding: identity` + `Connection: keep-alive` + `Accept: text/event-stream`
-
-**Retrofit 实例**：
-
-| 实例 | Base URL | 用途 |
-|------|---------|------|
-| `retrofit` | `/api/v3/` | 标准 HTTP 调用 |
-| `streamRetrofit` | `/api/v3/` | SSE 流式调用（300s 超时） |
-| `conversationRetrofit` | `/api/` | V1 会话管理（兼容） |
+**拦截器链**：Auth 拦截器 → Logging 拦截器 → 401 拦截器（触发 `onUnauthorized()` → 跳转登录）
 
 ### 5.3 Repository 层
 
-| Repository | API 方式 | 方法数 |
-|-----------|---------|--------|
-| `KnowledgeRepository` | Retrofit `ApiServiceV3` | 4（list, detail, upload, search） |
-| `ErrorsRepository` | Retrofit `ApiServiceV3` | 5（list, detail, reviewQueue, markMastered, similar） |
-| `DashboardRepository` | Retrofit `ApiServiceV3` | 4（overview, radar, tasks, report） |
-| `PracticeRepository` | OkHttp + SSE | 1（submitGrading） |
-| `ChatRepositoryV3` | OkHttp + SSE | 1（chatStream） |
-| `ConversationRepositoryV3` | Retrofit `ApiService`（V1） | 4（list, create, messages, title） |
-
-所有 Repository 使用统一的 `ResultCallback<T>` 回调模式（`onSuccess`、`onError`、`onException`）。
+| Repository | 方式 | 主要方法 |
+|-----------|------|---------|
+| `KnowledgeRepository` | Retrofit | listNotes, getNoteDetail, uploadNote, updateNote, deleteNote, optimizeNote, searchNotes |
+| `PracticeV2Repository` | Retrofit + OkHttp SSE | getDailyPractice, submitDailyFeedback, generateSmartPaper, getExamArchive, uploadPaper, simulateExam |
+| `ErrorsRepository` | Retrofit | listErrors, getErrorDetail, markMastered, getSimilarQuestions, submitFeedback |
+| `DashboardRepository` | Retrofit | getOverview, getRadar, getTasks, getReport |
+| `ChatRepositoryV3` | OkHttp SSE | chatStream, chatStreamWithImage |
+| `ConversationRepositoryV3` | Retrofit (V1) | list, create, messages, title |
 
 ---
 
-## 六、V3 数据模型（22 个类）
+## 六、V3 数据模型（25 个类）
 
-| 模型 | 用途 |
-|------|------|
-| `NoteItem` | 笔记列表条目 |
-| `NoteDetail` | 笔记详情（含 chunk、关联考点/题目） |
-| `NoteChunk` | 笔记切分结果 |
-| `NoteFragment` | 语义搜索匹配结果 |
-| `NoteRef` | AI 回答中的笔记引用 |
-| `LinkedKnowledgePoint` | 关联知识点 |
-| `LinkedQuestion` | 关联题目 |
-| `UploadResult` | 上传响应 |
-| `SearchRequest` | 搜索请求体 |
-| `ErrorItem` | 错题列表条目 |
-| `ErrorDetail` | 错题详情（含诊断 JSON） |
-| `DiagnosisJson` | 三维诊断容器 |
-| `DiagnosisItem` | 单项诊断 |
-| `ReviewItem` | 复习队列条目 |
-| `SimilarQuestion` | 同类题推荐 |
-| `GradingReport` | 批改报告 |
-| `GradedQuestion` | 批改后单题 |
-| `GradingRequest` | 批改请求体 |
-| `DashboardOverview` | 仪表盘概览 |
-| `MasteryRadarData` | 雷达图数据 |
-| `TaskItem` | 今日任务条目 |
-| `WeeklyReport` | 学习周报 |
-| `ChatRequestV3` | V3 聊天请求 |
-
-所有模型使用 Gson `@SerializedName` 注解映射 JSON 字段。
+| 模型 | 用途 | 新增字段 |
+|------|------|---------|
+| `NoteItem` | 笔记列表条目 | — |
+| `NoteDetail` | 笔记详情（content/chunks/linkedKp/linkedQuestions） | — |
+| `NoteChunk` | 笔记切分结果 | — |
+| `NoteFragment` | 语义搜索匹配 | — |
+| `LinkedKnowledgePoint` | 关联知识点 | — |
+| `LinkedQuestion` | 关联题目 | — |
+| `UploadResult` | 上传响应（含 AI 分类） | `Classification` 内部类 |
+| `SimilarQuestion` | 同类题推荐 | `similarity` / `difficulty` / `questionType` |
+| `ErrorDetail` | 错题详情（含诊断 JSON） | — |
+| `DiagnosisJson` / `DiagnosisItem` | 三维诊断 | — |
+| `PracticeQuestion` | 每日一练题目 | — |
+| `DailyPracticeSession` | 每日一练会话 | — |
+| `SubmitAnswerRequest` / `SubmitAnswerResult` | 提交答案 | `photoBase64` |
+| `SmartPaperRequest` / `SmartPaperSession` | 智能组卷 | — |
+| `ExamQuestion` / `ExamFilterData` | 真题数据 | — |
+| `GradedQuestion` / `GradingReport` | 批改结果 | — |
+| `DashboardOverview` / `MasteryRadarData` / `TaskItem` / `WeeklyReport` | 仪表盘 | — |
+| `ChatRequestV3` | V3 聊天请求 | `imageBase64` |
 
 ---
 
 ## 七、SSE 流式解析器（SseParser）
 
-**文件**：`util/SseParser.java`
+双模式设计，同时支持 V2 和 V3 SSE 事件：
 
-双模式设计，同时支持 V2 和 V3 SSE 事件格式：
-
-```java
-// V2 回调（旧版，保持兼容）
-public interface Callback {
-    void onSegment(String segment);
-    void onComplete();
-    void onError(Exception e);
-}
-
-// V3 回调（新版，按事件类型分发）
-public interface V3Callback {
-    void onChunk(String content);
-    void onNoteRefs(List<NoteRef> refs);
-    void onPlot(String plotData);
-    void onPlot3d(String plotData);
-    void onDone();
-    void onError(String code, String message);
-}
-```
+- **V2 回调**：`onSegment` / `onComplete` / `onError`
+- **V3 回调**：`onChunk` / `onNoteRefs` / `onPlot` / `onPlot3d` / `onDone` / `onError`
+- **SmartPaper 回调**：`onQuestionStart` / `onQuestionContent` / `onQuestionEnd` / `onComplete` / `onError`
 
 解析逻辑：按 `\n\n` 分割 SSE 帧 → 提取 `event:` 和 `data:` 字段 → 按事件类型分发。
 
 ---
 
-## 八、自定义 View
-
-### CoverageRingView（覆盖率环形图）
-
-**文件**：`ui/screens/profile/CoverageRingView.java`
-
-使用 Canvas `drawArc()` 绘制 conic-gradient 效果：
-- 内部百分比文字
-- 外环已掌握区域（主题色渐变）
-- 外环未掌握区域（灰色）
-
-### GeoGebraView
-
-**文件**：`ui/geogebra/GeoGebraView.java`
-
-WebView 封装，加载 `assets/geogebra/index.html`，通过 `evaluateJavascript()` 注入数学表达式，渲染 2D/3D 函数图像。
-
----
-
-## 九、布局文件清单
+## 八、布局文件清单
 
 ### V3 核心布局
 
@@ -477,56 +424,72 @@ WebView 封装，加载 `assets/geogebra/index.html`，通过 `evaluateJavascrip
 | `fragment_knowledge_detail.xml` | KnowledgeDetailFragment |
 | `fragment_study_v3.xml` | StudyFragmentV3 |
 | `fragment_practice_hub.xml` | PracticeHubFragment |
+| `fragment_daily_practice.xml` | DailyPracticeFragment |
+| `fragment_smart_paper.xml` | SmartPaperFragment |
+| `fragment_exam_archive.xml` | ExamArchiveFragment |
 | `fragment_errors_list.xml` | ErrorsListFragment |
 | `fragment_errors_detail.xml` | ErrorsDetailFragment |
 | `fragment_dashboard.xml` | DashboardFragment |
-| `activity_main.xml` | MainActivity（NavHost + BottomNav） |
+| `activity_main.xml` | MainActivity |
 
 ### 组件布局
 
 | 文件 | 说明 |
 |------|------|
-| `item_note_card.xml` | 笔记卡片（科目、标题、摘要、标签、关联题目数） |
-| `item_note_ref_card.xml` | 笔记引用卡片（"参考你的笔记" + 标题 + 片段） |
-| `bottom_nav_menu.xml` | 5 Tab 菜单定义 |
-
-### V2 兼容布局（保留）
-
-`fragment_home.xml`、`fragment_study.xml`、`fragment_deep_learn.xml`、`fragment_video_lesson.xml`、`fragment_conversation_list.xml`、`fragment_profile.xml`、`activity_auth.xml`、`activity_onboarding.xml`
+| `item_note_card.xml` | 笔记卡片 |
+| `item_note_ref_card.xml` | 笔记引用卡片 |
+| `item_similar_question.xml` | 同类题卡片（MaterialCardView + 相似度/难度/标签/开始练习） |
+| `dialog_ai_optimize.xml` | AI 优化指令输入对话框 |
+| `bottom_nav_menu.xml` | 5 Tab 菜单 |
 
 ---
 
-## 十、构建与运行
+## 九、assets/ 资源
 
-### 10.1 配置 API 地址
+| 路径 | 用途 |
+|------|------|
+| `libs/katex.min.js` + `katex.min.css` | KaTeX 本地渲染引擎（273KB） |
+| `libs/auto-render.min.js` | KaTeX 自动渲染扩展（3KB） |
+| `libs/marked.min.js` | Markdown→HTML 解析（50KB） |
+| `math_template.html` | 笔记内容渲染模板（本地库引用，零网络依赖） |
+| `engine/renderer.html` | Timeline 12 种动作黑板演算引擎 |
+| `geogebra/index.html` | GeoGebra 2D 函数图像渲染 |
+| `geogebra/3d_renderer.html` | GeoGebra 3D 函数图像渲染 |
+| `knowledge_graph.html` | 知识图谱 SVG 可视化 |
 
-在 `app/build.gradle.kts` 中：
+**KaTeX 本地化**：所有 JS/CSS 从 CDN 迁移到 `assets/libs/`，WebView 通过 `file:///android_asset/libs/` 加载，零网络依赖，即时渲染无竞态。
+
+---
+
+## 十、认证流程
+
+1. `AuthActivity` → `POST /api/auth/login` → 获取 token
+2. token 存入 `PreferencesManager`（SharedPreferences）
+3. API 请求通过 `NetworkClient` 拦截器注入 `token` 请求头
+4. 401 响应 → `IRAgentApplication.onUnauthorized()` → 清除 token → 跳转 `AuthActivity`
+
+---
+
+## 十一、构建与运行
+
+### 11.1 配置 API 地址
 
 ```kotlin
+// app/build.gradle.kts
 defaultConfig {
     buildConfigField("String", "API_HOST", "\"http://192.168.123.44:8080\"")
 }
 ```
 
-或在 `local.properties` 中覆盖。
-
-### 10.2 编译
+### 11.2 编译运行
 
 ```bash
 cd Android/IRAgentAPP
-./gradlew assembleDebug
+./gradlew assembleDebug    # 编译
+./gradlew installDebug     # 安装
 ```
 
-### 10.3 运行
-
-```bash
-./gradlew installDebug
-# 或 Android Studio → Run 'app'
-```
-
-APK 输出路径：`app/build/outputs/apk/debug/app-debug.apk`
-
-### 10.4 首次启动流程
+### 11.3 首次启动
 
 ```
 AuthActivity（登录/注册）
@@ -534,41 +497,3 @@ AuthActivity（登录/注册）
   ├─ 新用户 → OnboardingActivity（选考试 → 定目标 → 上传笔记）
   └─ 老用户 → MainActivity（默认 Tab：知识库）
 ```
-
----
-
-## 十一、WebView 资源（assets/）
-
-| 文件 | 用途 |
-|------|------|
-| `math_template.html` | Markdown + LaTeX 数学公式渲染模板 |
-| `engine/renderer.html` | Timeline 12 种动作黑板演算引擎 |
-| `geogebra/index.html` | GeoGebra 2D 函数图像渲染 |
-| `geogebra/3d_renderer.html` | GeoGebra 3D 函数图像渲染 |
-| `knowledge_graph.html` | 知识图谱 SVG 可视化 |
-
----
-
-## 十二、认证流程
-
-1. `AuthActivity` → `POST /api/auth/login` → 获取 token
-2. token 存入 `PreferencesManager`（SharedPreferences）
-3. 所有 API 请求通过 `NetworkClient` 拦截器注入 `token` 请求头
-4. 401 响应 → `IRAgentApplication.onUnauthorized()` → 清除 token → 跳转 `AuthActivity`
-
----
-
-## 十三、版本兼容策略
-
-| 层 | V1 | V2 | V3 |
-|----|-----|-----|-----|
-| 答疑对话 | `StudyFragment` + `ApiService` | — | `StudyFragmentV3` + `ChatRepositoryV3` |
-| 深度学习 | — | `DeepLearnFragment` + `DeepLearnRepository` | — |
-| 视频讲解 | — | `VideoLessonFragment` | — |
-| 知识库 | — | — | `KnowledgeListFragment` + `KnowledgeRepository` |
-| 刷题批改 | — | — | `PracticeHubFragment` + `PracticeRepository` |
-| 错题本 | — | — | `ErrorsListFragment` + `ErrorsRepository` |
-| 仪表盘 | — | — | `DashboardFragment` + `DashboardRepository` |
-| 会话管理 | `ConversationRepository` | — | `ConversationRepositoryV3`（内部走 V1 API） |
-
-V1/V2 组件保留可用，V3 组件通过 Navigation Components 无缝切换。用户无需感知版本差异。
