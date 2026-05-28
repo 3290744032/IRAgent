@@ -1,30 +1,167 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
-<style>
-body{margin:0;padding:0;background:#fff;display:flex;align-items:center;justify-content:center;height:100vh;}
-svg{display:block;width:100%;max-width:360px;}
-</style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <script src="file:///android_asset/libs/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #FAFBFC; }
+        #chart { width: 100%; height: 100%; }
+
+        /* 节点弹出提示 */
+        #tooltip {
+            position: absolute; display: none; background: #fff; border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.10); padding: 12px 16px; z-index: 10;
+            max-width: 200px; pointer-events: none;
+        }
+        #tooltip .tt-title { font-size: 13px; font-weight: 700; color: #1F2937; margin-bottom: 4px; }
+        #tooltip .tt-sub { font-size: 11px; color: #9CA3AF; }
+
+        /* 图例 */
+        #legend {
+            position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 16px; z-index: 5;
+        }
+        .legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: #6B7280; }
+        .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+    </style>
 </head>
 <body>
-<svg xmlns="http://www.w3.org/2000/svg" width="360" height="180" viewBox="0 0 360 180">
-<line x1="75" y1="40" x2="180" y2="55" stroke="#E5E7EB" stroke-width="1.5" stroke-dasharray="4,3"/>
-<line x1="75" y1="90" x2="180" y2="80" stroke="#E5E7EB" stroke-width="1.5" stroke-dasharray="4,3"/>
-<line x1="75" y1="140" x2="180" y2="105" stroke="#E5E7EB" stroke-width="1.5" stroke-dasharray="4,3"/>
-<line x1="180" y1="55" x2="290" y2="30" stroke="#E5E7EB" stroke-width="1.5" stroke-dasharray="4,3"/>
-<line x1="180" y1="80" x2="290" y2="80" stroke="#E5E7EB" stroke-width="1.5" stroke-dasharray="4,3"/>
-<line x1="180" y1="105" x2="290" y2="130" stroke="#E5E7EB" stroke-width="1.5" stroke-dasharray="4,3"/>
-<circle cx="75" cy="40" r="14" fill="#DBEAFE" stroke="#3B82F6" stroke-width="2"/><text x="75" y="44" text-anchor="middle" font-size="10" fill="#1E40AF" font-weight="600">导数</text>
-<circle cx="75" cy="90" r="14" fill="#DBEAFE" stroke="#3B82F6" stroke-width="2"/><text x="75" y="94" text-anchor="middle" font-size="10" fill="#1E40AF" font-weight="600">最值</text>
-<circle cx="75" cy="140" r="14" fill="#FEE2E2" stroke="#EF4444" stroke-width="2"/><text x="75" y="144" text-anchor="middle" font-size="10" fill="#991B1B" font-weight="600">三角</text>
-<rect x="140" y="42" width="80" height="26" rx="6" fill="#EDE9FE" stroke="#8B5CF6" stroke-width="1.5"/><text x="180" y="59" text-anchor="middle" font-size="9" fill="#5B21B6" font-weight="600">导数公式笔记</text>
-<rect x="140" y="67" width="80" height="26" rx="6" fill="#EDE9FE" stroke="#8B5CF6" stroke-width="1.5"/><text x="180" y="84" text-anchor="middle" font-size="9" fill="#5B21B6" font-weight="600">最值三步法</text>
-<rect x="140" y="92" width="80" height="26" rx="6" fill="#EDE9FE" stroke="#8B5CF6" stroke-width="1.5"/><text x="180" y="109" text-anchor="middle" font-size="9" fill="#5B21B6" font-weight="600">三角变换笔记</text>
-<rect x="268" y="18" width="45" height="22" rx="4" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1.5"/><text x="290" y="33" text-anchor="middle" font-size="8" fill="#92400E" font-weight="600">题6 ✗</text>
-<rect x="268" y="68" width="45" height="22" rx="4" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1.5"/><text x="290" y="83" text-anchor="middle" font-size="8" fill="#92400E" font-weight="600">题14 ✗</text>
-<rect x="268" y="118" width="45" height="22" rx="4" fill="#D1FAE5" stroke="#10B981" stroke-width="1.5"/><text x="290" y="133" text-anchor="middle" font-size="8" fill="#065F46" font-weight="600">题3 ✓</text>
-<text x="30" y="172" font-size="8" fill="#9CA3AF">考点</text><text x="170" y="172" font-size="8" fill="#9CA3AF">笔记</text><text x="278" y="172" font-size="8" fill="#9CA3AF">题目</text>
-</svg>
+<div id="chart"></div>
+<div id="tooltip"><div class="tt-title"></div><div class="tt-sub"></div></div>
+<div id="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#3B82F6"></div>考点</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#8B5CF6"></div>笔记</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#10B981"></div>正确</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#EF4444"></div>错题</div>
+</div>
+
+<script>
+    var chartDom = document.getElementById('chart');
+    var chart = echarts.init(chartDom);
+    var tooltip = document.getElementById('tooltip');
+
+    // ===== 节点颜色配置（莫兰迪色系柔化） =====
+    function getNodeColor(n) {
+        switch (n.type) {
+            case 'knowledge_point':
+                var m = n.mastery != null ? n.mastery : 0;
+                return m >= 0.7 ? '#93C5FD' : '#FCA5A5';   // 柔蓝 / 柔红
+            case 'note':
+                return '#C4B5FD';                             // 柔紫
+            case 'question':
+                return n.status === 'correct' ? '#86EFAC' : '#FCA5A5'; // 柔绿 / 柔红
+            default:
+                return '#E5E7EB';
+        }
+    }
+
+    function getNodeSize(n) {
+        if (n.type === 'knowledge_point') return 18 + (n.value || 1) * 4;
+        return 16;
+    }
+
+    // ===== 点击处理 =====
+    chart.on('click', function(params) {
+        if (params.dataType === 'node' && params.data && params.data.rawData) {
+            var d = params.data.rawData;
+            if (window.AndroidInterface && d.actualId) {
+                window.AndroidInterface.onNodeClick(d.type, d.actualId);
+            }
+        }
+    });
+
+    // ===== 长按空白 → 重置视图 =====
+    var pressTimer;
+    chartDom.addEventListener('touchstart', function(e) {
+        pressTimer = setTimeout(function() {
+            if (!chart._clickedNode) {
+                chart.dispatchAction({ type: 'restore' });
+            }
+        }, 600);
+    });
+    chartDom.addEventListener('touchend', function() { clearTimeout(pressTimer); });
+    chartDom.addEventListener('touchmove', function() { clearTimeout(pressTimer); });
+
+    // ===== 渲染函数：由 Android evaluateJavascript 调用 =====
+    function renderGraph(jsonStr) {
+        var data;
+        try {
+            data = JSON.parse(jsonStr);
+        } catch(e) {
+            console.error('Graph JSON parse error:', e);
+            return;
+        }
+        if (!data || !data.nodes || !data.nodes.length) return;
+
+        // 为 data 数组中的每个 item 挂 rawData 引用
+        var nodes = data.nodes.map(function(n) {
+            return {
+                id: n.id,
+                name: n.name,
+                symbolSize: getNodeSize(n),
+                itemStyle: { color: getNodeColor(n), borderColor: '#fff', borderWidth: 1.5 },
+                label: { show: n.type === 'knowledge_point', fontSize: 10, color: '#374151', formatter: truncate },
+                rawData: n     // 挂载完整数据给 click 事件
+            };
+        });
+
+        var edges = (data.edges || []).map(function(e) {
+            return {
+                source: e.source,
+                target: e.target,
+                lineStyle: { color: '#D1D5DB', width: 1, curveness: 0.2, opacity: 0.7 }
+            };
+        });
+
+        var option = {
+            tooltip: {
+                formatter: function(p) {
+                    var d = p.data.rawData;
+                    if (!d) return p.name;
+                    var typeLabel = { knowledge_point: '考点', note: '笔记', question: '题目' }[d.type] || '';
+                    var extra = '';
+                    if (d.type === 'knowledge_point') extra = '<br/>掌握度 ' + Math.round((d.mastery||0)*100) + '% · ' + (d.value||0) + ' 条笔记';
+                    if (d.type === 'note') extra = '<br/>' + (d.subject || '');
+                    if (d.type === 'question') extra = '<br/>' + (d.status === 'correct' ? '✓ 已掌握' : '✗ 待复习');
+                    return '<b>' + typeLabel + '</b> ' + d.name + extra;
+                }
+            },
+            animationDuration: 800,
+            animationEasingUpdate: 'cubicInOut',
+            series: [{
+                type: 'graph',
+                layout: 'force',
+                roam: true,
+                draggable: true,
+                force: { repulsion: 280, edgeLength: [60, 180], gravity: 0.08 },
+                scaleLimit: { min: 0.6, max: 3 },
+                data: nodes,
+                edges: edges,
+                emphasis: {
+                    focus: 'adjacency',
+                    lineStyle: { width: 2.5 }
+                }
+            }]
+        };
+
+        chart.setOption(option);
+
+        // 通知 Android 渲染完成（隐藏 loading）
+        if (window.AndroidInterface) {
+            window.AndroidInterface.onRenderComplete();
+        }
+    }
+
+    function truncate(n) {
+        return n && n.length > 6 ? n.substring(0, 5) + '..' : n;
+    }
+
+    // 首次加载：等待 Android 注入 _graphData
+    if (typeof _graphData !== 'undefined' && _graphData) {
+        renderGraph(_graphData);
+    }
+</script>
 </body>
 </html>

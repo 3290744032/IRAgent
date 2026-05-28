@@ -39,6 +39,9 @@ public interface ApiServiceV3 {
     @POST("kb/search")
     Call<ApiResponse<List<NoteFragment>>> searchNotes(@Body SearchRequest body);
 
+    @GET("kb/graph-data")
+    Call<ApiResponse<Map<String, Object>>> getGraphData();
+
     // ===== 错题本 =====
     @GET("errors/list")
     Call<ApiResponse<List<ErrorItem>>> listErrors(

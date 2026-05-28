@@ -32,6 +32,21 @@ public class SseParser {
         this.v3Callback = v3Callback;
     }
 
+    private EventHandler eventHandler;
+
+    public void setEventHandler(EventHandler handler) {
+        this.eventHandler = handler;
+    }
+
+    /**
+     * Parse with a custom event handler that intercepts all events.
+     * When set, the custom handler takes priority over built-in callbacks.
+     */
+    public void parseWithHandler(EventHandler handler) {
+        this.eventHandler = handler;
+        parse();
+    }
+
     public void stop() {
         isRunning = false;
     }
@@ -71,8 +86,12 @@ public class SseParser {
                 parseData(dataBuilder.toString().trim());
             }
         } catch (IOException e) {
+            String msg = "流读取错误: " + e.getMessage();
             if (callback != null && isRunning) {
-                callback.onError("流读取错误: " + e.getMessage());
+                callback.onError(msg);
+            }
+            if (eventHandler != null && isRunning) {
+                eventHandler.onError(msg);
             }
         } finally {
             if (reader != null) {
@@ -103,6 +122,13 @@ public class SseParser {
             
             JSONObject json = new JSONObject(cleanJson);
             String type = json.optString("type");
+
+            // Custom event handler takes priority
+            if (eventHandler != null) {
+                org.json.JSONObject payload = json.optJSONObject("data");
+                eventHandler.onEvent(type, payload);
+                return;
+            }
 
             Log.d(TAG, "Received SSE message: type=" + type + ", data=" + jsonStr);
 
@@ -242,6 +268,14 @@ public class SseParser {
         void onStep(String step, String text, int current, int total);
         void onComplete(com.suiyuan.iragent_app.data.model.v3.GradingReport report);
         void onDone();
+        void onError(String error);
+    }
+
+    /**
+     * Custom event handler for intercepting specific SSE events.
+     */
+    public interface EventHandler {
+        void onEvent(String type, org.json.JSONObject payload);
         void onError(String error);
     }
 }

@@ -193,7 +193,7 @@ public class ErrorsDetailFragment extends Fragment {
 
         // 反馈按钮
         MaterialButton btnFb = new MaterialButton(requireContext(), null,
-                com.google.android.material.R.attr.materialButtonTextStyle);
+                com.google.android.material.R.attr.materialButtonStyle);
         btnFb.setText("题目有误？");
         btnFb.setTextSize(11);
         btnFb.setTextColor(getResources().getColor(R.color.text_tertiary, null));

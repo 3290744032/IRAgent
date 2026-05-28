@@ -33,6 +33,7 @@ public class KnowledgeListViewModel extends AndroidViewModel {
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
     private final MutableLiveData<String> uploadStep = new MutableLiveData<>();
     private final MutableLiveData<Integer> uploadProgress = new MutableLiveData<>(0);
+    private final MutableLiveData<Map<String, Object>> graphData = new MutableLiveData<>();
 
     public KnowledgeListViewModel(@NonNull Application application) {
         super(application);
@@ -47,8 +48,28 @@ public class KnowledgeListViewModel extends AndroidViewModel {
     public MutableLiveData<Boolean> getIsLoading() { return isLoading; }
     public MutableLiveData<String> getUploadStep() { return uploadStep; }
     public MutableLiveData<Integer> getUploadProgress() { return uploadProgress; }
+    public MutableLiveData<Map<String, Object>> getGraphData() { return graphData; }
 
     public void clearError() { error.postValue(null); }
+
+    public void loadGraphData() {
+        repository.getGraphData(new KnowledgeRepository.ResultCallback<Map<String, Object>>() {
+            @Override
+            public void onSuccess(Map<String, Object> data) {
+                graphData.postValue(data);
+            }
+
+            @Override
+            public void onError(int code, String message) {
+                // 图谱加载失败不打扰用户，静默降级
+            }
+
+            @Override
+            public void onException(Exception e) {
+                // 静默降级
+            }
+        });
+    }
 
     public void listNotes(String subject, int page, int size) {
         isLoading.postValue(true);

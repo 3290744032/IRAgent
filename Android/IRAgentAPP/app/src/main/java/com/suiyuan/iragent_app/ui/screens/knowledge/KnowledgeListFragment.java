@@ -193,14 +193,69 @@ public class KnowledgeListFragment extends Fragment {
 
     private void setupKnowledgeGraph(View view) {
         android.webkit.WebView kgWebView = view.findViewById(R.id.wv_knowledge_graph);
-        if (kgWebView == null) {
-            // Fallback: use ImageView if WebView not in layout
-            return;
-        }
-        kgWebView.setBackgroundColor(android.graphics.Color.TRANSPARENT);
-        kgWebView.getSettings().setJavaScriptEnabled(true);
-        kgWebView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        if (kgWebView == null) return;
+
+        android.webkit.WebSettings settings = kgWebView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        kgWebView.setBackgroundColor(getResources().getColor(R.color.background, null));
+        kgWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+
+        // 解决 WebView 内拖拽与 ScrollView 滚动的手势冲突
+        kgWebView.setOnTouchListener((v, event) -> {
+            if (event.getPointerCount() > 1 || event.getAction() == android.view.MotionEvent.ACTION_MOVE) {
+                v.getParent().requestDisallowInterceptTouchEvent(true);
+            }
+            return false;
+        });
+
+        // JSBridge: 点击节点 → 导航到详情页
+        kgWebView.addJavascriptInterface(new Object() {
+            @android.webkit.JavascriptInterface
+            public void onNodeClick(String type, String actualId) {
+                requireActivity().runOnUiThread(() -> {
+                    if ("note".equals(type) && actualId != null) {
+                        Bundle args = new Bundle();
+                        args.putString("note_id", actualId);
+                        Navigation.findNavController(requireView())
+                                .navigate(R.id.nav_knowledge_detail, args);
+                    } else if ("question".equals(type) && actualId != null) {
+                        Bundle args = new Bundle();
+                        args.putString("error_id", actualId);
+                        Navigation.findNavController(requireView())
+                                .navigate(R.id.nav_errors_detail, args);
+                    }
+                });
+            }
+
+            @android.webkit.JavascriptInterface
+            public void onRenderComplete() {
+                // ECharts 渲染完成，隐藏 loading overlay
+                requireActivity().runOnUiThread(() -> {
+                    View overlay = requireView().findViewById(R.id.graph_loading_overlay);
+                    if (overlay != null) overlay.setVisibility(View.GONE);
+                });
+            }
+        }, "AndroidInterface");
+
+        // 加载 HTML 模板
         kgWebView.loadUrl("file:///android_asset/knowledge_graph.html");
+
+        // 监听图谱数据并注入 WebView
+        viewModel.getGraphData().observe(getViewLifecycleOwner(), data -> {
+            if (data != null) {
+                try {
+                    String json = new com.google.gson.Gson().toJson(data);
+                    String escaped = json.replace("\\", "\\\\").replace("'", "\\'")
+                            .replace("\n", "\\n").replace("\r", "\\r");
+                    kgWebView.evaluateJavascript(
+                            "if(typeof renderGraph==='function')renderGraph('" + escaped + "')", null);
+                } catch (Exception ignored) {}
+            }
+        });
+
+        // 加载图谱数据
+        viewModel.loadGraphData();
     }
 
     private void setupSubjectTabs() {

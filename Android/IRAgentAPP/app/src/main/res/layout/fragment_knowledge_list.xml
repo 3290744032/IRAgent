@@ -261,6 +261,28 @@
                         android:id="@+id/wv_knowledge_graph"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent" />
+
+                    <LinearLayout
+                        android:id="@+id/graph_loading_overlay"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:background="#FAFBFC">
+
+                        <ProgressBar
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:indeterminateTint="@color/primary_color" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="加载知识图谱..."
+                            android:textSize="11sp"
+                            android:textColor="@color/text_tertiary"
+                            android:paddingTop="6dp" />
+                    </LinearLayout>
                 </FrameLayout>
 
                 <LinearLayout

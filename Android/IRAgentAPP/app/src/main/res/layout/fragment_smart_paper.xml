@@ -1,169 +1,236 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/gray_bg">
+    android:background="@color/gray_bg"
+    android:orientation="vertical">
 
-    <LinearLayout
+    <!-- Scrollable content area -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scroll_stream"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
 
-        <!-- Config phase -->
         <LinearLayout
-            android:id="@+id/layout_config"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:visibility="visible">
+            android:padding="16dp">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="智能组卷"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="选择科目"
-                android:textSize="13sp"
-                android:textColor="@color/gray_text"
-                android:paddingTop="20dp" />
-
-            <Spinner
-                android:id="@+id/sp_subject"
-                android:layout_width="match_parent"
-                android:layout_height="44dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="题量、难度将由 AI 自动决定"
-                android:textSize="12sp"
-                android:textColor="@color/gray_text"
-                android:paddingTop="6dp" />
-
-            <Button
-                android:id="@+id/btn_generate"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="32dp"
-                android:text="生成试卷"
-                android:textSize="15sp" />
-        </LinearLayout>
-
-        <!-- Quiz phase (reuse same IDs as daily_practice) -->
-        <LinearLayout
-            android:id="@+id/layout_quiz"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <TextView
-                android:id="@+id/tv_progress"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="1/10"
-                android:textSize="14sp"
-                android:textColor="@color/gray_text" />
-
-            <TextView
-                android:id="@+id/tv_question"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="16sp"
-                android:textColor="@color/on_surface"
-                android:textStyle="bold"
-                android:lineSpacingExtra="4dp"
-                android:paddingTop="12dp" />
-
+            <!-- Config/Chat phase -->
             <LinearLayout
-                android:id="@+id/ll_options"
+                android:id="@+id/layout_config"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:paddingTop="16dp" />
+                android:visibility="visible">
 
-            <Button
-                android:id="@+id/btn_next"
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="智能组卷"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_stream_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="在下方输入你的需求，AI 将自动生成试卷"
+                    android:textSize="13sp"
+                    android:textColor="@color/gray_text"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="12dp" />
+
+                <!-- Streaming output area -->
+                <TextView
+                    android:id="@+id/tv_stream_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="15sp"
+                    android:textColor="@color/on_surface"
+                    android:lineSpacingExtra="6dp"
+                    android:lineSpacingMultiplier="1.3"
+                    android:visibility="gone"
+                    android:padding="16dp"
+                    android:textColorLink="@color/primary_color"
+                    android:background="@android:drawable/editbox_background" />
+
+                <!-- PDF button (hidden until stream completes) -->
+                <Button
+                    android:id="@+id/btn_pdf"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="12dp"
+                    android:text="生成 PDF 试卷"
+                    android:textSize="15sp"
+                    android:visibility="gone" />
+
+                <Button
+                    android:id="@+id/btn_start_quiz"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
+                    android:text="开始答题"
+                    android:textSize="15sp"
+                    android:visibility="gone" />
+
+                <Button
+                    android:id="@+id/btn_answer_key"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
+                    android:text="查看解析"
+                    android:textSize="15sp"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+            <!-- Quiz phase -->
+            <LinearLayout
+                android:id="@+id/layout_quiz"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="24dp"
-                android:text="下一题"
-                android:textSize="15sp" />
-        </LinearLayout>
-
-        <!-- Loading phase -->
-        <LinearLayout
-            android:id="@+id/layout_loading"
-            android:layout_width="match_parent"
-            android:layout_height="200dp"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <ProgressBar
-                android:layout_width="48dp"
-                android:layout_height="48dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="生成中..."
-                android:textSize="14sp"
-                android:textColor="@color/text_tertiary"
-                android:paddingTop="12dp" />
-        </LinearLayout>
+                android:orientation="vertical"
+                android:visibility="gone">
 
-        <!-- Result phase -->
-        <LinearLayout
-            android:id="@+id/layout_result"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone">
+                <TextView
+                    android:id="@+id/tv_progress"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="1/10"
+                    android:textSize="14sp"
+                    android:textColor="@color/gray_text" />
 
-            <TextView
-                android:id="@+id/tv_result_score"
+                <TextView
+                    android:id="@+id/tv_question"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="16sp"
+                    android:textColor="@color/on_surface"
+                    android:textStyle="bold"
+                    android:lineSpacingExtra="4dp"
+                    android:paddingTop="12dp" />
+
+                <LinearLayout
+                    android:id="@+id/ll_options"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="16dp" />
+
+                <Button
+                    android:id="@+id/btn_next"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="24dp"
+                    android:text="下一题"
+                    android:textSize="15sp" />
+            </LinearLayout>
+
+            <!-- Loading phase -->
+            <LinearLayout
+                android:id="@+id/layout_loading"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="200dp"
                 android:gravity="center"
-                android:textSize="36sp"
-                android:textStyle="bold"
-                android:padding="24dp" />
+                android:orientation="vertical"
+                android:visibility="gone">
 
+                <ProgressBar
+                    android:layout_width="48dp"
+                    android:layout_height="48dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="AI 正在生成..."
+                    android:textSize="14sp"
+                    android:textColor="@color/text_tertiary"
+                    android:paddingTop="12dp" />
+            </LinearLayout>
+
+            <!-- Result phase -->
             <LinearLayout
-                android:id="@+id/ll_result_stats"
+                android:id="@+id/layout_result"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal" />
+                android:orientation="vertical"
+                android:visibility="gone">
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="答题详情"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:paddingTop="24dp"
-                android:paddingBottom="12dp" />
+                <TextView
+                    android:id="@+id/tv_result_score"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:textSize="36sp"
+                    android:textStyle="bold"
+                    android:padding="24dp" />
 
-            <LinearLayout
-                android:id="@+id/ll_result_details"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical" />
+                <LinearLayout
+                    android:id="@+id/ll_result_stats"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
 
-            <Button
-                android:id="@+id/btn_back_hub"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="24dp"
-                android:text="返回刷题"
-                android:textSize="15sp" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="答题详情"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:paddingTop="24dp"
+                    android:paddingBottom="12dp" />
+
+                <LinearLayout
+                    android:id="@+id/ll_result_details"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <Button
+                    android:id="@+id/btn_back_hub"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="24dp"
+                    android:text="返回刷题"
+                    android:textSize="15sp" />
+            </LinearLayout>
         </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- Bottom input bar (fixed) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:background="@android:color/white"
+        android:gravity="center_vertical">
+
+        <EditText
+            android:id="@+id/et_chat_input"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:hint="输入你的需求，如：我想考一张 Android 基础卷子"
+            android:textSize="14sp"
+            android:textColor="@color/on_surface"
+            android:padding="8dp"
+            android:background="@android:drawable/editbox_background"
+            android:singleLine="true" />
+
+        <Button
+            android:id="@+id/btn_send"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:layout_marginStart="8dp"
+            android:text="发送"
+            android:textSize="14sp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp" />
     </LinearLayout>
-</ScrollView>
+
+</LinearLayout>

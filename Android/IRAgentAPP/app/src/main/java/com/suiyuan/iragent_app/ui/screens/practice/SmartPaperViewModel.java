@@ -6,12 +6,15 @@ import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.MutableLiveData;
 import com.suiyuan.iragent_app.data.model.v3.*;
 import com.suiyuan.iragent_app.data.repository.v3.PracticeV2Repository;
+import com.suiyuan.iragent_app.data.repository.v3.SmartPaperStreamRepository;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class SmartPaperViewModel extends AndroidViewModel {
 
     private final PracticeV2Repository repository;
+    private final SmartPaperStreamRepository streamRepository;
     private final MutableLiveData<SmartPaper> paper = new MutableLiveData<>();
     private final MutableLiveData<SubmitAnswerResult> result = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
@@ -19,11 +22,28 @@ public class SmartPaperViewModel extends AndroidViewModel {
     private final MutableLiveData<Integer> questionIndex = new MutableLiveData<>(0);
     private final MutableLiveData<String> selectedOption = new MutableLiveData<>("");
 
+    // Streaming state
+    private final StringBuilder streamBuffer = new StringBuilder();
+    private final StringBuilder paperBodyBuffer = new StringBuilder();
+    private final MutableLiveData<String> streamContent = new MutableLiveData<>("");
+    private final MutableLiveData<Boolean> isStreaming = new MutableLiveData<>(false);
+    private final MutableLiveData<Boolean> pdfVisible = new MutableLiveData<>(false);
+    private final MutableLiveData<String> streamError = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> answerKeyVisible = new MutableLiveData<>(false);
+    private boolean separatorReached = false;
+    private String answerKeyContent;
+    private String fullContent;
+    private String paperBodyContent;
+    private String paperId;
+    private SmartPaper streamedPaper;
+    private static final String ANSWER_SEPARATOR = "---ANSWER_BREAK---";
+
     private final List<SubmitAnswerRequest.AnswerEntry> answers = new ArrayList<>();
 
     public SmartPaperViewModel(@NonNull Application application) {
         super(application);
         this.repository = new PracticeV2Repository();
+        this.streamRepository = new SmartPaperStreamRepository();
     }
 
     public MutableLiveData<SmartPaper> getPaper() { return paper; }
@@ -32,6 +52,102 @@ public class SmartPaperViewModel extends AndroidViewModel {
     public MutableLiveData<String> getError() { return error; }
     public MutableLiveData<Integer> getQuestionIndex() { return questionIndex; }
     public MutableLiveData<String> getSelectedOption() { return selectedOption; }
+
+    // Streaming LiveData
+    public MutableLiveData<String> getStreamContent() { return streamContent; }
+    public MutableLiveData<Boolean> getIsStreaming() { return isStreaming; }
+    public MutableLiveData<Boolean> getPdfVisible() { return pdfVisible; }
+    public MutableLiveData<String> getStreamError() { return streamError; }
+    public MutableLiveData<Boolean> getAnswerKeyVisible() { return answerKeyVisible; }
+
+    public String getPaperId() { return paperId; }
+    public SmartPaper getStreamedPaper() { return streamedPaper; }
+    public boolean hasAnswerKey() { return answerKeyContent != null && !answerKeyContent.isEmpty(); }
+    public String getFullContent() { return fullContent; }
+    public String getPaperBodyContent() { return paperBodyContent; }
+
+    public void toggleAnswerKey() {
+        boolean cur = Boolean.TRUE.equals(answerKeyVisible.getValue());
+        answerKeyVisible.postValue(!cur);
+    }
+
+    /**
+     * 流式生成试卷 — 发送自然语言 prompt
+     */
+    public void streamGeneratePaper(String prompt) {
+        isStreaming.postValue(true);
+        pdfVisible.postValue(false);
+        answerKeyVisible.postValue(false);
+        streamBuffer.setLength(0);
+        paperBodyBuffer.setLength(0);
+        streamContent.postValue("");
+        streamError.postValue("");
+        answerKeyContent = null;
+        fullContent = null;
+        paperBodyContent = null;
+        separatorReached = false;
+        answers.clear();
+        questionIndex.postValue(0);
+
+        streamRepository.streamGeneratePaper(prompt, new SmartPaperStreamRepository.StreamCallback() {
+            @Override
+            public void onChunk(String content) {
+                streamBuffer.append(content);
+
+                if (!separatorReached) {
+                    String full = streamBuffer.toString();
+                    int sepIdx = full.indexOf(ANSWER_SEPARATOR);
+                    if (sepIdx >= 0) {
+                        separatorReached = true;
+                        String body = full.substring(0, sepIdx).trim();
+                        String aKey = full.substring(sepIdx + ANSWER_SEPARATOR.length()).trim();
+                        paperBodyBuffer.setLength(0);
+                        paperBodyBuffer.append(body);
+                        paperBodyContent = body;
+                        fullContent = body + "\n\n" + aKey;
+                        streamContent.postValue(body);
+                        answerKeyContent = aKey;
+                    } else {
+                        paperBodyBuffer.append(content);
+                        streamContent.postValue(paperBodyBuffer.toString());
+                    }
+                } else {
+                    answerKeyContent += content;
+                    fullContent = paperBodyContent + "\n\n" + answerKeyContent;
+                }
+            }
+
+            @Override
+            public void onComplete(String pid, SmartPaper sp) {
+                fullContent = streamBuffer.toString();
+                if (!separatorReached) {
+                    paperBodyContent = fullContent;
+                } else {
+                    paperBodyContent = paperBodyBuffer.toString();
+                }
+
+                paperId = pid;
+                streamedPaper = sp;
+                if (sp != null) {
+                    paper.postValue(sp);
+                }
+                isStreaming.postValue(false);
+                pdfVisible.postValue(true);
+            }
+
+            @Override
+            public void onError(int code, String message) {
+                isStreaming.postValue(false);
+                streamError.postValue("请求失败(" + code + "): " + message);
+            }
+
+            @Override
+            public void onException(Exception e) {
+                isStreaming.postValue(false);
+                streamError.postValue("网络异常: " + e.getMessage());
+            }
+        });
+    }
 
     public void generatePaper(SmartPaperRequest req) {
         isLoading.postValue(true);

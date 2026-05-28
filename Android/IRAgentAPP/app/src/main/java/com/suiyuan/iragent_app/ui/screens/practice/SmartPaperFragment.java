@@ -6,36 +6,38 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.widget.NestedScrollView;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.suiyuan.iragent_app.R;
+
+import io.noties.markwon.Markwon;
+import io.noties.markwon.ext.latex.JLatexMathPlugin;
 import com.suiyuan.iragent_app.data.model.v3.PracticeQuestion;
 import com.suiyuan.iragent_app.data.model.v3.SmartPaper;
-import com.suiyuan.iragent_app.data.model.v3.SmartPaperRequest;
 import com.suiyuan.iragent_app.data.model.v3.SubmitAnswerResult;
-
-import java.util.ArrayList;
 
 public class SmartPaperFragment extends Fragment {
 
     private SmartPaperViewModel viewModel;
 
     private View layoutConfig, layoutQuiz, layoutLoading, layoutResult;
-    private Spinner spSubject;
-    private Button btnGenerate;
-    private TextView tvProgress, tvQuestion, tvResultScore;
+    private TextView tvStreamContent, tvStreamLabel, tvProgress, tvQuestion, tvResultScore;
+    private EditText etChatInput;
+    private Button btnSend, btnPdf, btnStartQuiz, btnAnswerKey, btnGenerate;
     private LinearLayout llOptions, llResultStats, llResultDetails;
     private Button btnNext, btnBackHub;
+    private NestedScrollView scrollStream;
+    private Markwon markwon;
 
     private static final String ARG_SUBJECT = "subject";
 
@@ -60,12 +62,27 @@ public class SmartPaperFragment extends Fragment {
 
         viewModel = new ViewModelProvider(this).get(SmartPaperViewModel.class);
 
+        float mathTextSize = getResources().getDisplayMetrics().scaledDensity * 15f;
+        markwon = Markwon.builder(requireContext())
+                .usePlugin(JLatexMathPlugin.create(mathTextSize, config -> {
+                    config.inlinesEnabled(true);
+                }))
+                .build();
+
         layoutConfig = view.findViewById(R.id.layout_config);
         layoutQuiz = view.findViewById(R.id.layout_quiz);
         layoutLoading = view.findViewById(R.id.layout_loading);
         layoutResult = view.findViewById(R.id.layout_result);
-        spSubject = view.findViewById(R.id.sp_subject);
-        btnGenerate = view.findViewById(R.id.btn_generate);
+
+        tvStreamContent = view.findViewById(R.id.tv_stream_content);
+        tvStreamLabel = view.findViewById(R.id.tv_stream_label);
+        etChatInput = view.findViewById(R.id.et_chat_input);
+        btnSend = view.findViewById(R.id.btn_send);
+        btnPdf = view.findViewById(R.id.btn_pdf);
+        btnStartQuiz = view.findViewById(R.id.btn_start_quiz);
+        btnAnswerKey = view.findViewById(R.id.btn_answer_key);
+        scrollStream = view.findViewById(R.id.scroll_stream);
+
         tvProgress = view.findViewById(R.id.tv_progress);
         tvQuestion = view.findViewById(R.id.tv_question);
         llOptions = view.findViewById(R.id.ll_options);
@@ -75,36 +92,28 @@ public class SmartPaperFragment extends Fragment {
         llResultDetails = view.findViewById(R.id.ll_result_details);
         btnBackHub = view.findViewById(R.id.btn_back_hub);
 
-        setupSpinners();
         setupClickListeners();
         setupObservers();
-
-        String subjectArg = getArguments() != null ? getArguments().getString(ARG_SUBJECT, "") : "";
-        if (!subjectArg.isEmpty()) {
-            setSpinnerSelection(spSubject, subjectArg);
-        }
-    }
-
-    private void setupSpinners() {
-        ArrayAdapter<String> subjectAdapter = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_spinner_item,
-                new String[]{"数学", "物理", "化学", "英语", "政治", "历史"});
-        subjectAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spSubject.setAdapter(subjectAdapter);
-    }
-
-    private void setSpinnerSelection(Spinner spinner, String value) {
-        ArrayAdapter<String> adapter = (ArrayAdapter<String>) spinner.getAdapter();
-        for (int i = 0; i < adapter.getCount(); i++) {
-            if (adapter.getItem(i).equals(value)) {
-                spinner.setSelection(i);
-                break;
-            }
-        }
     }
 
     private void setupClickListeners() {
-        btnGenerate.setOnClickListener(v -> generatePaper());
+        btnSend.setOnClickListener(v -> sendPrompt());
+        btnPdf.setOnClickListener(v -> {
+            Toast.makeText(getContext(), "PDF 导出功能待实现", Toast.LENGTH_SHORT).show();
+        });
+        btnStartQuiz.setOnClickListener(v -> {
+            SmartPaper paper = viewModel.getStreamedPaper();
+            if (paper != null && paper.getQuestions() != null && !paper.getQuestions().isEmpty()) {
+                showPhase(layoutConfig, false);
+                showPhase(layoutQuiz, true);
+                renderQuestion(paper);
+            } else {
+                Toast.makeText(getContext(), "试卷数据异常，请重新生成", Toast.LENGTH_SHORT).show();
+            }
+        });
+        btnAnswerKey.setOnClickListener(v -> {
+            viewModel.toggleAnswerKey();
+        });
         btnNext.setOnClickListener(v -> onNextClick());
         btnBackHub.setOnClickListener(v -> {
             if (getActivity() != null) {
@@ -113,41 +122,81 @@ public class SmartPaperFragment extends Fragment {
         });
     }
 
-    private void generatePaper() {
-        String subject = spSubject.getSelectedItem().toString();
-        String title = subject + " 专项练习";
-
-        SmartPaperRequest req = new SmartPaperRequest(
-                subject, "", title, 5, 3,
-                new ArrayList<String>(), true);
-
-        showPhase(layoutConfig, false);
-        showPhase(layoutLoading, true);
-        viewModel.generatePaper(req);
-    }
-
-    private void onNextClick() {
-        SmartPaper paper = viewModel.getPaper().getValue();
-        if (paper == null || paper.getQuestions() == null || paper.getQuestions().isEmpty()) return;
-
-        int idx = viewModel.getQuestionIndex().getValue() != null
-                ? viewModel.getQuestionIndex().getValue() : 0;
-        if (idx >= paper.getQuestions().size()) return;
-        String sel = viewModel.getSelectedOption().getValue();
-        if (viewModel.isLastQuestion() && (sel == null || sel.isEmpty())) {
+    private void sendPrompt() {
+        String prompt = etChatInput.getText().toString().trim();
+        if (prompt.isEmpty()) {
+            Toast.makeText(getContext(), "请输入你的需求", Toast.LENGTH_SHORT).show();
             return;
         }
-        String qId = paper.getQuestions().get(idx).getId();
-        viewModel.nextQuestion(qId);
-
-        if (viewModel.isLastQuestion()) {
-            viewModel.submitAll(paper.getPaperId());
-        }
+        etChatInput.setText("");
+        tvStreamContent.setVisibility(View.VISIBLE);
+        tvStreamContent.setText("");
+        tvStreamLabel.setText("AI 正在生成试卷...");
+        btnPdf.setVisibility(View.GONE);
+        btnStartQuiz.setVisibility(View.GONE);
+        btnAnswerKey.setVisibility(View.GONE);
+        btnAnswerKey.setText("查看解析");
+        showPhase(layoutConfig, true);
+        viewModel.streamGeneratePaper(prompt);
     }
 
     private void setupObservers() {
+        viewModel.getStreamContent().observe(getViewLifecycleOwner(), content -> {
+            markwon.setMarkdown(tvStreamContent, content);
+            if (scrollStream != null) {
+                scrollStream.post(() -> scrollStream.fullScroll(View.FOCUS_DOWN));
+            }
+        });
+
+        viewModel.getIsStreaming().observe(getViewLifecycleOwner(), streaming -> {
+            if (streaming != null) {
+                btnSend.setEnabled(!streaming);
+                btnSend.setAlpha(streaming ? 0.5f : 1f);
+                if (!streaming) {
+                    tvStreamLabel.setText("生成完成");
+                }
+            }
+        });
+
+        viewModel.getPdfVisible().observe(getViewLifecycleOwner(), visible -> {
+            if (visible != null) {
+                btnPdf.setVisibility(visible ? View.VISIBLE : View.GONE);
+                btnStartQuiz.setVisibility(visible && viewModel.getStreamedPaper() != null
+                        ? View.VISIBLE : View.GONE);
+                btnAnswerKey.setVisibility(visible && viewModel.hasAnswerKey()
+                        ? View.VISIBLE : View.GONE);
+            }
+        });
+
+        viewModel.getAnswerKeyVisible().observe(getViewLifecycleOwner(), visible -> {
+            if (visible != null && visible) {
+                String full = viewModel.getFullContent();
+                if (full != null) {
+                    markwon.setMarkdown(tvStreamContent, full);
+                    if (scrollStream != null) {
+                        scrollStream.post(() -> scrollStream.fullScroll(View.FOCUS_DOWN));
+                    }
+                }
+                btnAnswerKey.setText("收起解析");
+            } else if (visible != null) {
+                String body = viewModel.getPaperBodyContent();
+                if (body != null) {
+                    markwon.setMarkdown(tvStreamContent, body);
+                }
+                btnAnswerKey.setText("查看解析");
+            }
+        });
+
+        viewModel.getStreamError().observe(getViewLifecycleOwner(), err -> {
+            if (err != null && !err.isEmpty()) {
+                Toast.makeText(getContext(), err, Toast.LENGTH_LONG).show();
+                tvStreamLabel.setText("生成失败，请重试");
+            }
+        });
+
         viewModel.getPaper().observe(getViewLifecycleOwner(), paper -> {
-            if (paper != null) {
+            // Used for backward compatibility with non-streaming flow
+            if (paper != null && viewModel.getIsLoading().getValue() == Boolean.TRUE) {
                 showPhase(layoutLoading, false);
                 if (paper.getQuestions() == null || paper.getQuestions().isEmpty()) {
                     showPhase(layoutQuiz, false);
@@ -205,6 +254,25 @@ public class SmartPaperFragment extends Fragment {
                 Toast.makeText(getContext(), error, Toast.LENGTH_LONG).show();
             }
         });
+    }
+
+    private void onNextClick() {
+        SmartPaper paper = viewModel.getPaper().getValue();
+        if (paper == null || paper.getQuestions() == null || paper.getQuestions().isEmpty()) return;
+
+        int idx = viewModel.getQuestionIndex().getValue() != null
+                ? viewModel.getQuestionIndex().getValue() : 0;
+        if (idx >= paper.getQuestions().size()) return;
+        String sel = viewModel.getSelectedOption().getValue();
+        if (viewModel.isLastQuestion() && (sel == null || sel.isEmpty())) {
+            return;
+        }
+        String qId = paper.getQuestions().get(idx).getId();
+        viewModel.nextQuestion(qId);
+
+        if (viewModel.isLastQuestion()) {
+            viewModel.submitAll(paper.getPaperId());
+        }
     }
 
     private void renderQuestion(SmartPaper paper) {

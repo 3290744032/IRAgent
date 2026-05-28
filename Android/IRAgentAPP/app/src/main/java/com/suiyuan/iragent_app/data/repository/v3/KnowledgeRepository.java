@@ -74,6 +74,10 @@ public class KnowledgeRepository {
         apiService.searchNotes(request).enqueue(createCallback(callback, ApiResponse::getData));
     }
 
+    public void getGraphData(ResultCallback<Map<String, Object>> callback) {
+        apiService.getGraphData().enqueue(createCallback(callback, ApiResponse::getData));
+    }
+
     public void deleteNote(String noteId, ResultCallback<Boolean> callback) {
         apiService.deleteNote(noteId).enqueue(createCallback(callback, r -> r != null));
     }
