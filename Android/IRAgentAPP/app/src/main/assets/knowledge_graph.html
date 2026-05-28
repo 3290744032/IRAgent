@@ -20,10 +20,16 @@ var dom = document.getElementById('chart');
 var msg = document.getElementById('msg');
 
 function renderFromBase64(b64) {
-    var json;
-    try { json = atob(b64); } catch(e) { return msg.textContent='解码失败'; }
-    var data;
-    try { data = JSON.parse(json); } catch(e) { return msg.textContent='JSON错误'; }
+    try {
+        // atob → 字节串 → 每字节%编码 → decodeURIComponent 正确还原UTF-8中文
+        var bytes = atob(b64);
+        var utf8 = decodeURIComponent(
+            bytes.split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join('')
+        );
+        var data = JSON.parse(utf8);
+    } catch(e) { return msg.textContent='数据解析失败'; }
     if (!data || !data.nodes || !data.nodes.length) return msg.textContent='暂无笔记';
 
     msg.style.display = 'none';
