@@ -130,7 +130,14 @@ com.suiyuan.iragent_app/
     │   ├── math_template.html          # Markdown + LaTeX 渲染模板（本地库）
     │   ├── engine/renderer.html        # Timeline 黑板演算引擎
     │   ├── geogebra/                   # GeoGebra 2D/3D 渲染
-    │   └── knowledge_graph.html        # 知识图谱 SVG
+    │   ├── libs/                       # KaTeX + ECharts 本地库（零网络依赖）
+    │   │   ├── katex.min.js (273KB) + katex.min.css (23KB) + auto-render.min.js (3KB)
+    │   │   ├── marked.min.js (50KB)    # Markdown 解析
+    │   │   └── echarts.min.js (1MB)    # ECharts 5.5 力导向图
+    │   ├── math_template.html          # 笔记内容渲染（KaTeX 本地库）
+    │   ├── knowledge_graph.html        # ECharts 知识图谱（骨架/聚焦/过滤/搜索）
+    │   ├── engine/renderer.html        # Timeline 黑板演算引擎
+    │   └── geogebra/                   # GeoGebra 2D/3D 渲染
     ├── layout/                         # 布局文件（15+ 个 v3 layout）
     ├── menu/bottom_nav_menu.xml        # 5 Tab 定义
     ├── navigation/nav_graph_v3.xml     # 导航图
@@ -164,11 +171,31 @@ MainActivity 使用自定义 `setOnItemSelectedListener`，点击已选中 Tab �
 | 统计行 | 笔记数、科目数、考点数、覆盖率（4 个 TextView） |
 | 搜索栏 | EditText + 300ms 防抖 → `KnowledgeRepository.searchNotes()` |
 | 学科筛选 | 横向滚动 Chips，由 `SubjectConfig.SUBJECTS_WITH_ALL` 动态生成 |
-| 知识图谱 | WebView 加载 `knowledge_graph.html`（考点↔笔记↔题目 SVG） |
+| 知识图谱 | ECharts 5.5 力导向图（WebView + `echarts.min.js` 本地库） |
 | 笔记列表 | RecyclerView + NoteCardAdapter |
 | 长按删除 | AlertDialog 确认 → `KnowledgeRepository.deleteNote()` |
 | 上传卡片 | 点击 → 文件/相机选择器 → 预览 + 命名 → `uploadNote()`（支持 AI 分类结果预览） |
 | 空状态 | 无笔记时显示引导文案 |
+
+**知识图谱架构**（对标 Obsidian 交互水准）：
+```
+KnowledgeListFragment.setupKnowledgeGraph()
+  → WebView 加载 knowledge_graph.html（ECharts 5.5 本地 1MB）
+  → onPageFinished 后触发 viewModel.loadGraphData()
+  → GET /v3/kb/graph-data → GraphDataService 聚合 SQL 返回 {nodes, edges}
+  → Base64 编码 JSON → evaluateJavascript("renderFromBase64('...')")
+  → ECharts 力导向渲染（动态 repulsion 公式 + 莫兰迪配色）
+```
+
+**图谱交互**：
+| 操作 | 行为 |
+|------|------|
+| 默认视图 | 骨架模式：仅显示考点节点（`type=knowledge_point`），清爽无噪 |
+| 点击考点 | 2-hop 聚焦视图：展开关联笔记+错题，无关节点淡化 opacity 0.15 |
+| 双击空白 | 重置全局骨架视图 |
+| 左上过滤器 | 毛玻璃面板：`显示错题` / `显示已掌握考点` 实时过滤 |
+| 右上搜索 | 输入关键字 → 自动定位节点 + 1200ms 高亮闪烁 |
+| 点击笔记/错题 | JSBridge `onNodeClick(type, actualId)` → Android 导航到详情页 |
 
 ### 4.2 KnowledgeDetailFragment（笔记详情）
 
@@ -314,6 +341,7 @@ Base URL：`BuildConfig.API_HOST + "/api/v3/"`
 | `@DELETE` | `kb/notes/{id}` | 删除笔记 |
 | `@POST` | `kb/notes/{id}/optimize` | AI 优化内容 |
 | `@POST` | `kb/search` | 语义搜索 |
+| `@GET` | `kb/graph-data` | 知识图谱数据（考点/笔记/错题三元拓扑） |
 
 **答疑 V3**：
 

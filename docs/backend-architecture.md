@@ -99,7 +99,7 @@ Docker Compose 一键部署：
 
 > 所有路径前缀 `/api`。Token 通过 `token` 请求头传递（`LoginInterceptor` 拦截校验）。
 
-### 4.1 知识库 — `/api/v3/kb`（7 端点）
+### 4.1 知识库 — `/api/v3/kb`（8 端点）
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -110,6 +110,18 @@ Docker Compose 一键部署：
 | `DELETE` | `/kb/notes/{id}` | 删除笔记（级联删除 chunk） |
 | `POST` | `/kb/notes/{id}/optimize` | AI 优化笔记（支持自定义指令） |
 | `POST` | `/kb/search` | 语义搜索个人笔记 |
+| `GET` | `/kb/graph-data` | 知识图谱 JSON（考点/笔记/错题三元拓扑 + cleanNodeName 清洗） |
+
+**知识图谱数据流**：
+```
+GET /v3/kb/graph-data → GraphDataService.getGraphData(userId)
+  → KP节点: note_chunk GROUP BY knowledge_point + mastery_records 掌握度
+  → 笔记节点: note ORDER BY updated_at LIMIT 30
+  → 错题节点: error_book ORDER BY created_at LIMIT 30
+  → 边: note_chunk(考点→笔记) + error_book↔note_chunk(考点→错题+笔记→错题)
+  → cleanNodeName(): 取首行→去###→去$$公式→去$行内→去\command→去**粗体→截断12字
+  → 返回 {nodes: [{id,name,type,value,mastery,actualId}], edges: [{source,target,relation}]}
+```
 
 **上传流程**：
 ```
@@ -333,7 +345,8 @@ calculation_error (LLM)  ─┘
 | `ErrorBookService` | V3 | 错题本 CRUD + 同类题推荐 |
 | `DashboardService` | V3 | 仪表盘聚合（4 路并发） |
 | `AIQuestionGenerator` | V3 | AI 出题（LLM 生成 + SymPy 验证 + 缓存入库） |
-| `NoteChunkingService` | V3 | 按标题切分 + knowledgePoint 250 字符截断 |
+| `NoteChunkingService` | V3 | 改进版分块：全6级标题匹配 + 知识点清洗（去序号/标点/28字截断） + 碎片合并（MIN=100, MAX=1200） |
+| `GraphDataService` | V3 | 知识图谱聚合：SQL 查询 note_chunk/mastery_records/error_book → {nodes, edges} + cleanNodeName() 清洗 Markdown/LaTeX |
 | `IntentRouterService` | V3 | 意图路由（答疑/组卷/批改） |
 | `SpacedRepetitionService` | V3 | 艾宾浩斯间隔复习 [0,1,3,7,15,30] 天 |
 | `ApiKeyProvider` | V3 | 3 Key 热刷新管理 |
