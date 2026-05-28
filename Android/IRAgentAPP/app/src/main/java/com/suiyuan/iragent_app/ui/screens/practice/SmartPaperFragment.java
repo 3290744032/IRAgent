@@ -1,17 +1,19 @@
 package com.suiyuan.iragent_app.ui.screens.practice;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.pdf.PdfDocument;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
+import android.print.PrintAttributes;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.content.Context;
-import android.print.PrintAttributes;
-import android.print.PrintManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -22,6 +24,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -31,6 +34,8 @@ import com.suiyuan.iragent_app.data.model.v3.SmartPaper;
 import com.suiyuan.iragent_app.data.model.v3.SubmitAnswerResult;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -203,8 +208,6 @@ public class SmartPaperFragment extends Fragment {
         WebSettings ws = printView.getSettings();
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
-        ws.setAllowFileAccess(false);
-        ws.setAllowContentAccess(false);
         printView.setVisibility(View.GONE);
 
         ViewGroup root = (ViewGroup) requireView().getRootView();
@@ -213,20 +216,70 @@ public class SmartPaperFragment extends Fragment {
         printView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
-                PrintManager pm = (PrintManager) requireContext()
-                        .getSystemService(Context.PRINT_SERVICE);
-                PrintAttributes attrs = new PrintAttributes.Builder()
-                        .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
-                        .setColorMode(PrintAttributes.COLOR_MODE_COLOR)
-                        .build();
-                pm.print("智能组卷",
-                        printView.createPrintDocumentAdapter("SmartPaper"),
-                        attrs);
+                // 直接生成 PDF 文件保存到 Downloads，不再弹打印机选择
+                try {
+                    String fileName = "IRAgent_组卷_" + System.currentTimeMillis() + ".pdf";
+                    java.io.File pdfFile = new java.io.File(
+                            android.os.Environment.getExternalStoragePublicDirectory(
+                                    android.os.Environment.DIRECTORY_DOWNLOADS), fileName);
+                    pdfFile.getParentFile().mkdirs();
+
+                    android.graphics.pdf.PdfDocument pdf = new android.graphics.pdf.PdfDocument();
+                    PrintAttributes attrs = new PrintAttributes.Builder()
+                            .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                            .setColorMode(PrintAttributes.COLOR_MODE_COLOR)
+                            .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
+                            .build();
+
+                    // 用 WebView 渲染后的内容生成 PDF 页
+                    int pageW = (int) (PrintAttributes.MediaSize.ISO_A4.getWidthMils() / 1000.0 * 72);
+                    int pageH = (int) (PrintAttributes.MediaSize.ISO_A4.getHeightMils() / 1000.0 * 72);
+
+                    android.graphics.pdf.PdfDocument.PageInfo pageInfo =
+                            new android.graphics.pdf.PdfDocument.PageInfo.Builder(pageW, pageH, 1).create();
+                    android.graphics.pdf.PdfDocument.Page page = pdf.startPage(pageInfo);
+                    android.graphics.Canvas canvas = page.getCanvas();
+
+                    // 缩放 WebView 内容到 PDF 页面
+                    float scaleX = (float) pageW / (float) Math.max(view.getWidth(), 1);
+                    canvas.scale(scaleX, scaleX);
+                    view.draw(canvas);
+
+                    pdf.finishPage(page);
+
+                    java.io.FileOutputStream fos = new java.io.FileOutputStream(pdfFile);
+                    pdf.writeTo(fos);
+                    pdf.close();
+                    fos.close();
+
+                    // 通知用户并打开分享
+                    Toast.makeText(getContext(), "已保存: Downloads/" + fileName, Toast.LENGTH_LONG).show();
+
+                    // 打开系统分享或查看
+                    android.content.Intent intent = new android.content.Intent(
+                            android.content.Intent.ACTION_VIEW);
+                    android.net.Uri uri = androidx.core.content.FileProvider.getUriForFile(
+                            requireContext(),
+                            requireContext().getPackageName() + ".fileprovider",
+                            pdfFile);
+                    intent.setDataAndType(uri, "application/pdf");
+                    intent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    try {
+                        startActivity(android.content.Intent.createChooser(intent, "打开 PDF"));
+                    } catch (Exception e) {
+                        // 没有能打开 PDF 的应用，Toast 已提示路径
+                    }
+                } catch (Exception e) {
+                    Toast.makeText(getContext(), "PDF 生成失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                } finally {
+                    // 清理临时 WebView
+                    ((ViewGroup) printView.getParent()).removeView(printView);
+                    printView.destroy();
+                }
             }
         });
 
-        printView.loadDataWithBaseURL("https://cdn.jsdelivr.net", html,
-                "text/html", "UTF-8", null);
+        printView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
     }
 
     private String buildExamHtml(String content, boolean includeAnswerKey) {
