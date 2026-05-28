@@ -72,7 +72,7 @@ graph TB
         Milvus[("Milvus 2.4<br/>HNSW 索引<br/>per-user Collection")]
     end
 
-    AI["🤖 火山方舟<br/>Doubao · DeepSeek<br/>Spring AI + LangChain4j"]
+    AI["🤖 火山方舟<br/>Doubao · DeepSeek<br/>自研 LLM Client + Embedding Client"]
 
     Android --> Controller
     Prototype --> Controller
@@ -286,6 +286,17 @@ LLM API 调用是系统里最贵的资源（一次诊断可能消耗上万 Token
 如果用纯人工录入题库，题目数量受限于录入人力，而且所有学生看到的题都一样。AI 生成可以做两件事：根据学生的错题记录定向出专攻题，以及根据笔记内容生成变式题。
 
 但 LLM 生成的题目可能存在幻觉（题干与答案不匹配、条件矛盾）。用 SymPy 符号验证 + 合理性检查做双重校验，验证失败的题丢弃不展示。同时用 Redis 缓存 + Milvus 语义缓存减少重复调用。
+
+### 技术选型：自研 vs LangChain / Spring AI
+
+本项目未引入 LangChain4j 或 Spring AI。两者都是优秀的框架，但 IRAgent 的场景特殊：
+
+- **已有更强的 DAG 引擎**：`DagExecutor` + `LlmCallNode` 比 LangChain 的 LCEL 更灵活，且深度绑定了 SSE 流式推送和移动端需求。LangChain 的链式调用在此场景下是降级。
+- **RAG 深度定制**：三路召回（Milvus 向量 + PG 全文 + RRF 融合）针对个人笔记场景做了批量 Embedding 调度和准确度调优，LangChain 默认的向量检索 + 拼 Prompt 模式覆盖不了。
+- **唯一 LLM 供应商**：项目只对接火山方舟一家，OkHttp 直连比多一层抽象更轻、更可控。LangChain 的多供应商适配优势用不上。
+- **记忆管理自研更适配**：`RedisChatMemoryRepository` 整合了 PG 持久化 + 7 天 TTL + 对话摘要自动截断，比 LangChain 的 `ConversationBufferWindowMemory` 更贴合移动端场景。
+
+结论：IRAgent 的自研方案在流式性能、SSE 移动端推送、多租户路由、批量 Embedding 调度上更贴合实际需求，LangChain 在此场景下不是更优选择。
 
 ### KaTeX + ECharts 为什么本地化
 
