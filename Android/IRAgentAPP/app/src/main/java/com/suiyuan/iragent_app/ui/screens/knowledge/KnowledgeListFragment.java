@@ -198,6 +198,7 @@ public class KnowledgeListFragment extends Fragment {
         android.webkit.WebSettings settings = kgWebView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        settings.setDefaultTextEncodingName("UTF-8");
         kgWebView.setBackgroundColor(getResources().getColor(R.color.background, null));
         kgWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
