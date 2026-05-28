@@ -230,7 +230,6 @@ public class KnowledgeListFragment extends Fragment {
 
             @android.webkit.JavascriptInterface
             public void onRenderComplete() {
-                // ECharts 渲染完成，隐藏 loading overlay
                 requireActivity().runOnUiThread(() -> {
                     View overlay = requireView().findViewById(R.id.graph_loading_overlay);
                     if (overlay != null) overlay.setVisibility(View.GONE);
@@ -238,10 +237,23 @@ public class KnowledgeListFragment extends Fragment {
             }
         }, "AndroidInterface");
 
-        // 加载 HTML 模板
+        // 等页面（含 echarts.min.js）加载完再请求数据，杜绝 JS 未就绪竞态
+        final boolean[] pageReady = {false};
+        final String[] pendingB64 = {null};
+
+        kgWebView.setWebViewClient(new android.webkit.WebViewClient() {
+            @Override
+            public void onPageFinished(android.webkit.WebView wv, String url) {
+                pageReady[0] = true;
+                if (pendingB64[0] != null) {
+                    wv.evaluateJavascript("renderFromBase64('" + pendingB64[0] + "')", null);
+                    pendingB64[0] = null;
+                }
+            }
+        });
         kgWebView.loadUrl("file:///android_asset/knowledge_graph.html");
 
-        // 监听图谱数据并注入 WebView（Base64 中转，杜绝 JSON 转义问题）
+        // 监听图谱数据
         viewModel.getGraphData().observe(getViewLifecycleOwner(), data -> {
             if (data != null) {
                 try {
@@ -249,15 +261,18 @@ public class KnowledgeListFragment extends Fragment {
                     String b64 = android.util.Base64.encodeToString(
                             json.getBytes(java.nio.charset.StandardCharsets.UTF_8),
                             android.util.Base64.NO_WRAP);
-                    kgWebView.evaluateJavascript(
-                            "renderFromBase64('" + b64 + "')", null);
+                    if (pageReady[0]) {
+                        kgWebView.evaluateJavascript("renderFromBase64('" + b64 + "')", null);
+                    } else {
+                        pendingB64[0] = b64;
+                    }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
         });
 
-        // 加载图谱数据
+        // 页面就绪后才开始请求数据
         viewModel.loadGraphData();
     }
 

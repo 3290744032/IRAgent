@@ -6,6 +6,9 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -14,31 +17,36 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.widget.NestedScrollView;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.suiyuan.iragent_app.R;
-
-import io.noties.markwon.Markwon;
-import io.noties.markwon.ext.latex.JLatexMathPlugin;
-import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin;
 import com.suiyuan.iragent_app.data.model.v3.PracticeQuestion;
 import com.suiyuan.iragent_app.data.model.v3.SmartPaper;
 import com.suiyuan.iragent_app.data.model.v3.SubmitAnswerResult;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SmartPaperFragment extends Fragment {
 
     private SmartPaperViewModel viewModel;
 
     private View layoutConfig, layoutQuiz, layoutLoading, layoutResult;
-    private TextView tvStreamContent, tvStreamLabel, tvProgress, tvQuestion, tvResultScore;
+    private TextView tvStreamLabel, tvProgress, tvQuestion, tvResultScore;
     private EditText etChatInput;
-    private Button btnSend, btnPdf, btnStartQuiz, btnAnswerKey, btnGenerate;
+    private Button btnSend, btnPdf, btnStartQuiz, btnAnswerKey;
     private LinearLayout llOptions, llResultStats, llResultDetails;
     private Button btnNext, btnBackHub;
-    private NestedScrollView scrollStream;
-    private Markwon markwon;
+    private WebView wvStreamContent;
+
+    private String mMathTemplate;
+    private boolean mWebViewReady;
+    private String mLastRenderedText = "";
 
     private static final String ARG_SUBJECT = "subject";
 
@@ -63,27 +71,20 @@ public class SmartPaperFragment extends Fragment {
 
         viewModel = new ViewModelProvider(this).get(SmartPaperViewModel.class);
 
-        float mathTextSize = getResources().getDisplayMetrics().scaledDensity * 15f;
-        markwon = Markwon.builder(requireContext())
-                .usePlugin(MarkwonInlineParserPlugin.create())
-                .usePlugin(JLatexMathPlugin.create(mathTextSize, config -> {
-                    config.inlinesEnabled(true);
-                }))
-                .build();
+        loadMathTemplate();
 
         layoutConfig = view.findViewById(R.id.layout_config);
         layoutQuiz = view.findViewById(R.id.layout_quiz);
         layoutLoading = view.findViewById(R.id.layout_loading);
         layoutResult = view.findViewById(R.id.layout_result);
 
-        tvStreamContent = view.findViewById(R.id.tv_stream_content);
+        wvStreamContent = view.findViewById(R.id.wv_stream_content);
         tvStreamLabel = view.findViewById(R.id.tv_stream_label);
         etChatInput = view.findViewById(R.id.et_chat_input);
         btnSend = view.findViewById(R.id.btn_send);
         btnPdf = view.findViewById(R.id.btn_pdf);
         btnStartQuiz = view.findViewById(R.id.btn_start_quiz);
         btnAnswerKey = view.findViewById(R.id.btn_answer_key);
-        scrollStream = view.findViewById(R.id.scroll_stream);
 
         tvProgress = view.findViewById(R.id.tv_progress);
         tvQuestion = view.findViewById(R.id.tv_question);
@@ -94,8 +95,61 @@ public class SmartPaperFragment extends Fragment {
         llResultDetails = view.findViewById(R.id.ll_result_details);
         btnBackHub = view.findViewById(R.id.btn_back_hub);
 
+        setupWebView();
         setupClickListeners();
         setupObservers();
+    }
+
+    private void loadMathTemplate() {
+        try {
+            InputStream is = requireContext().getAssets().open("math_template.html");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) sb.append(line).append("\n");
+            mMathTemplate = sb.toString();
+            reader.close();
+            is.close();
+        } catch (IOException e) {
+            mMathTemplate = "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body><div id='content'></div></body></html>";
+        }
+    }
+
+    private void setupWebView() {
+        WebSettings settings = wvStreamContent.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setLoadWithOverviewMode(true);
+        settings.setUseWideViewPort(true);
+        settings.setBuiltInZoomControls(false);
+        settings.setDisplayZoomControls(false);
+        settings.setDefaultTextEncodingName("UTF-8");
+        settings.setAllowFileAccess(false);
+        settings.setAllowContentAccess(false);
+        wvStreamContent.setBackgroundColor(Color.TRANSPARENT);
+        wvStreamContent.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        wvStreamContent.setVerticalScrollBarEnabled(false);
+        wvStreamContent.setHorizontalScrollBarEnabled(false);
+        wvStreamContent.setOverScrollMode(View.OVER_SCROLL_NEVER);
+
+        wvStreamContent.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                mWebViewReady = true;
+                String content = viewModel.getStreamContent().getValue();
+                if (content != null && !content.isEmpty()) {
+                    renderInWebView(content);
+                }
+            }
+        });
+    }
+
+    private void renderInWebView(String content) {
+        if (!mWebViewReady || content == null) return;
+        if (content.equals(mLastRenderedText)) return;
+        String escaped = escapeJsString(content);
+        wvStreamContent.evaluateJavascript("renderMathContent('" + escaped + "')", null);
+        mLastRenderedText = content;
     }
 
     private void setupClickListeners() {
@@ -131,22 +185,26 @@ public class SmartPaperFragment extends Fragment {
             return;
         }
         etChatInput.setText("");
-        tvStreamContent.setVisibility(View.VISIBLE);
-        tvStreamContent.setText("");
+        wvStreamContent.setVisibility(View.VISIBLE);
+        mLastRenderedText = "";
+        mWebViewReady = false;
         tvStreamLabel.setText("AI 正在生成试卷...");
         btnPdf.setVisibility(View.GONE);
         btnStartQuiz.setVisibility(View.GONE);
         btnAnswerKey.setVisibility(View.GONE);
         btnAnswerKey.setText("查看解析");
         showPhase(layoutConfig, true);
+
+        wvStreamContent.loadDataWithBaseURL("https://cdn.jsdelivr.net", mMathTemplate,
+                "text/html", "UTF-8", null);
+
         viewModel.streamGeneratePaper(prompt);
     }
 
     private void setupObservers() {
         viewModel.getStreamContent().observe(getViewLifecycleOwner(), content -> {
-            markwon.setMarkdown(tvStreamContent, content);
-            if (scrollStream != null) {
-                scrollStream.post(() -> scrollStream.fullScroll(View.FOCUS_DOWN));
+            if (content != null) {
+                renderInWebView(content);
             }
         });
 
@@ -174,16 +232,13 @@ public class SmartPaperFragment extends Fragment {
             if (visible != null && visible) {
                 String full = viewModel.getFullContent();
                 if (full != null) {
-                    markwon.setMarkdown(tvStreamContent, full);
-                    if (scrollStream != null) {
-                        scrollStream.post(() -> scrollStream.fullScroll(View.FOCUS_DOWN));
-                    }
+                    renderInWebView(full);
                 }
                 btnAnswerKey.setText("收起解析");
             } else if (visible != null) {
                 String body = viewModel.getPaperBodyContent();
                 if (body != null) {
-                    markwon.setMarkdown(tvStreamContent, body);
+                    renderInWebView(body);
                 }
                 btnAnswerKey.setText("查看解析");
             }
@@ -197,7 +252,6 @@ public class SmartPaperFragment extends Fragment {
         });
 
         viewModel.getPaper().observe(getViewLifecycleOwner(), paper -> {
-            // Used for backward compatibility with non-streaming flow
             if (paper != null && viewModel.getIsLoading().getValue() == Boolean.TRUE) {
                 showPhase(layoutLoading, false);
                 if (paper.getQuestions() == null || paper.getQuestions().isEmpty()) {
@@ -434,5 +488,27 @@ public class SmartPaperFragment extends Fragment {
 
     private void showPhase(View phase, boolean show) {
         phase.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
+    private String escapeJsString(String content) {
+        if (content == null || content.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < content.length(); i++) {
+            char c = content.charAt(i);
+            switch (c) {
+                case '\\': sb.append("\\\\"); break;
+                case '\'': sb.append("\\'"); break;
+                case '"': sb.append("\\\""); break;
+                case '\n': sb.append("\\n"); break;
+                case '\r': sb.append("\\r"); break;
+                case '\t': sb.append("\\t"); break;
+                case '\b': sb.append("\\b"); break;
+                case '\f': sb.append("\\f"); break;
+                case '\u2028': sb.append("\\u2028"); break;
+                case '\u2029': sb.append("\\u2029"); break;
+                default: sb.append(c); break;
+            }
+        }
+        return sb.toString();
     }
 }
