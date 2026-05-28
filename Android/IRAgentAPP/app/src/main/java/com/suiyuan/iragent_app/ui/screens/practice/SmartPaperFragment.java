@@ -1,9 +1,11 @@
 package com.suiyuan.iragent_app.ui.screens.practice;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.print.PrintAttributes;
+import android.print.PrintManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -194,9 +196,9 @@ public class SmartPaperFragment extends Fragment {
             return;
         }
         String answerKey = viewModel.hasAnswerKey() ? viewModel.getAnswerKeyContent() : null;
-
-        Toast.makeText(getContext(), "正在生成 PDF...", Toast.LENGTH_SHORT).show();
         String html = buildExamHtml(body, answerKey);
+
+        Toast.makeText(getContext(), "请在打印对话框中选择\"保存为 PDF\"", Toast.LENGTH_LONG).show();
 
         int sw = getResources().getDisplayMetrics().widthPixels;
         WebView wv = new WebView(requireContext());
@@ -212,71 +214,20 @@ public class SmartPaperFragment extends Fragment {
             @Override
             public void onPageFinished(WebView view, String url) {
                 view.postDelayed(() -> {
-                    try {
-                        java.io.File f = new java.io.File(requireContext().getCacheDir(),
-                                "IRAgent_" + System.currentTimeMillis() + ".pdf");
-                        android.os.ParcelFileDescriptor pfd = android.os.ParcelFileDescriptor
-                                .open(f, android.os.ParcelFileDescriptor.MODE_CREATE
-                                        | android.os.ParcelFileDescriptor.MODE_READ_WRITE);
-
-                        PrintAttributes attrs = new PrintAttributes.Builder()
-                                .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
-                                .setColorMode(PrintAttributes.COLOR_MODE_COLOR)
-                                .setMinMargins(new PrintAttributes.Margins(60, 60, 60, 60))
-                                .build();
-
-                        android.print.PrintDocumentAdapter ada =
-                                view.createPrintDocumentAdapter("IRAgent_SmartPaper");
-                        ada.onLayout(null, attrs, null,
-                            new android.print.PrintDocumentAdapter.LayoutResultCallback() {
-                                @Override
-                                public void onLayoutFinished(
-                                        android.print.PrintDocumentInfo info, boolean changed) {
-                                    ada.onWrite(
-                                        new android.print.PageRange[]{
-                                            android.print.PageRange.ALL_PAGES},
-                                        pfd, null,
-                                        new android.print.PrintDocumentAdapter.WriteResultCallback() {
-                                            @Override
-                                            public void onWriteFinished(android.print.PageRange[] pages) {
-                                                try { pfd.close(); } catch (Exception ignored) {}
-                                                requireActivity().runOnUiThread(() -> {
-                                                    shareFile(f);
-                                                    ((ViewGroup) wv.getParent()).removeView(wv);
-                                                    wv.destroy();
-                                                });
-                                            }
-                                            @Override
-                                            public void onWriteFailed(CharSequence error) {
-                                                try { pfd.close(); } catch (Exception ignored) {}
-                                                requireActivity().runOnUiThread(() -> {
-                                                    Toast.makeText(getContext(), "PDF 生成失败", Toast.LENGTH_SHORT).show();
-                                                    ((ViewGroup) wv.getParent()).removeView(wv);
-                                                    wv.destroy();
-                                                });
-                                            }
-                                        }, null);
-                                }
-                            }, null);
-                    } catch (Exception e) {
-                        requireActivity().runOnUiThread(() ->
-                            Toast.makeText(getContext(), "PDF 错误: " + e.getMessage(), Toast.LENGTH_LONG).show());
-                    }
+                    PrintAttributes attrs = new PrintAttributes.Builder()
+                            .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                            .setColorMode(PrintAttributes.COLOR_MODE_COLOR)
+                            .setMinMargins(new PrintAttributes.Margins(300, 300, 300, 300))
+                            .build();
+                    PrintManager pm = (PrintManager) requireContext()
+                            .getSystemService(android.content.Context.PRINT_SERVICE);
+                    pm.print("IRAgent 智能组卷",
+                            view.createPrintDocumentAdapter("IRAgent_SmartPaper"), attrs);
                 }, 1500);
             }
         });
 
         wv.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
-    }
-
-    private void shareFile(java.io.File file) {
-        android.net.Uri uri = androidx.core.content.FileProvider.getUriForFile(
-                requireContext(), requireContext().getPackageName() + ".fileprovider", file);
-        android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_SEND);
-        intent.setType("application/pdf");
-        intent.putExtra(android.content.Intent.EXTRA_STREAM, uri);
-        intent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        startActivity(android.content.Intent.createChooser(intent, "分享试卷 PDF"));
     }
 
     private String buildExamHtml(String body, String answerKey) {
