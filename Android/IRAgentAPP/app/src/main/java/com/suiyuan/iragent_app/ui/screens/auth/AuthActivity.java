@@ -29,8 +29,8 @@ public class AuthActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private TextView tabLogin, tabRegister, btnLogin, btnRegisterSubmit;
     private View layoutLoginForm, layoutRegisterForm;
-    private TextView btnRefreshCode;
-    private ImageView ivVerifiCode;
+    private TextView btnRefreshCode, btnRegRefreshCode;
+    private ImageView ivVerifiCode, ivRegVerifiCode;
     private boolean isLoginMode = true;
 
     @Override
@@ -89,6 +89,10 @@ public class AuthActivity extends AppCompatActivity {
         etRegVerifiCode = findViewById(R.id.et_reg_verifi_code);
         btnRegisterSubmit = findViewById(R.id.btn_register_submit);
         btnRegisterSubmit.setOnClickListener(v -> handleAuth());
+        btnRegRefreshCode = findViewById(R.id.btn_reg_refresh_code);
+        ivRegVerifiCode = findViewById(R.id.iv_reg_verifi_code);
+        btnRegRefreshCode.setOnClickListener(v -> loadVerifiCode());
+        ivRegVerifiCode.setOnClickListener(v -> loadVerifiCode());
 
         progressBar = findViewById(R.id.progress_bar);
 
@@ -142,9 +146,9 @@ public class AuthActivity extends AppCompatActivity {
     }
 
     private void updateVerifiCode(Bitmap bitmap) {
-        if (ivVerifiCode != null && bitmap != null) {
-            ivVerifiCode.setImageBitmap(bitmap);
-        }
+        if (bitmap == null) return;
+        if (ivVerifiCode != null) ivVerifiCode.setImageBitmap(bitmap);
+        if (ivRegVerifiCode != null) ivRegVerifiCode.setImageBitmap(bitmap);
     }
 
     private void handleAuth() {
