@@ -312,7 +312,7 @@
                 android:layout_width="0dp"
                 android:layout_height="42dp"
                 android:layout_weight="1"
-                android:hint="输入你的需求，如：我想考一张 Android 基础卷子"
+                android:hint="输入你的需求，如：帮我出一套关于极限的练习"
                 android:textSize="14sp"
                 android:textColor="@color/on_surface"
                 android:textColorHint="@color/text_tertiary"

@@ -3,10 +3,9 @@ package com.suiyuan.iragent_app.ui.screens.practice;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
-import android.graphics.pdf.PdfDocument;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
+import android.os.ParcelFileDescriptor;
 import android.print.PrintAttributes;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -35,7 +34,6 @@ import com.suiyuan.iragent_app.data.model.v3.SubmitAnswerResult;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -198,88 +196,115 @@ public class SmartPaperFragment extends Fragment {
         boolean hasAnswerKey = viewModel.hasAnswerKey();
         String content = hasAnswerKey ? viewModel.getFullContent() : viewModel.getPaperBodyContent();
         if (content == null || content.isEmpty()) {
-            Toast.makeText(getContext(), "没有可导出的内容", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), "没有可导出的内容", Toast.LENGTH_LONG).show();
             return;
         }
 
+        Toast.makeText(getContext(), "正在生成 PDF...", Toast.LENGTH_SHORT).show();
         String html = buildExamHtml(content, hasAnswerKey);
 
+        // WebView 需要有足够尺寸才能正确渲染和分页
+        int screenW = getResources().getDisplayMetrics().widthPixels;
         WebView printView = new WebView(requireContext());
         WebSettings ws = printView.getSettings();
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
-        printView.setVisibility(View.GONE);
+        ws.setLoadWithOverviewMode(true);
+        ws.setUseWideViewPort(true);
+        printView.setInitialScale(1);
 
         ViewGroup root = (ViewGroup) requireView().getRootView();
-        root.addView(printView, new ViewGroup.LayoutParams(1, 1));
+        root.addView(printView, new ViewGroup.LayoutParams(screenW, ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        final boolean[] pageFinished = {false};
         printView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
-                // 直接生成 PDF 文件保存到 Downloads，不再弹打印机选择
-                try {
-                    String fileName = "IRAgent_组卷_" + System.currentTimeMillis() + ".pdf";
-                    java.io.File pdfFile = new java.io.File(
-                            android.os.Environment.getExternalStoragePublicDirectory(
-                                    android.os.Environment.DIRECTORY_DOWNLOADS), fileName);
-                    pdfFile.getParentFile().mkdirs();
+                if (pageFinished[0]) return;
+                pageFinished[0] = true;
 
-                    android.graphics.pdf.PdfDocument pdf = new android.graphics.pdf.PdfDocument();
-                    PrintAttributes attrs = new PrintAttributes.Builder()
-                            .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
-                            .setColorMode(PrintAttributes.COLOR_MODE_COLOR)
-                            .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
-                            .build();
-
-                    // 用 WebView 渲染后的内容生成 PDF 页
-                    int pageW = (int) (PrintAttributes.MediaSize.ISO_A4.getWidthMils() / 1000.0 * 72);
-                    int pageH = (int) (PrintAttributes.MediaSize.ISO_A4.getHeightMils() / 1000.0 * 72);
-
-                    android.graphics.pdf.PdfDocument.PageInfo pageInfo =
-                            new android.graphics.pdf.PdfDocument.PageInfo.Builder(pageW, pageH, 1).create();
-                    android.graphics.pdf.PdfDocument.Page page = pdf.startPage(pageInfo);
-                    android.graphics.Canvas canvas = page.getCanvas();
-
-                    // 缩放 WebView 内容到 PDF 页面
-                    float scaleX = (float) pageW / (float) Math.max(view.getWidth(), 1);
-                    canvas.scale(scaleX, scaleX);
-                    view.draw(canvas);
-
-                    pdf.finishPage(page);
-
-                    java.io.FileOutputStream fos = new java.io.FileOutputStream(pdfFile);
-                    pdf.writeTo(fos);
-                    pdf.close();
-                    fos.close();
-
-                    // 通知用户并打开分享
-                    Toast.makeText(getContext(), "已保存: Downloads/" + fileName, Toast.LENGTH_LONG).show();
-
-                    // 打开系统分享或查看
-                    android.content.Intent intent = new android.content.Intent(
-                            android.content.Intent.ACTION_VIEW);
-                    android.net.Uri uri = androidx.core.content.FileProvider.getUriForFile(
-                            requireContext(),
-                            requireContext().getPackageName() + ".fileprovider",
-                            pdfFile);
-                    intent.setDataAndType(uri, "application/pdf");
-                    intent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                // 等待 JS（KaTeX + Marked）渲染完成后再导出
+                view.postDelayed(() -> {
                     try {
-                        startActivity(android.content.Intent.createChooser(intent, "打开 PDF"));
+                        File pdfFile = new File(requireContext().getCacheDir(),
+                                "IRAgent_组卷_" + System.currentTimeMillis() + ".pdf");
+                        android.os.ParcelFileDescriptor pfd =
+                                android.os.ParcelFileDescriptor.open(pdfFile,
+                                        android.os.ParcelFileDescriptor.MODE_CREATE
+                                                | android.os.ParcelFileDescriptor.MODE_READ_WRITE);
+
+                        PrintAttributes attrs = new PrintAttributes.Builder()
+                                .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                                .setColorMode(PrintAttributes.COLOR_MODE_COLOR)
+                                .setMinMargins(new PrintAttributes.Margins(40, 40, 40, 40))
+                                .build();
+
+                        android.print.PrintDocumentAdapter adapter =
+                                view.createPrintDocumentAdapter("IRAgent_SmartPaper");
+
+                        adapter.onLayout(null, attrs, null,
+                                new android.print.PrintDocumentAdapter.LayoutResultCallback() {
+                                    @Override
+                                    public void onLayoutFinished(
+                                            android.print.PrintDocumentInfo info, boolean changed) {
+                                        adapter.onWrite(
+                                                new android.print.PageRange[]{
+                                                        android.print.PageRange.ALL_PAGES},
+                                                pfd, null,
+                                                new android.print.PrintDocumentAdapter.WriteResultCallback() {
+                                                    @Override
+                                                    public void onWriteFinished(
+                                                            android.print.PageRange[] pages) {
+                                                        try { pfd.close(); } catch (Exception ignored) {}
+                                                        requireActivity().runOnUiThread(() -> {
+                                                            sharePdfFile(pdfFile);
+                                                            ((ViewGroup) printView.getParent())
+                                                                    .removeView(printView);
+                                                            printView.destroy();
+                                                        });
+                                                    }
+
+                                                    @Override
+                                                    public void onWriteFailed(CharSequence error) {
+                                                        try { pfd.close(); } catch (Exception ignored) {}
+                                                        requireActivity().runOnUiThread(() -> {
+                                                            Toast.makeText(getContext(),
+                                                                    "PDF 生成失败", Toast.LENGTH_SHORT).show();
+                                                            ((ViewGroup) printView.getParent())
+                                                                    .removeView(printView);
+                                                            printView.destroy();
+                                                        });
+                                                    }
+                                                }, null);
+                                    }
+
+                                    @Override
+                                    public void onLayoutFailed(CharSequence error) {
+                                        requireActivity().runOnUiThread(() ->
+                                                Toast.makeText(getContext(),
+                                                        "PDF 排版失败", Toast.LENGTH_SHORT).show());
+                                    }
+                                }, null);
                     } catch (Exception e) {
-                        // 没有能打开 PDF 的应用，Toast 已提示路径
+                        requireActivity().runOnUiThread(() ->
+                                Toast.makeText(getContext(),
+                                        "PDF 生成失败: " + e.getMessage(), Toast.LENGTH_LONG).show());
                     }
-                } catch (Exception e) {
-                    Toast.makeText(getContext(), "PDF 生成失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                } finally {
-                    // 清理临时 WebView
-                    ((ViewGroup) printView.getParent()).removeView(printView);
-                    printView.destroy();
-                }
+                }, 1500); // 给 KaTeX 渲染留时间
             }
         });
 
         printView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
+    }
+
+    private void sharePdfFile(File pdfFile) {
+        Uri uri = FileProvider.getUriForFile(requireContext(),
+                requireContext().getPackageName() + ".fileprovider", pdfFile);
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType("application/pdf");
+        intent.putExtra(Intent.EXTRA_STREAM, uri);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivity(Intent.createChooser(intent, "分享试卷 PDF"));
     }
 
     private String buildExamHtml(String content, boolean includeAnswerKey) {
