@@ -269,7 +269,7 @@ calculation_error (LLM)  ─┘
 | `RrfRanker` | RRF 倒数排名融合（k=60） |
 | `SemanticCacheService` | 三层缓存：Redis 精确 → Milvus 语义改写 → LLM 生成 |
 | `NoteIngestionPipeline` | 笔记接入：清洗 → 按标题切分 → Embedding → Milvus + PG（ON CONFLICT DO UPDATE） |
-| `AIQuestionGenerator` | LLM 生成题目 → SymPy 符号验证 → Redis 缓存 + question 表入库 |
+| `AIQuestionGenerator` | LLM 生成题目 → JSON 提取 → Redis 缓存 + question 表入库 |
 
 ### 7.2 三路融合检索
 
@@ -344,7 +344,7 @@ calculation_error (LLM)  ─┘
 | `DiagnosisService` | V2 | DAG 诊断编排（5 路并行） |
 | `ErrorBookService` | V3 | 错题本 CRUD + 同类题推荐 |
 | `DashboardService` | V3 | 仪表盘聚合（4 路并发） |
-| `AIQuestionGenerator` | V3 | AI 出题（LLM 生成 + SymPy 验证 + 缓存入库） |
+| `AIQuestionGenerator` | V3 | AI 出题（LLM 生成 + Redis 缓存 + 入库） |
 | `NoteChunkingService` | V3 | 改进版分块：全6级标题匹配 + 知识点清洗（去序号/标点/28字截断） + 碎片合并（MIN=100, MAX=1200） |
 | `GraphDataService` | V3 | 知识图谱聚合：SQL 查询 note_chunk/mastery_records/error_book → {nodes, edges} + cleanNodeName() 清洗 Markdown/LaTeX |
 | `IntentRouterService` | V3 | 意图路由（答疑/组卷/批改） |

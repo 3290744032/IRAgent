@@ -1,0 +1,155 @@
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /api
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+  application:
+    name: IRAgent
+
+  # Java 21 虚拟线程配置
+  threads:
+    virtual:
+      enabled: true
+  
+  # Web MVC 配置（确保 Controller 能被正确扫描）
+  web:
+    mvc:
+      enabled: true
+    resources:
+      static-locations: classpath:/static/,classpath:/public/
+      static-path-pattern: /**
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.web.reactive.WebFluxAutoConfiguration
+  
+  # 数据源配置
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/iragent}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:123456}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 30000
+      connection-timeout: 20000
+      max-lifetime: 1800000
+  
+  # Redis配置
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: 10000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1ms
+
+  # 火山方舟AI配置
+  ai:
+    volcengine:
+      api-key: ${VOLC_API_KEY:your-api-key-here}
+      embedding-api-key: ${VOLC_EMBEDDING_API_KEY:}
+      deepseek-api-key: ${DEEPSEEK_API_KEY:}
+      model: ${VOLC_MODEL:doubao-seed-1-8-251228}
+      deepseek-model: ${DEEPSEEK_MODEL:deepseek-v3-2-251201}
+      base-url: ${VOLC_BASE_URL:https://ark.cn-beijing.volces.com/api/v3}
+      embedding-model: ${VOLC_EMBEDDING_MODEL:doubao-embedding-vision-250615}
+
+# MyBatis Plus配置
+mybatis-plus:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.suiyuan.iragent.entity
+  configuration:
+    log-impl: ${MYBATIS_LOG_IMPL:org.apache.ibatis.logging.stdout.StdOutImpl}
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+
+# 日志配置
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.suiyuan.iragent: ${LOG_LEVEL_APP:INFO}
+    org.springframework: ${LOG_LEVEL_SPRING:WARN}
+    com.volcengine: ${LOG_LEVEL_VOLC:WARN}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/iragent.log
+
+# Springdoc OpenAPI配置
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+  knife4j:
+    enable: true
+    setting:
+      language: zh_cn
+
+# 应用自定义配置
+app:
+  security:
+    token-expire-hours: ${TOKEN_EXPIRE_HOURS:24}
+    captcha-expire-minutes: ${CAPTCHA_EXPIRE_MINUTES:5}
+  rate-limit:
+    ai-requests-per-second: ${AI_RATE_LIMIT:10}
+  cache:
+    user-info-expire-minutes: ${USER_CACHE_EXPIRE:30}
+    chat-history-expire-days: ${CHAT_CACHE_EXPIRE:7}
+
+# HyperFrames视频生成配置
+hyperframes:
+  project-dir: ${HYPERFRAMES_PROJECT_DIR:./hyperframes}
+  output-dir: ${HYPERFRAMES_OUTPUT_DIR:./hyperframes/output}
+  chrome-path: ${HYPERFRAMES_CHROME_PATH:C:\Users\32907\AppData\Local\Google\Chrome\Application\chrome.exe}
+
+# 黑板教学视频渲染配置
+node-render:
+  project-dir: ${NODE_RENDER_DIR:./node-render}
+  frames-dir: ${NODE_RENDER_FRAMES_DIR:./node-render/frames}
+  output-dir: ${NODE_RENDER_OUTPUT_DIR:./node-render/output}
+  parallel-workers: ${NODE_PARALLEL_WORKERS:4}
+  segment-timeout-minutes: ${NODE_SEGMENT_TIMEOUT:30}
+
+# AI Timeline生成配置
+ai:
+  timeline:
+    enabled: ${AI_TIMELINE_ENABLED:true}
+    model: ${AI_TIMELINE_MODEL:deepseek-v3-2-251201}
+
+# VideoCaptioner字幕生成配置
+videocaptioner:
+  path: ${VIDEOCAPTIONER_PATH:D:\Software\VideoCaptioner}
+  python-path: ${VIDEOCAPTIONER_PYTHON_PATH:D:\Software\environment\Python314\python.exe}
+
+# RocketMQ 5.x 配置
+rocketmq:
+  name-server: 127.0.0.1:9876
+  producer:
+    group: ${ROCKETMQ_PRODUCER_GROUP:iragent-producer}
+    send-message-timeout: 3000
+    retry-times-when-send-failed: 2
+  consumer:
+    group: ${ROCKETMQ_CONSUMER_GROUP:iragent-consumer}
+    pull-batch-size: 50
+
+# Milvus 2.4 向量数据库配置
+milvus:
+  host: ${MILVUS_HOST:localhost}
+  port: ${MILVUS_PORT:19530}
+  database: ${MILVUS_DATABASE:default}

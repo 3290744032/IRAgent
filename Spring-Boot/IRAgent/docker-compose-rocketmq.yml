@@ -1,0 +1,55 @@
+# RocketMQ 5.x 单机部署
+# docker compose -f docker-compose-rocketmq.yml up -d
+version: '3.8'
+
+services:
+  namesrv:
+    image: apache/rocketmq:5.3.0
+    container_name: rmq-namesrv
+    restart: unless-stopped
+    ports:
+      - "9876:9876"
+    environment:
+      JAVA_OPT_EXT: "-server -Xms256m -Xmx256m -Xmn128m"
+    command: sh mqnamesrv
+    networks:
+      - rocketmq-net
+
+  broker:
+    image: apache/rocketmq:5.3.0
+    container_name: rmq-broker
+    restart: unless-stopped
+    ports:
+      - "10909:10909"
+      - "10911:10911"
+    environment:
+      JAVA_OPT_EXT: "-server -Xms512m -Xmx512m -Xmn256m"
+      NAMESRV_ADDR: "namesrv:9876"
+    command: sh mqbroker -c /home/rocketmq/conf/broker.conf
+    volumes:
+      - ./rocketmq/broker.conf:/home/rocketmq/conf/broker.conf
+      - rocketmq-data:/home/rocketmq/store
+    depends_on:
+      - namesrv
+    networks:
+      - rocketmq-net
+
+  dashboard:
+    image: apacherocketmq/rocketmq-dashboard:1.0.0
+    container_name: rmq-dashboard
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    environment:
+      JAVA_OPTS: "-Drocketmq.namesrv.addr=namesrv:9876 -Dcom.rocketmq.sendMessageWithVIPChannel=false"
+    depends_on:
+      - namesrv
+    networks:
+      - rocketmq-net
+
+volumes:
+  rocketmq-data:
+
+networks:
+  rocketmq-net:
+    driver: bridge

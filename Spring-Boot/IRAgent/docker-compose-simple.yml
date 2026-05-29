@@ -1,0 +1,41 @@
+# IRAgent Pro 核心中间件（简化版）
+# 一键启动：docker compose -f docker-compose-simple.yml up -d
+# 包含：PostgreSQL + Redis
+
+services:
+  # === PostgreSQL 16 ===
+  postgres:
+    image: postgres:16-alpine
+    container_name: iragent-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: iragent
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - iragent-net
+
+  # === Redis 7.2 ===
+  redis:
+    image: redis:7.2-alpine
+    container_name: iragent-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - iragent-net
+
+volumes:
+  pgdata:
+  redis-data:
+
+networks:
+  iragent-net:
+    driver: bridge

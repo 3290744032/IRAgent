@@ -1,0 +1,46 @@
+# Build
+target/
+build/
+!**/src/main/**/target/
+!**/src/test/**/target/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea
+.vscode/
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+*.iws
+*.iml
+*.ipr
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# Sensitive & Local config
+.env
+*.env.*
+*.gz
+
+# Benchmark results
+benchmark-result.md
+
+# OS
+.DS_Store
+Thumbs.db

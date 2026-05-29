@@ -1,0 +1,35 @@
+# SkyWalking 9.x OAP Server + UI
+# docker compose -f docker-compose-skywalking.yml up -d
+version: '3.8'
+
+services:
+  oap:
+    image: apache/skywalking-oap-server:9.7.0
+    container_name: skywalking-oap
+    restart: unless-stopped
+    ports:
+      - "11800:11800"  # gRPC agent report
+      - "12800:12800"  # HTTP agent report
+    environment:
+      SW_STORAGE: h2
+      SW_HEALTH_CHECKER: default
+      SW_TELEMETRY: prometheus
+    networks:
+      - skywalking-net
+
+  ui:
+    image: apache/skywalking-ui:9.7.0
+    container_name: skywalking-ui
+    restart: unless-stopped
+    ports:
+      - "8082:8080"
+    environment:
+      SW_OAP_ADDRESS: http://oap:12800
+    depends_on:
+      - oap
+    networks:
+      - skywalking-net
+
+networks:
+  skywalking-net:
+    driver: bridge

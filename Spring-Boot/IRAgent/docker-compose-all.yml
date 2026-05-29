@@ -1,0 +1,159 @@
+# IRAgent Pro 全量中间件一键启动
+# docker compose -f docker-compose-all.yml up -d
+# 包含：PostgreSQL + Redis + Milvus + RocketMQ + SkyWalking
+
+services:
+  # === PostgreSQL 16 ===
+  postgres:
+    image: postgres:16-alpine
+    container_name: iragent-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: iragent
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - iragent-net
+
+  # === Redis 7.2 ===
+  redis:
+    image: redis:7.2-alpine
+    container_name: iragent-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    networks:
+      - iragent-net
+
+  # === Milvus 2.4 ===
+  milvus-etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: milvus-etcd
+    restart: unless-stopped
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: "1000"
+      ETCD_QUOTA_BACKEND_BYTES: "4294967296"
+    volumes:
+      - milvus-etcd-data:/etcd
+    command: etcd -advertise-client-urls=http://milvus-etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    networks:
+      - iragent-net
+
+  milvus-minio:
+    image: minio/minio:RELEASE.2024-01-16T16-07-38Z
+    container_name: milvus-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - milvus-minio-data:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    networks:
+      - iragent-net
+
+  milvus-standalone:
+    image: milvusdb/milvus:v2.4.10
+    container_name: milvus-standalone
+    restart: unless-stopped
+    depends_on:
+      - milvus-etcd
+      - milvus-minio
+    environment:
+      ETCD_ENDPOINTS: milvus-etcd:2379
+      MINIO_ADDRESS: milvus-minio:9000
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    volumes:
+      - milvus-data:/var/lib/milvus
+    command: milvus run standalone
+    networks:
+      - iragent-net
+
+  # === RocketMQ 5.x ===
+  rmq-namesrv:
+    image: apache/rocketmq:5.3.0
+    container_name: rmq-namesrv
+    restart: unless-stopped
+    ports:
+      - "9876:9876"
+    environment:
+      JAVA_OPT_EXT: "-server -Xms256m -Xmx256m -Xmn128m"
+    command: sh mqnamesrv
+    networks:
+      - iragent-net
+
+  rmq-broker:
+    image: apache/rocketmq:5.3.0
+    container_name: rmq-broker
+    restart: unless-stopped
+    depends_on:
+      - rmq-namesrv
+    ports:
+      - "10911:10911"
+      - "10909:10909"
+    environment:
+      NAMESRV_ADDR: rmq-namesrv:9876
+      JAVA_OPT_EXT: "-server -Xms512m -Xmx512m -Xmn256m"
+    command: sh mqbroker -n rmq-namesrv:9876
+    networks:
+      - iragent-net
+
+  rmq-dashboard:
+    image: apacherocketmq/rocketmq-dashboard:latest
+    container_name: rmq-dashboard
+    restart: unless-stopped
+    depends_on:
+      - rmq-namesrv
+    ports:
+      - "8088:8080"
+    environment:
+      JAVA_OPTS: "-Drocketmq.namesrv.addr=rmq-namesrv:9876"
+    networks:
+      - iragent-net
+
+  # === SkyWalking 9.7 ===
+  skywalking-oap:
+    image: apache/skywalking-oap-server:9.7.0
+    container_name: skywalking-oap
+    restart: unless-stopped
+    ports:
+      - "11800:11800"
+      - "12800:12800"
+    environment:
+      SW_STORAGE: h2
+    networks:
+      - iragent-net
+
+  skywalking-ui:
+    image: apache/skywalking-ui:9.7.0
+    container_name: skywalking-ui
+    restart: unless-stopped
+    depends_on:
+      - skywalking-oap
+    ports:
+      - "8081:8080"
+    environment:
+      SW_OAP_ADDRESS: http://skywalking-oap:12800
+    networks:
+      - iragent-net
+
+volumes:
+  pgdata:
+  redisdata:
+  milvus-etcd-data:
+  milvus-minio-data:
+  milvus-data:
+
+networks:
+  iragent-net:
+    driver: bridge

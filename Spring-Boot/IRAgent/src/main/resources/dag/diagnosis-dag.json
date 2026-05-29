@@ -1,0 +1,46 @@
+{
+  "name": "错题诊断三节点DAG",
+  "nodes": [
+    {
+      "id": "prerequisite_check",
+      "type": "LLM_CALL",
+      "description": "检测前置考点漏缺",
+      "dependsOn": [],
+      "config": {
+        "prompt": "你是一位资深教师。请分析学生在解这道题时可能存在的前置知识点漏洞。\n\n请特别关注：\n1. 学生的错误答案反映出哪些基础概念没掌握\n2. 解答这道题需要哪些前置知识点\n3. 这些遗漏如何导致最终错误\n\n请只输出JSON: {\"gaps\": [\"漏缺点\"], \"analysis\": \"分析与学生错误之间的因果联系\"}"
+      }
+    },
+    {
+      "id": "formula_confusion",
+      "type": "LLM_CALL",
+      "description": "检测核心公式混淆",
+      "dependsOn": [],
+      "config": {
+        "prompt": "你是一位学科辅导专家。请分析学生在这道题中可能存在的公式/定理混淆。\n\n请特别关注：\n1. 学生的错误答案是怎么算出来的——可能混淆了哪个公式\n2. 这道题涉及哪些核心公式或定理\n3. 混淆的根源\n\n请只输出JSON: {\"confusions\": [{\"wrong\": \"学生可能用的错误方法\", \"correct\": \"正确方法\"}], \"analysis\": \"分析文本\"}"
+      }
+    },
+    {
+      "id": "calculation_error",
+      "type": "LLM_CALL",
+      "description": "定位具体计算或推理失误",
+      "dependsOn": [],
+      "config": {
+        "prompt": "你是一位解题思路分析专家。请逐步分析这道题的正确解法，并定位学生最可能的计算或推理失误。\n\n请特别关注：\n1. 学生的错误答案最大可能是哪一步出错了\n2. 正确的解题步骤是什么\n3. 每一步的常见错误\n\n请只输出JSON: {\"steps\": [{\"step\": \"步骤名\", \"correct\": \"正确做法\", \"possibleMistake\": \"学生可能的错误\"}], \"mostLikelyError\": \"最可能的失误点\"}"
+      }
+    },
+    {
+      "id": "aggregate",
+      "type": "AGGREGATE",
+      "description": "汇总三路诊断结果",
+      "dependsOn": ["prerequisite_check", "formula_confusion", "calculation_error"],
+      "config": {
+        "sourceNodes": ["prerequisite_check", "formula_confusion", "calculation_error"]
+      }
+    }
+  ],
+  "edges": [
+    {"from": "prerequisite_check", "to": "aggregate"},
+    {"from": "formula_confusion", "to": "aggregate"},
+    {"from": "calculation_error", "to": "aggregate"}
+  ]
+}
