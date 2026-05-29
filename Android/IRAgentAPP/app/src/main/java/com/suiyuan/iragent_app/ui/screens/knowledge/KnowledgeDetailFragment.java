@@ -103,7 +103,7 @@ public class KnowledgeDetailFragment extends Fragment {
                 if (isEditing) {
                     etContent.setText(content);
                 }
-                viewModel.getOptimizedContent().setValue(null);
+                viewModel.clearOptimizedContent();
             }
         });
 

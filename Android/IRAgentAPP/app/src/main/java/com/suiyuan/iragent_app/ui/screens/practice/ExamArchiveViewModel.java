@@ -28,10 +28,10 @@ public class ExamArchiveViewModel extends AndroidViewModel {
         this.repository = new PracticeV2Repository();
     }
 
-    public MutableLiveData<List<ExamQuestion>> getQuestions() { return questions; }
-    public MutableLiveData<ExamFilterData> getFilters() { return filters; }
-    public MutableLiveData<Boolean> getIsLoading() { return isLoading; }
-    public MutableLiveData<String> getError() { return error; }
+    public LiveData<List<ExamQuestion>> getQuestions() { return questions; }
+    public LiveData<ExamFilterData> getFilters() { return filters; }
+    public LiveData<Boolean> getIsLoading() { return isLoading; }
+    public LiveData<String> getError() { return error; }
 
     public void loadFilters() {
         repository.getExamFilters(new PracticeV2Repository.ResultCallback<ExamFilterData>() {

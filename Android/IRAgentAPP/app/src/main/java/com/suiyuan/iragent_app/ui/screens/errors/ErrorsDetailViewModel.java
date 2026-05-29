@@ -35,11 +35,11 @@ public class ErrorsDetailViewModel extends AndroidViewModel {
         this.practiceRepository = new PracticeV2Repository();
     }
 
-    public MutableLiveData<ErrorDetail> getErrorDetail() { return errorDetail; }
-    public MutableLiveData<Boolean> getMarkMasteredResult() { return markMasteredResult; }
-    public MutableLiveData<List<SimilarQuestion>> getSimilarQuestions() { return similarQuestions; }
-    public MutableLiveData<String> getError() { return error; }
-    public MutableLiveData<Boolean> getIsLoading() { return isLoading; }
+    public LiveData<ErrorDetail> getErrorDetail() { return errorDetail; }
+    public LiveData<Boolean> getMarkMasteredResult() { return markMasteredResult; }
+    public LiveData<List<SimilarQuestion>> getSimilarQuestions() { return similarQuestions; }
+    public LiveData<String> getError() { return error; }
+    public LiveData<Boolean> getIsLoading() { return isLoading; }
 
     public void loadErrorDetail(String id) {
         isLoading.postValue(true);

@@ -43,14 +43,15 @@ public class KnowledgeListViewModel extends AndroidViewModel {
         this.repository = new KnowledgeRepository(apiService);
     }
 
-    public MutableLiveData<List<NoteItem>> getNotesList() { return notesList; }
-    public MutableLiveData<List<NoteFragment>> getSearchResults() { return searchResults; }
-    public MutableLiveData<UploadResult> getUploadResult() { return uploadResult; }
-    public MutableLiveData<String> getError() { return error; }
-    public MutableLiveData<Boolean> getIsLoading() { return isLoading; }
-    public MutableLiveData<String> getUploadStep() { return uploadStep; }
-    public MutableLiveData<Integer> getUploadProgress() { return uploadProgress; }
-    public MutableLiveData<Map<String, Object>> getGraphData() { return graphData; }
+    public LiveData<List<NoteItem>> getNotesList() { return notesList; }
+    public LiveData<List<NoteFragment>> getSearchResults() { return searchResults; }
+    public LiveData<UploadResult> getUploadResult() { return uploadResult; }
+    public void clearUploadResult() { uploadResult.setValue(null); }
+    public LiveData<String> getError() { return error; }
+    public LiveData<Boolean> getIsLoading() { return isLoading; }
+    public LiveData<String> getUploadStep() { return uploadStep; }
+    public LiveData<Integer> getUploadProgress() { return uploadProgress; }
+    public LiveData<Map<String, Object>> getGraphData() { return graphData; }
 
     public void clearError() { error.postValue(null); }
 

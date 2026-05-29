@@ -35,12 +35,12 @@ public class DashboardViewModel extends AndroidViewModel {
         this.repository = new DashboardRepository(apiService);
     }
 
-    public MutableLiveData<DashboardOverview> getOverview() { return overview; }
-    public MutableLiveData<MasteryRadarData> getRadarData() { return radarData; }
-    public MutableLiveData<List<TaskItem>> getTodayTasks() { return todayTasks; }
-    public MutableLiveData<WeeklyReport> getWeeklyReport() { return weeklyReport; }
-    public MutableLiveData<String> getError() { return error; }
-    public MutableLiveData<Boolean> getIsLoading() { return isLoading; }
+    public LiveData<DashboardOverview> getOverview() { return overview; }
+    public LiveData<MasteryRadarData> getRadarData() { return radarData; }
+    public LiveData<List<TaskItem>> getTodayTasks() { return todayTasks; }
+    public LiveData<WeeklyReport> getWeeklyReport() { return weeklyReport; }
+    public LiveData<String> getError() { return error; }
+    public LiveData<Boolean> getIsLoading() { return isLoading; }
 
     public void loadAllDashboard() {
         isLoading.postValue(true);

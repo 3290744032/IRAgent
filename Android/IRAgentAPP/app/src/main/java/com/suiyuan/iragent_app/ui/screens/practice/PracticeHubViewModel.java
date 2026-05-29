@@ -24,11 +24,11 @@ public class PracticeHubViewModel extends AndroidViewModel {
         this.repository = new PracticeRepository();
     }
 
-    public MutableLiveData<String> getGradingStep() { return gradingStep; }
-    public MutableLiveData<Integer> getGradingProgress() { return gradingProgress; }
-    public MutableLiveData<GradingReport> getGradingReport() { return gradingReport; }
-    public MutableLiveData<String> getError() { return error; }
-    public MutableLiveData<Boolean> getIsGrading() { return isGrading; }
+    public LiveData<String> getGradingStep() { return gradingStep; }
+    public LiveData<Integer> getGradingProgress() { return gradingProgress; }
+    public LiveData<GradingReport> getGradingReport() { return gradingReport; }
+    public LiveData<String> getError() { return error; }
+    public LiveData<Boolean> getIsGrading() { return isGrading; }
 
     public void submitImageGrading(byte[] imageBytes, String subjectType, int maxScore) {
         isGrading.postValue(true);

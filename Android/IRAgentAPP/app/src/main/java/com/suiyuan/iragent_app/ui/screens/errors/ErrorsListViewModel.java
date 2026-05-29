@@ -29,10 +29,10 @@ public class ErrorsListViewModel extends AndroidViewModel {
         this.repository = new ErrorsRepository(apiService);
     }
 
-    public MutableLiveData<List<ErrorItem>> getErrorsList() { return errorsList; }
-    public MutableLiveData<List<ReviewItem>> getReviewQueue() { return reviewQueue; }
-    public MutableLiveData<String> getError() { return error; }
-    public MutableLiveData<Boolean> getIsLoading() { return isLoading; }
+    public LiveData<List<ErrorItem>> getErrorsList() { return errorsList; }
+    public LiveData<List<ReviewItem>> getReviewQueue() { return reviewQueue; }
+    public LiveData<String> getError() { return error; }
+    public LiveData<Boolean> getIsLoading() { return isLoading; }
 
     public void clearError() { error.postValue(null); }
 

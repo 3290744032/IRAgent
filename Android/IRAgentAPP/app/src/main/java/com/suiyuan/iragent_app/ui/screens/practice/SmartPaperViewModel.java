@@ -49,19 +49,19 @@ public class SmartPaperViewModel extends AndroidViewModel {
         this.streamRepository = new SmartPaperStreamRepository();
     }
 
-    public MutableLiveData<SmartPaper> getPaper() { return paper; }
-    public MutableLiveData<SubmitAnswerResult> getResult() { return result; }
-    public MutableLiveData<Boolean> getIsLoading() { return isLoading; }
-    public MutableLiveData<String> getError() { return error; }
-    public MutableLiveData<Integer> getQuestionIndex() { return questionIndex; }
-    public MutableLiveData<String> getSelectedOption() { return selectedOption; }
+    public LiveData<SmartPaper> getPaper() { return paper; }
+    public LiveData<SubmitAnswerResult> getResult() { return result; }
+    public LiveData<Boolean> getIsLoading() { return isLoading; }
+    public LiveData<String> getError() { return error; }
+    public LiveData<Integer> getQuestionIndex() { return questionIndex; }
+    public LiveData<String> getSelectedOption() { return selectedOption; }
 
     // Streaming LiveData
-    public MutableLiveData<String> getStreamContent() { return streamContent; }
-    public MutableLiveData<Boolean> getIsStreaming() { return isStreaming; }
-    public MutableLiveData<Boolean> getPdfVisible() { return pdfVisible; }
-    public MutableLiveData<String> getStreamError() { return streamError; }
-    public MutableLiveData<Boolean> getAnswerKeyVisible() { return answerKeyVisible; }
+    public LiveData<String> getStreamContent() { return streamContent; }
+    public LiveData<Boolean> getIsStreaming() { return isStreaming; }
+    public LiveData<Boolean> getPdfVisible() { return pdfVisible; }
+    public LiveData<String> getStreamError() { return streamError; }
+    public LiveData<Boolean> getAnswerKeyVisible() { return answerKeyVisible; }
 
     public String getPaperId() { return paperId; }
     public SmartPaper getStreamedPaper() { return streamedPaper; }

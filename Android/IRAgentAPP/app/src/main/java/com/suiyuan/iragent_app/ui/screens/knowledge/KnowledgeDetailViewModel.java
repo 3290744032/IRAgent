@@ -28,10 +28,11 @@ public class KnowledgeDetailViewModel extends AndroidViewModel {
         this.repository = new KnowledgeRepository(apiService);
     }
 
-    public MutableLiveData<NoteDetail> getNoteDetail() { return noteDetail; }
-    public MutableLiveData<String> getError() { return error; }
-    public MutableLiveData<Boolean> getIsLoading() { return isLoading; }
-    public MutableLiveData<String> getOptimizedContent() { return optimizedContent; }
+    public LiveData<NoteDetail> getNoteDetail() { return noteDetail; }
+    public LiveData<String> getError() { return error; }
+    public LiveData<Boolean> getIsLoading() { return isLoading; }
+    public LiveData<String> getOptimizedContent() { return optimizedContent; }
+    public void clearOptimizedContent() { optimizedContent.setValue(null); }
 
     public void loadNoteDetail(String noteId) {
         isLoading.postValue(true);

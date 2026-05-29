@@ -34,10 +34,10 @@ public class DailyPracticeViewModel extends AndroidViewModel {
         this.repository = new PracticeV2Repository();
     }
 
-    public MutableLiveData<DailyPracticeSession> getSession() { return session; }
-    public MutableLiveData<SubmitAnswerResult> getResult() { return result; }
-    public MutableLiveData<Boolean> getIsLoading() { return isLoading; }
-    public MutableLiveData<String> getError() { return error; }
+    public LiveData<DailyPracticeSession> getSession() { return session; }
+    public LiveData<SubmitAnswerResult> getResult() { return result; }
+    public LiveData<Boolean> getIsLoading() { return isLoading; }
+    public LiveData<String> getError() { return error; }
 
     public Map<String, String> getAnswerMap() { return answerMap; }
     public Map<String, Uri> getPhotoUriMap() { return photoUriMap; }

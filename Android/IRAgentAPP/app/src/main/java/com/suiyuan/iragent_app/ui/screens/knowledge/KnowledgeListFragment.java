@@ -574,7 +574,7 @@ public class KnowledgeListFragment extends Fragment {
                 llUploadTrigger.setVisibility(View.VISIBLE);
                 llUploadProgress.setVisibility(View.GONE);
                 showUploadPreview(result);
-                viewModel.getUploadResult().setValue(null);
+                viewModel.clearUploadResult();
             }
         });
 
