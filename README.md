@@ -67,7 +67,7 @@ graph TB
     end
 
     subgraph Data["💾 数据层"]
-        PG[("PostgreSQL 16<br/>14 张表 · GIN 全文索引<br/>JSONB 行为日志")]
+        PG[("PostgreSQL 16<br/>15 张表 · GIN 全文索引<br/>JSONB 行为日志")]
         Redis[("Redis 7.2<br/>Token · 聊天记忆<br/>出题缓存池")]
         Milvus[("Milvus 2.4<br/>HNSW 索引<br/>per-user Collection")]
     end
@@ -283,7 +283,7 @@ LLM API 调用是系统里最贵的资源（一次诊断可能消耗上万 Token
 
 如果用纯人工录入题库，题目数量受限于录入人力，而且所有学生看到的题都一样。AI 生成可以做两件事：根据学生的错题记录定向出专攻题，以及根据笔记内容生成变式题。
 
-但 LLM 生成的题目可能存在幻觉（题干与答案不匹配、条件矛盾）。用 Redis 精确缓存（相同考点+题型+难度）避免高频重复调用，Milvus 语义缓存作为改写降级。
+但 LLM 生成的题目可能存在幻觉（题干与答案不匹配、条件矛盾）。用 Redis 精确缓存 + PG 近似匹配（同考点+题型+难度±1 复用已有题目）减少重复 LLM 调用。
 
 ### 技术选型：自研 vs LangChain / Spring AI
 
